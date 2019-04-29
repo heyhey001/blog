@@ -1,0 +1,2084 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Armin Ronacher's Thoughts and Writings</title>
+  <id>http://lucumr.pocoo.org/feed.atom</id>
+  <updated>2016-11-05T00:00:00Z</updated>
+  <link href="http://lucumr.pocoo.org/" />
+  <link href="http://lucumr.pocoo.org/feed.atom" rel="self" />
+  <subtitle type="text">Armin Ronacher's personal blog about programming, games and random thoughts that come to his mind.</subtitle>
+  <generator>Werkzeug</generator>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">A Case for Upserts</title>
+    <id>http://lucumr.pocoo.org/2014/2/16/a-case-for-upserts</id>
+    <updated>2014-02-16T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2014/2/16/a-case-for-upserts" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;It looks like upserts yet again will not land in Postgres.  This is deeply
+unsatisfying because over the last couple of years it has become more than
+obvious for me that this functionality is not just useful but a necessity.
+Interestingly enough it seems like a lot of people are suggesting that
+depending on upserts means that the design of the application is bad but I
+would argue that anything other than upserts means that the application is
+actually deeply unreliable or badly planned.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;what-s-an-upsert&quot;&gt;
+&lt;h2&gt;What's an Upsert&lt;/h2&gt;
+&lt;p&gt;Upserts probably got a bad reputation because they were popularized by
+MySQL which is often regarded as a bad SQL database.  However MySQL also
+became popular as a driving force behind web applications so some of its
+design decisions work really well in a web environment.&lt;/p&gt;
+&lt;p&gt;In MySQL there are two types of upserts: replaces (which can be emulated
+in Postgres) and the &amp;quot;on duplicate&amp;quot; clause which can be used to react on
+an already existing row.  The latter is really hard to efficiently
+implement in Postgres at the moment.&lt;/p&gt;
+&lt;p&gt;I will go into the details of why upserts are important in a bit, I just
+want to show the two types of it first.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;replaces&quot;&gt;
+&lt;h2&gt;Replaces&lt;/h2&gt;
+&lt;p&gt;The simple upsert in MySQL Is the replace insert.  It's an insert that
+will implicitly delete an already existing row before it does anything.
+The way it's implemented is an extension to the insert syntax:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;replace&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;into&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;my_table&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;key&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;values&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;key&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;value&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;With an alternative syntax that works similar to updates (which to be
+fair, MySQL also has for &lt;cite&gt;insert&lt;/cite&gt; and which I find much pleasant because
+it mirrors the update syntax):&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;replace&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;my_table&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;set&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;key&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;key&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;value&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;The way both of these work is by inserting a value and deleting an already
+existing record for a given primary key or unique constraint.  The most
+common case for this safely treating a table as a key value store.  In
+this particular case you can also use a transaction safely in Postgres and
+you can just send a delete before the insert:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;begin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;delete&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;my_table&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;where&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;key&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;key&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;insert&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;into&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;my_table&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;key&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;values&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;key&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;value&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;commit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;The obvious problem with this however is that a transaction that happens
+concurrently will not see the row any more.  You can easily test this by
+just not committing and attempting to update from another shell.  The
+update will block until the commit happens but once it finishes it will
+tell you that zero rows were updated even though there were clearly rows
+available to update.  The reason for this is that transactions just
+serialize the execution, they don't guarantee any atomicity of independent
+row updates.  After the delete happens the second transaction gets a
+chance to run and the update will fail because it no longer sees a row.&lt;/p&gt;
+&lt;p&gt;Now if you're thinking the solution is to just raise the isolation level,
+you're in for a disappointment.  Even with the highest isolation level the
+result is the same.  However an explicit table lock gets around this.  To
+be honest, this probably has the same characteristics as doing the same
+operation on MyISAM where MySQL got its initial upserts from:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;begin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;lock&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;my_table&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;exclusive&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;mode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;delete&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;my_table&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;where&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;key&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;key&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;insert&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;into&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;my_table&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;key&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;values&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;key&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;value&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;commit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;This will work and still allow concurrent reads, but it will definitely
+block any concurrent modifications from happening.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;on-duplicate-clauses&quot;&gt;
+&lt;h2&gt;On Duplicate Clauses&lt;/h2&gt;
+&lt;p&gt;The more interesting upsert in MySQL is the &lt;tt class=&quot;docutils literal&quot;&gt;ON DUPLICATE KEY UPDATE&lt;/tt&gt;
+clause.  For some reason this got a bad reputation similar to basic's &lt;tt class=&quot;docutils literal&quot;&gt;on
+error resume next&lt;/tt&gt; even though it's not just useful but also the only
+safe way to handle concurrency with uniques.  The way it works is by
+defining an insert as well as an update in the same statement.&lt;/p&gt;
+&lt;p&gt;For instance this is the way to implement safe counters that are not
+initialized upfront:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;insert&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;into&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;counters&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;counter_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;seq&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;values&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;my_counter&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;on&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;duplicate&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;key&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;update&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;seq&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;seq&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;If the key &lt;tt class=&quot;docutils literal&quot;&gt;'my_counter'&lt;/tt&gt; does not exist yet, the row is created by
+inserting it with the value &lt;tt class=&quot;docutils literal&quot;&gt;1&lt;/tt&gt; for &lt;tt class=&quot;docutils literal&quot;&gt;seq&lt;/tt&gt; otherwise it will execute
+the update statement on that particular row.&lt;/p&gt;
+&lt;p&gt;There is an obvious question what happens if there are two unique
+constraints on a table, and the answer is quite simply that it breaks down
+in that case.  If there are two uniques MySQL will not give an error but
+just execute the operation as if it was happening on the first row that
+matches.  Essentially the where is extended to be be an or for any of the
+unique constraints compared to the values from the insert statement.  This
+is obviously dangerous and definitely not optional.&lt;/p&gt;
+&lt;p&gt;In a purely theoretical case the better way would be to be explicit about
+the uniqueness.  This could work like this (if a database would support
+it):&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;insert&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;into&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;counters&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;counter_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;seq&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;values&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;my_counter&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;on&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;duplicate&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;key&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;counter_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;update&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;seq&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;seq&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;The standard SQL way is to be super explicit about everything and very
+confusing &lt;a class=&quot;reference external&quot; href=&quot;http://en.wikipedia.org/wiki/Merge_%28SQL%29&quot;&gt;MERGE STATEMENT&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;why-upserts&quot;&gt;
+&lt;h2&gt;Why Upserts?&lt;/h2&gt;
+&lt;p&gt;So why are upserts important?  The reason is concurrency.  Without an
+upsert there is no way to reliably ensure that a row is in a certain
+state.  The only workaround is to move the code that creates the row into
+a locked (or semi locked) situation.  For instance the traditional example
+of a one-to-one relationship is usually solved in postgres by just
+ensuring the related inserts have low chance of concurrency.&lt;/p&gt;
+&lt;p&gt;Imagine for instance you have users and user settings.  Each row in the
+users table has also a related row in the user settings table but each
+user can only ever have one.  Since users typically only ever register
+once you can just hope for the best and just do an insert.  In case there
+is some concurrency happening then the second transaction will just fail
+with a unique constraint failure.&lt;/p&gt;
+&lt;p&gt;This reason this is a problem is because of lazy creation, network
+failure and the hope to make all operations idempotent.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;lazy-creation&quot;&gt;
+&lt;h2&gt;Lazy Creation&lt;/h2&gt;
+&lt;p&gt;Lazy creation is the obvious example of where the lack of upserts is
+painful.  The counter example was already brought up.  In this case a
+counter gets created on first increment but that's by far not the only
+example.  A much more common case is functionality that did not exist at a
+certain point in time and is related to bulk data already existing or is
+just inherently optional.&lt;/p&gt;
+&lt;p&gt;For instance say you have a few million users and all the sudden you want
+to add a new one-to-one relationship for these users.  Say for instance
+you added a new notification feature and you want to store the
+notification settings in a new table.  If you don't have upserts the only
+way to safely deal with this is to have a migration script that adds a
+nulled-out row for each of these users at the time you add this feature to
+your application.  This is expensive and ultimately a waste of space,
+because many of your users will already be inactive at the time you add
+this feature.  Also not all of those users will actually use
+notifications.&lt;/p&gt;
+&lt;p&gt;The obviously better way is an upsert: create this row when the user first
+needs to configure the notification settings.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;network-failure-and-idempotency&quot;&gt;
+&lt;h2&gt;Network Failure and Idempotency&lt;/h2&gt;
+&lt;p&gt;Upserts are especially important for web applications because the network
+is inherently unreliable.  It's true that HTTP is implemented on top of
+TCP, a reliable transport, but obviously there is one case that TCP (or
+HTTP) cannot do by themselves: bidirectional acknowledgement of high level
+operations.  An operation is idempotent if it can be applied multiple
+times without changing the outcome.  An example of such an operation is
+any read-only operation (such as selects).  It does not matter how many
+times you select something, it will still give you the same result.  While
+the data returned for the next select might be slightly different because
+of concurrent updates, the select itself does not modify the data.
+Another inherently idempotent operation is obviously a deletion.  No
+matter how many times you delete something, in the end the row is always
+gone.  Again, someone might concurrently re-create the row but that does
+not make the operation non-idempotent.&lt;/p&gt;
+&lt;p&gt;On the other hand inserts, increments and similar things are &lt;em&gt;not&lt;/em&gt;
+idempotent.&lt;/p&gt;
+&lt;p&gt;The traditional example is usually brought up with purchases but really
+this problem is not unique to purchases: it can happy for every single
+non-idempotent HTTP request.  Say you click the purchase button but an
+error occurs: is it safe to submit the payment again or not?  How would
+you know?&lt;/p&gt;
+&lt;p&gt;The simple answer is that you cannot know because of late failure on the
+network.  For instance say there was a badly implemented web store and a
+user clicks on the submit button and ultimately the website times out or
+the user gets a connection reset message.  However as far as the server
+was concerned the request was made, the record for the payment was
+recorded, the transaction was committed and the user was redirect to a
+result page and the connection was closed after sending the data.
+Unfortunately all of this went through a proxy server and the proxy server
+barfed when sending the data back to the client.&lt;/p&gt;
+&lt;p&gt;The only way to make such an operation idempotent is to provide extra
+information with the initial request to be able to detect a duplicate
+attempt.  The very obvious one is a &amp;quot;nonce&amp;quot;.  When the client shows the
+payment page it rolls a large random number.  With the purchase the user
+submits this number and the server will permanently store it.  Even if the
+response to the client fails, the client can safely retry the transmission
+under the assumption he sends the same number to the server.&lt;/p&gt;
+&lt;p&gt;The server can then look if the nonce was already stored in the database
+and then not carry out the payment a second time.&lt;/p&gt;
+&lt;p&gt;The unfortunate truth is that network failure is very, very common and
+can really happen for every single HTTP request.  The reason people mostly
+bring it up with payments is because it's the part where you can lose the
+most amount distrust in customers.  If you charge someone twice for a
+service you can only deliver once you have a problem.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;constraint-failures&quot;&gt;
+&lt;h2&gt;Constraint Failures&lt;/h2&gt;
+&lt;p&gt;Upserts do not solve this problem, but upserts make it much easier to deal
+with the problem of resubmission in a generic way.  A unique constraint
+gets you quite far, but it means that all code needs to be able to deal
+with a constraint failure.  For instance to go back to the example of
+notification settings.  If each user can only have one notification
+setting page, then what happens if accidental concurrency happens and one
+of the two transactions fails with a unique constraint failure?  Not
+handling it will cause an internal server error most likely.&lt;/p&gt;
+&lt;p&gt;So how would code respond to this?  The obvious one is to try the insert
+first, and then if a constraint failure happens to retry the transaction
+with an update.  However this does not solve the problem, because a
+concurrent delete might now all the sudden make your update fail.  So if
+deletes are allowed, you now need to check if the update worked, and go
+back to an insert.&lt;/p&gt;
+&lt;p&gt;This ultimately is loop that endlessly retries and has not guarantee of
+ever succeeding if high concurrency happens.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;upserts-are-hard&quot;&gt;
+&lt;h2&gt;Upserts are Hard&lt;/h2&gt;
+&lt;p&gt;It has been brought up multiple times that upserts are hard to implement
+in Postgres because there is no efficient way to resolve the concurrency.
+This is true, because the only solution currently is to lock the whole
+table which has a wide range of problems.  Unfortunately this problem does
+not go away if you tell the client to solve it.  People tried many things
+to work around it (CTEs which are inherently not concurrency safe, stored
+procedures with endless loops, loops on the client through savepoints
+etc., denormalization from an immutable append only log of modification)
+and all of these solutions are terrible for various reasons.&lt;/p&gt;
+&lt;p&gt;If Postgres would implement a shitty and inefficient version of an upsert
+statement at the very worst it could be as bad as the current
+implementation that people write on their own and then at least, there is
+an established syntax and a way to improve it further.&lt;/p&gt;
+&lt;p&gt;I'm deeply disappointed that this will again slip a Postgres release.&lt;/p&gt;
+&lt;p&gt;As a person not involved in the Postgres development I can't get rid of
+the feeling that the main reason this is not progressing is because there
+is a lot of emphasis to implement it in a standard compliant way through
+the MERGE syntax instead of doing it through a proprietary and restricted
+syntax extension in Postgres.&lt;/p&gt;
+&lt;p&gt;The unfortunate through is that Postgres is currently the only database
+that does not have an upsert like functionality.  Even SQLite has some
+workarounds by using a join in its replace into clause which is probably
+good enough given the limited functionality it needs to provide.&lt;/p&gt;
+&lt;p&gt;I miss upserts.  A lot.  I just wish that more focus would be put on this
+topic, especially now that Postgres is being more and more used as a
+replacement for MongoDB.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">A Europe For Our Children</title>
+    <id>http://lucumr.pocoo.org/2016/5/18/for-our-children</id>
+    <updated>2016-05-18T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2016/5/18/for-our-children" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Most of the readers of this blog are not from Europe, let alone Austria,
+the country I was born in.  As such I'm not sure how many will actually
+care about Austrian politics here, especially if it's a lengthy post.  But
+I would still like if you read it because I think the topic is important
+and not just because of Austria.  Our problems here are not just ours,
+they are a general issue that affects all of Europe and the western world.&lt;/p&gt;
+&lt;p&gt;So since you are probably in no way familiar with Austrian politics or the
+situation in the country I want to give you a brief overview.  Austria has
+recovered very quickly from the war torn country it was after World War 2
+and emerged as one of the most powerful economies of Europe if looked at
+on a GDP per capita basis.  It underwent a conversion from an agricultural
+country with some tourism attached to being dominated by the service
+industry and producing technology and parts (the economical tree map looks
+confusing because it's so heavily diversified).&lt;/p&gt;
+&lt;p&gt;However as great as the country has developed after the wars and as
+profitable the creation of the Eurozone was, there was an end to this
+positive trend and it came with the financial crisis of 2007/2008
+(although with a bit of a delay).  The economy did recover, but it did not
+do it to the extent people wanted.  At the same time necessary reforms
+were not implemented (or not implemented in the right ways) and as a
+result the country has suffered major blows in the last few years.  From a
+personal point of view I cannot stress enough how disappointed I am that
+many of my collegues went to other countries and started their companies
+there or work there.  But it would be foolish to blame politics on this
+alone.  This is as much a problem of politics as it is a problem of
+culture.&lt;/p&gt;
+&lt;p&gt;We now reached the point where cheap and populist ideas like reducing
+social welfare for non citizens gets popular support.  In this environment
+right wing parties emerge and this sunday Austrians will probably elect
+the first right wing leader of the country since the end of World War 2.&lt;/p&gt;
+&lt;p&gt;But politics not what I want to talk about.  What I want to talk about is
+the erosion of civilized discourse in Austria and I think in all of
+Europe.  A large part of the general public are unable to have civilized
+discussions on the bases of facts and instead conspiracies and emotions
+take over and this is something that extends to politicians in Austria as
+well.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-symptoms-and-problems&quot;&gt;
+&lt;h2&gt;The Symptoms and Problems&lt;/h2&gt;
+&lt;p&gt;If you look at the emotional state of the country you can see a few
+symptoms and problems that help the populists to raise to power:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;&lt;strong&gt;Inability (or unwillingness) to learn and understand&lt;/strong&gt; how Austria and
+the world changed in the last few years.  I think this is a big one of the
+people who want to leave the European Union and do similar crazy things
+to the Austrian economy.  We're so intertwined with it, that I doubt
+anyone can predict what would happen as a consequence of leaving it.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;&lt;strong&gt;Comparing things that cannot directly be compared&lt;/strong&gt; is a very related
+problem. As an example the Euro might have been a mistake for Germany
+but that does not mean that the Euro was not a profit for Austria.  We
+were pegged to the Mark before, for us not much changed.  If anything the
+situation improved because we're an export nation and our export partners
+are other European countries and if they also use the Euro they cannot
+harm our exports by devaluing their own currencies.&lt;/p&gt;
+&lt;p&gt;But despite the fact it's so very hard to compare countries because they
+are so fundamentally differently structured - yet people will still do
+it in conversations.  Switzerland is heralded as the great example of
+continental Europe in Austria but it's so specific out of history that
+it's incredible hard to copy or imitate.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;&lt;strong&gt;Not being able consider the other side&lt;/strong&gt;. I am shocked sometimes what
+people here in Austria think the US are like.  The idea that both
+Europeans and Americans might have very similar fears or hopes for TTIP
+for instance does not seem to exist here.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;&lt;strong&gt;Fear of change&lt;/strong&gt;. I think this is a typical Austrian problem but to
+smaller extent it probably exists elsewhere too. Everything new is
+torpedoed until it cannot be avoided any more because every single other
+country already did it before. That applies to smoking bans as much as
+to embracing of credit cards, online services, acceptance of
+homosexuality, Sunday shopping, flexible working hours and much more.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;&lt;strong&gt;Broad categorization&lt;/strong&gt;. I think Austrians are masters at giving
+good/bad labels to large masses of people based on some categorization
+instead of considering the individual.  Refugees are either good or bad,
+the industry is good or bad, corporations are good or bad, immigrants
+are good or bad. That individually a refugee could be good or bad is
+impossible to comprehend in the general discourse and if someone does
+bring it up, it often gets dismissed as an outlier.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;&lt;strong&gt;Inability to give credit&lt;/strong&gt;. This is particularly a problem in Austrian
+politics. It's one party against the other and never ever would a ruling
+party give an opposition party credit or the other way round. Likewise
+would social democratic voters never give conservative parties credit
+for something or the other way round.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-root-causes&quot;&gt;
+&lt;h2&gt;The Root Causes&lt;/h2&gt;
+&lt;p&gt;But what causes this behavior?  I think Austria's history has a lot to do
+with it.  In the recent history there were conservatives versus social
+democrats.  Combined with the fact that after the war Austria emerged not
+only as a loser but also has one with a lot of baggage due to the support
+to national socialism and the complicated way to deal with it after the
+war.  As such the population was always split in two on this level.
+However they could unity at least somewhat by voting for one of the two
+large centrist parties.  Because the country was doing really well, there
+was no reason to reevaluate this.&lt;/p&gt;
+&lt;p&gt;However when disaster struck this rift became bigger instead of smaller
+and particular with this upcoming presidential election only the most
+extreme candidates made it into the run-off. Voters did not vote for
+people they believed in as much as they voted by using tactics against
+predictions.  This now has lead to one the ugliest pre-elections I have
+seen.&lt;/p&gt;
+&lt;p&gt;Politics are no longer about doing the right thing but defending
+principles, even if they are completely unfounded.  Even though everybody
+says they have the best for Austrian in mind everyone is so stuck to their
+own opinion that not a single meter of compromise can be achieved.
+Newspapers paint scary pictures of the different outcomes of the election,
+how the country will be torn, how one candidate would mean European
+sanctions and how the other candidate would mean the end of a functioning
+society.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;a-path-forward&quot;&gt;
+&lt;h2&gt;A Path Forward&lt;/h2&gt;
+&lt;p&gt;There are clearly many things wrong in this country but so is it
+everywhere else.  We're not alone with the changes in the world and we
+cannot fall back to local solutions for these problems.  But likewise can
+we not pretend that problems don't exist.  This behavior of ruling parties
+has helped the rise of the populists.  It does not help to pretend that
+immigration without integration does not contribute to problems in
+society.  We need a more honest approach with more talking to each other.&lt;/p&gt;
+&lt;p&gt;Just a few days ago we got &lt;a class=&quot;reference external&quot; href=&quot;https://en.wikipedia.org/wiki/Christian_Kern&quot;&gt;a new chancellor&lt;/a&gt; and he has indicated that
+he wants to end the course of confrontation his predecessors had.  This
+has been supported by all other parties other than the right wing FPOe.  I
+hope they reconsider and also want to constructively work together with
+the rest of the government to lead the country forward and to restore a
+positive way of thinking rather than the fear that has been going around
+for the last years.&lt;/p&gt;
+&lt;p&gt;This however is not something that is a problem that needs to be solved in
+government.  This is a problem that we as people in that country have and
+we need to talk to each other more.  If we talk more to each other I hope
+it becomes clear that we share many core values, we just don't always
+agree on all of them.&lt;/p&gt;
+&lt;p&gt;And to my friends in Austria: please vote. But more than that: please
+accept that if the outcome is not what you wanted, that it does not mean
+the end of the country as you know it.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">A Fresh Look at Rust</title>
+    <id>http://lucumr.pocoo.org/2014/10/1/a-fresh-look-at-rust</id>
+    <updated>2014-10-01T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2014/10/1/a-fresh-look-at-rust" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;I have been programming with Rust for quite a long time now but that does
+not mean much.  Rust has been changing for years now in such dramatic
+ways that coming back after two months feels almost like working in a
+different language.  One thing however never changed: the trajectory.
+With every update, with every modification the whole thing became better
+and better.&lt;/p&gt;
+&lt;p&gt;There is still no end to the changes in sight but it feels a lot more
+stable now than a few months ago, and some API design patterns begin to
+emerge.  I felt like now is a good time to explore this a bit more and
+started to rewrite my &lt;a class=&quot;reference external&quot; href=&quot;http://github.com/mitsuhiko/redis-rs&quot;&gt;redis library&lt;/a&gt; to fit better into the scope of
+the language.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;where-is-rust-positioned&quot;&gt;
+&lt;h2&gt;Where is Rust Positioned?&lt;/h2&gt;
+&lt;p&gt;The three languages where I do most of my work in are Python, C and C++.
+To C++ I have a very ambivalent relationship because I never quite know
+which part of the language I should use.  C is straightforward because the
+language is tiny.  C++ on the other hand has all of those features where
+you need to pick yourself a subset that you can use and it's almost
+guaranteed that someone else picks a different one.  The worst part there
+is that you can get into really holy wars about what you should be doing.
+I have a huge hatred towards both the STL and boost and that has existed
+even before I worked in the games industry.  However every time the topic
+comes up there is at least someone who tells me I'm wrong and don't
+understand the language.&lt;/p&gt;
+&lt;p&gt;Rust for me fits where &lt;em&gt;I&lt;/em&gt; use Python, C and C++ but it fills that spot in
+very different categories.  Python I use as language for writing small
+tools as well as large scale server software.  Python there works well for
+me primarily because the ecosystem is large and when it breaks it's a
+super straightforward thing to debug.  It also keeps running and can
+report if things go wrong.&lt;/p&gt;
+&lt;p&gt;However one interesting thing about Python is that unlike many other
+dynamic languages, Python feels very predictable.  For me this is largely
+because I am a lot less dependent on the garbage collector than in many
+other languages.  The reason for this is that Python for me means CPython
+and CPython means refcounting.  I'm the guy who will go through your
+Python codebase and break up cycles by introducing weak references.  Who
+will put a refcount check before and after requests to make sure we're not
+building up cycles.  Why?  Because I like when you can reason about what
+the system is doing.  I'm not crazy and will disable the cycle collector
+but I want it to be predictable.&lt;/p&gt;
+&lt;p&gt;Sure, Python is slow, Python has really bad concurrency support, the
+interpreter is quite weak and it really feels like it should work
+differently, but it does not cause me big problems.  I can start it and it
+will still be there and running when I come back a month afterwards.&lt;/p&gt;
+&lt;p&gt;Rust is in your face with memory and data.  It's very much like C and C++.
+However unlike C and C++ it feels more like you're programming with Python
+from the API point of view because of the type inference and because the
+API of the standard library was clearly written with programmer
+satisfaction in mind.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;you-will-run-into-walls&quot;&gt;
+&lt;h2&gt;You will run into Walls&lt;/h2&gt;
+&lt;p&gt;I think an interesting thing about programming in Rust is that in the
+beginning you will run into walls.  It's clearly not Python so lots of
+things you can get away with in Python do not work in Rust.  At the same
+time it's not C++ and the borrow checker will become your greatest enemy.
+You will write some code and say: this stuff really should work, why do
+you think you know better and stop me from doing this you stupid thing?&lt;/p&gt;
+&lt;p&gt;The truth is that the borrow checker is not perfect.  The borrow checker
+prevents you from doing dangerous things and it does that.  However it
+often feels too restrictive.  In my experience though the borrow checker
+actually is wrong much less often than you think it is and just requires
+you to think a bit differently.&lt;/p&gt;
+&lt;p&gt;I like the borrow checker personally a lot.  I agree with that sometimes
+you feel there should be a way to disable it, but when you think more
+about it you are quite happy it's there.  The borrow checker prevents you
+from building up some of the worst technical debt you can acquire, the
+kind of debt which you can never repay.  The Python programming language
+acquired a global interpreter lock when it got threading support and it
+really required it ever since the language existed.  The interpreter was
+written in a way that nowadays we are not sure how to make it concurrent.&lt;/p&gt;
+&lt;p&gt;If you try, you can still make terrible decisions for concurrency in Rust,
+but you really need to go out of your way to do it.  The language forces
+you to think more and I believe that's a good thing.  I don't want to
+become another &amp;quot;objective oriented programming is the billion dollar
+mistake&amp;quot; preacher but I do think that the language decides largely what
+code people write.  Because subclassing is easy in C++, Java, Python and
+many more languages this is what we write.  And then birds are instances
+of animal classes.  If you take that tool away you start thinking
+differently and that's a good thing.  CPUs stop getting faster and looking
+at one object at the time really no longer makes any sense at all.  We
+need to start reasoning a lot more about collections of things and what
+transformations we actually want to do.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;rust-inspires&quot;&gt;
+&lt;h2&gt;Rust Inspires&lt;/h2&gt;
+&lt;p&gt;For me programming in Rust is pure joy.  Yes I still don't agree with
+everything the language currently forces me to do but I can't say I have
+enjoyed programming that much in a long time.  It gives me new ideas how
+to solve problems and I can't wait for the language to get stable.&lt;/p&gt;
+&lt;p&gt;Rust is inspiring for many reasons.  The biggest reason I like it is
+because it's practical.  I tried Haskell, I tried Erlang and neither of
+those languages spoke &amp;quot;I am a practical language&amp;quot; to me.  I know there are
+many programmers that adore them, but they are not for me.  Even if I
+could love those languages, other programmers would never do and that
+takes a lot of enjoyment away.&lt;/p&gt;
+&lt;p&gt;Rust is something that anyone can pick up and it's fun all around.  First
+of all (unless you hit a compiler bug) it won't crash on you.  It also
+gives you nice error messages if it fails compiling.  Not perfect, but
+pretty good.  It comes with a package manager that handles dependencies
+for you, so you can start using libraries other people wrote without
+having to deal with a crappy or non existing ecosystem.  Python got much
+better over the years but packaging is still the biggest frustration
+people have.  &lt;a class=&quot;reference external&quot; href=&quot;http://crates.io/&quot;&gt;Cargo&lt;/a&gt; (rust's package manager) is
+barely half a year old, but it has a full time developer on it and it's
+fun to use.&lt;/p&gt;
+&lt;p&gt;Even just the installation experience of the language is top notch.  It
+gives you compiler + documentation tool + package manager and you're good
+to go.  The fact alone that it has a documentation tool that spits out
+beautifully looking documentation out of the box is a major contributor to
+enjoying programming in it.  While I wish it had a bit more of Sphinx and
+a bit less of javadoc, it's a really good start for more.&lt;/p&gt;
+&lt;p&gt;But what's really inspiring about Rust are the small things.  When I first
+played with Rust what amazed me the most was the good FFI support.  Not
+only could you call into C libraries easily: it also found and linked them
+for you.  There is so much more though and it's hidden everywhere.  There
+is a macro (&lt;tt class=&quot;docutils literal&quot;&gt;include_str!&lt;/tt&gt;) that will read a file next to your source at
+compile time into a string into your binary (How cool is that!?).  Not
+only can you bake in contents of files, you can also pull environment
+variables into your binaries for instance.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;designing-apis&quot;&gt;
+&lt;h2&gt;Designing APIs&lt;/h2&gt;
+&lt;p&gt;The most interesting part currently is definitely finding out how to
+properly write APIs for Rust.  Rust as a language is undoubtedly more
+complex than most other but thankfully not in a way that it overwhelms
+you.  What makes Rust complex from an API point of view is that as a
+programmer you feel a bit of a tension between writing the straightforward
+code that you expect when programming in a systems language and providing
+a nice high level API like you expect in Python.&lt;/p&gt;
+&lt;p&gt;The reason I feel making nice APIs is because the language encourages it.
+First of all the language in itself is super expressive and it makes a lot
+of fun to write things in it — on the other hand there is just so much
+possibility.&lt;/p&gt;
+&lt;p&gt;To give you an idea why it's fun to design APIs for Rust is that the type
+system is just so damn good.  So Rust is statically type checked but it
+has inference so you get away with writing really beautiful code.  In my
+rust driver for instance, you can write code like this:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;extern&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;crate&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;redis&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;let&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;client&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;redis&lt;/span&gt;::&lt;span class=&quot;n&quot;&gt;Client&lt;/span&gt;::&lt;span class=&quot;n&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;redis://127.0.0.1/&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;unwrap&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;let&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;con&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;client&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get_connection&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;().&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;unwrap&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;let&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;k1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;k2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;: &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;i32&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;i32&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;redis&lt;/span&gt;::&lt;span class=&quot;n&quot;&gt;pipe&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cmd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;SET&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;key_1&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;42&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ignore&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cmd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;SET&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;key_2&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;43&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ignore&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cmd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;GET&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;key_1&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cmd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;GET&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;key_2&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;query&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;con&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;unwrap&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;println&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;result = {}&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;k1&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;k2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;To give you an idea how the same code looks in Python currently:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;redis&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;client&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;redis&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Redis&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;127.0.0.1&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;6379&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;pipe&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;client&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pipeline&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;rv&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pipe&lt;/span&gt; \
+        &lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;set&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;key_1&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;42&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; \
+        &lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;set&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;key_2&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;43&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; \
+        &lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;key_1&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; \
+        &lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;key_2&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;execute&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;k1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;k2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;result = {}&amp;#39;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;format&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;k1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;k2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;vm&quot;&gt;__name__&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;__main__&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;What I find interesting about this is that the Rust library is nearly as
+small and clear as the Python one, but is a much lower-level binding.
+Unlike the Python library which gives each call a separate method, the
+Rust library (because quite new) only wraps the low-level API and you need
+to create the request manually by chaining calls for each argument.  Yet
+the end result for a user is nearly as nice.  Granted there is extra
+handling needed in Rust for the errors (which I avoided here a bit by
+using &lt;cite&gt;unwrap&lt;/cite&gt; which makes the app terminate, but then the same is the
+case in the Python version where I also miss error handling).&lt;/p&gt;
+&lt;p&gt;The cool thing though is that the Rust library is completely type safe.
+And yet in total there are exactly &lt;em&gt;two&lt;/em&gt; places where types are mentioned
+and that's the same ones, where a cast to an integer was necessary in
+Python.&lt;/p&gt;
+&lt;p&gt;This however is not the best we could do in Rust.  Rust has compiler
+extensions which open up a whole range of possibilities.  For instance
+there is a Rust library which statically verifies that Postgres SQL
+commands are well formed: &lt;a class=&quot;reference external&quot; href=&quot;https://github.com/sfackler/rust-postgres-macros&quot;&gt;rust-postgres-macros&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class=&quot;literal-block&quot;&gt;
+test.rs:8:26: 8:63 error: Invalid syntax at position 10: syntax error at or near &amp;quot;FORM&amp;quot;
+test.rs:8     let bad_query = sql!(&amp;quot;SELECT * FORM users WEHRE name = $1&amp;quot;);
+                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+error: aborting due to previous error
+&lt;/pre&gt;
+&lt;p&gt;This sort of stuff excites me a whole lot.&lt;/p&gt;
+&lt;p&gt;(&lt;em&gt;If you're into API design in rust, join us in #rust-apidesign on the
+Mozilla IRC network&lt;/em&gt;)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;rust-s-future&quot;&gt;
+&lt;h2&gt;Rust's Future&lt;/h2&gt;
+&lt;p&gt;Is Rust's memory tracking concept strong enough that we will accept it as a
+valid programming model?  I am not sure.  I do believe though that Rust
+can stand on its own feet already.  Even if it would turn out that the
+borrow checker is not sound, I believe it would not hurt the language at
+all to widespread adoption.  It's shaping up to be a really good language,
+it works really well without GC and you can use it without a runtime.&lt;/p&gt;
+&lt;p&gt;Rust is an exceptionally good open source project.  And it needs more
+helping hands.  The Windows support (while getting better) especially
+needs more love.&lt;/p&gt;
+&lt;p&gt;If there is interest in some more practical Rust experience I will
+probably write something up about my experience making &lt;a class=&quot;reference external&quot; href=&quot;https://github.com/mitsuhiko/redis-rs/&quot;&gt;redis-rs&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">A Recap</title>
+    <id>http://lucumr.pocoo.org/2011/1/1/recap</id>
+    <updated>2011-01-01T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2011/1/1/recap" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;I have been reading a bunch of people's recaps of 2010.  I find that a
+wonderful idea because it turns out that after a year you end up doing a
+lot and don't appreciate it enough.  And it turns out, 2010 was an amazing
+year.  This is my list of Open Source or programming related activities of
+2010:&lt;/p&gt;
+&lt;dl class=&quot;docutils&quot;&gt;
+&lt;dt&gt;January&lt;/dt&gt;
+&lt;dd&gt;&lt;ul class=&quot;first last simple&quot;&gt;
+&lt;li&gt;Decided to learn game development.  This didn't go too well for a
+while though.  I was kinda worn out of Python web development
+after four years and wanted to do something new.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/dd&gt;
+&lt;dt&gt;April&lt;/dt&gt;
+&lt;dd&gt;&lt;ul class=&quot;first last simple&quot;&gt;
+&lt;li&gt;Made an April's fool joke web framework with a screencast that was
+downloaded over 15.000 times.  Some people actually took it serious :)&lt;/li&gt;
+&lt;li&gt;Gave a talk about switching to Python 3 at the Linux days in Graz.&lt;/li&gt;
+&lt;li&gt;Released Flask, a microframework based on my April's fool joke.  I
+learned a lot from that, might be intresting for a talk.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/dd&gt;
+&lt;dt&gt;May&lt;/dt&gt;
+&lt;dd&gt;&lt;ul class=&quot;first last simple&quot;&gt;
+&lt;li&gt;Attended DjangoCon in Berlin and gave my first English talk ever.
+It didn't go as well as it could have been but I was nervous
+as fuck, especially because I was the first talk after the
+keynote.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/dd&gt;
+&lt;dt&gt;June&lt;/dt&gt;
+&lt;dd&gt;&lt;ul class=&quot;first last simple&quot;&gt;
+&lt;li&gt;Started looking for a Job over the summer holidays and ended up
+working with the guys from Lincoln Loop for a larger Django
+project.&lt;/li&gt;
+&lt;li&gt;Sphinx made it into GSOC under the PSF umbrella and I am mentoring
+a student again.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/dd&gt;
+&lt;dt&gt;July&lt;/dt&gt;
+&lt;dd&gt;&lt;ul class=&quot;first last simple&quot;&gt;
+&lt;li&gt;Attended EuroPython&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/dd&gt;
+&lt;dt&gt;August&lt;/dt&gt;
+&lt;dd&gt;&lt;ul class=&quot;first last simple&quot;&gt;
+&lt;li&gt;Finally diving into 3D engine development.  The books I bought a
+few months back finally pay off and a painful dive into
+mathematics starts.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/dd&gt;
+&lt;dt&gt;September&lt;/dt&gt;
+&lt;dd&gt;&lt;ul class=&quot;first last simple&quot;&gt;
+&lt;li&gt;Broke my macbook, needed replacement — expensive month.&lt;/li&gt;
+&lt;li&gt;Attended DjangoCon and met friends from Portland again.  Good
+times.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/dd&gt;
+&lt;dt&gt;October&lt;/dt&gt;
+&lt;dd&gt;&lt;ul class=&quot;first last simple&quot;&gt;
+&lt;li&gt;Held a talk at Pycon PL about new Python idioms.  Had the chance
+to talk to finally meet Maciej Fijalkowski in person and a whole
+bunch of interesting guys.&lt;/li&gt;
+&lt;li&gt;Another talk about Good API Design in Kiev.  First time I was to
+Ukraine.&lt;/li&gt;
+&lt;li&gt;Relaunched pocoo.org with a new design.  Looked for a bunch of
+companies using pocoo Software and was proud seeing where our
+stuff ended up beeing.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/dd&gt;
+&lt;dt&gt;November&lt;/dt&gt;
+&lt;dd&gt;&lt;ul class=&quot;first last simple&quot;&gt;
+&lt;li&gt;Got invited to ORD Camp 2011.  Feeling honored, but unfortunately
+will not be able to attend :(&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/dd&gt;
+&lt;dt&gt;December&lt;/dt&gt;
+&lt;dd&gt;&lt;ul class=&quot;first last simple&quot;&gt;
+&lt;li&gt;I finally have something that looks rougly like a 3D voxel engine.
+Still far from a game, but a start and with that project I learned
+a whole lot that year.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/dd&gt;
+&lt;/dl&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">About the Lack of Updates</title>
+    <id>http://lucumr.pocoo.org/2012/8/27/about-the-lack-of-updates</id>
+    <updated>2012-08-27T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2012/8/27/about-the-lack-of-updates" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;If you look over my contributions to my own open source projects over the
+last six months you will have noticed that I became less active.  Why is
+that?  There is no big conspiracy ongoing and I also don't plan on keeping
+it this way, but there are two reasons for this.  The first one is that I
+am now working for a computer game middleware company and we're using my
+tools in production here.  The change in scenery caused me to use my own
+stuff in a completely new environment and the amount of stuff I'm learning
+on a daily basis is quite insane.&lt;/p&gt;
+&lt;p&gt;You would think using eating your own dogfood results in more active
+contributions but it turns out that quite the opposite is happening.  As I
+have written about before we're using Werkzeug itself instead of Flask for
+it and we went some new and interesting ways in utilizing our stack.  I'm
+very proud about what we accomplished in the last half year and it gave me
+a few new insights into software architecture which I eventually want to
+integrate into my libraries.&lt;/p&gt;
+&lt;p&gt;However a naive implementation also means breaking compatibility and I am
+not very keen on that.  However with Python 3 becoming more and more
+interesting I am currently playing with different ideas how to evolve the
+libraries in interesting ways.&lt;/p&gt;
+&lt;p&gt;The second reason is that I have to change my workflow.  The way I was
+handling my email inbox over the last few years worked fine for me until
+now.  If you sent me a mail in the last two months there is a high chance
+I might have missed it.  The truth is that running your own mail server
+these days has become a science in itself and I am no longer willing to do
+that.  At the same time however I don't want to migrate mails off to a
+hosted solution without ensuring I get stuff out of there easily if the
+need ever comes up.  As it stands right now I clear out my mailbox in the
+morning and at night I have 120 mails in it after filters.  And 90% of
+that is what I would classify as various types of spam that my spamfilter
+does not assume is spam.  I'm spending too much time currently dealing
+with mail and that generally leaves me in a very unhappy state overwards
+so that I don't want to deal with my github inbox as well.&lt;/p&gt;
+&lt;p&gt;Worst part about all that is that it just piles up.&lt;/p&gt;
+&lt;p&gt;So yeah, not going to keep it this way but I think I might have to invest
+a week into migrating my mail to something else and go over &lt;em&gt;all&lt;/em&gt; the
+things that piled up for my projects and make some clear decisions in how
+to improve that flow.&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Application Mimetypes and Encodings</title>
+    <id>http://lucumr.pocoo.org/2013/7/19/application-mimetypes-and-encodings</id>
+    <updated>2013-07-19T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2013/7/19/application-mimetypes-and-encodings" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;For some reason lots of people are under the impression that each and
+every mimetype accepts a charset parameter.  If you think that is the
+case: that is incorrect.  If a mimetype accepts a charset parameter
+depends on the mimetype and as a rule of thumb, mimetypes that don't start
+with “text/” often don't accept one.&lt;/p&gt;
+&lt;p&gt;There are two mimetypes where I constantly see people putting charset
+declarations next to incorrectly, and then causing a lot of confusion, now
+to the point where implementations on the server side discard the actual
+specification.  These mimetypes are &lt;tt class=&quot;docutils literal&quot;&gt;application/json&lt;/tt&gt; and
+&lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;application/x-www-form-urlencoded&lt;/span&gt;&lt;/tt&gt;.  Neither of those accept a charset.
+(On the other hand &lt;tt class=&quot;docutils literal&quot;&gt;application/xml&lt;/tt&gt; for instance accepts a charset).&lt;/p&gt;
+&lt;p&gt;So how do you specify a charset for those?  You don't!  You don't have to
+or you can't and in both cases for different reasons.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;json-mimetype&quot;&gt;
+&lt;h2&gt;JSON Mimetype&lt;/h2&gt;
+&lt;p&gt;The JSON mimetype is defined by &lt;a class=&quot;reference external&quot; href=&quot;http://tools.ietf.org/html/rfc4627&quot;&gt;RFC 4627&lt;/a&gt; and it specifies that the mimetype
+does not require any parameters and does not provide any optional
+parameters.  About the encoding it has the following to say:&lt;/p&gt;
+&lt;pre class=&quot;literal-block&quot;&gt;
+Encoding considerations: 8bit if UTF-8; binary if UTF-16 or UTF-32
+
+   JSON may be represented using UTF-8, UTF-16, or UTF-32.  When JSON
+   is written in UTF-8, JSON is 8bit compatible.  When JSON is
+   written in UTF-16 or UTF-32, the binary content-transfer-encoding
+   must be used.
+&lt;/pre&gt;
+&lt;p&gt;And a little bit up, it also explains how to keep them apart:&lt;/p&gt;
+&lt;pre class=&quot;literal-block&quot;&gt;
+Since the first two characters of a JSON text will always be ASCII
+characters [RFC0020], it is possible to determine whether an octet
+stream is UTF-8, UTF-16 (BE or LE), or UTF-32 (BE or LE) by looking
+at the pattern of nulls in the first four octets.
+
+        00 00 00 xx  UTF-32BE
+        00 xx 00 xx  UTF-16BE
+        xx 00 00 00  UTF-32LE
+        xx 00 xx 00  UTF-16LE
+        xx xx xx xx  UTF-8
+&lt;/pre&gt;
+&lt;p&gt;Unfortunately, people started sending charset parameters.  And as they
+started sending charset parameters, people started accepting those charset
+parameters.  The Python requests library for instance will honor the
+charset parameter which now makes it possible to send latin1 data to it.
+Not just that, it also honors all kinds of BOMs even though they were
+never allowed in the mimetype to begin with.&lt;/p&gt;
+&lt;p&gt;I don't negatively credit requests for that though because it's on the
+receiving side and there supporting more than what the standard says is a
+common practice.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;url-encoding-mimetype&quot;&gt;
+&lt;h2&gt;URL Encoding Mimetype&lt;/h2&gt;
+&lt;p&gt;&lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;application/x-www-form-urlencoded&lt;/span&gt;&lt;/tt&gt; does not support a charset either.
+This one for a different reason however.  The reason for this is that
+browsers don't really follow HTTP much when it comes to text submission
+for legacy reasons.  Browsers will usually not tell the server of which
+encoding their data is.  That's usually also not necessary, because the
+encoding the browser should use is defined by the server (it's either
+defaulting to utf-8 or is defined in the accept-charset parameter of the
+form).  Since the server already knows that, the web application will just
+know in which encoding it comes in.&lt;/p&gt;
+&lt;p&gt;However this means that for everything else but the browser and the
+application the encoding is unknown!  You cannot reliably determine the
+encoding from an HTTP proxy for instance, unless you parse the HTML and
+reimplement the browser's charset selection logic and remember it.&lt;/p&gt;
+&lt;p&gt;Basically &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;application/x-www-form-urlencoded&lt;/span&gt;&lt;/tt&gt; does not have a charset,
+because the encoding is done on a different level.  It's not decoded from
+bytes to unicode as part of HTTP, it's decoded as part of the
+application's and only the application has enough information to do that.&lt;/p&gt;
+&lt;p&gt;HTML5 added support for letting you add an empty hidden form tag with the
+special name &lt;tt class=&quot;docutils literal&quot;&gt;_charset_&lt;/tt&gt; and the browser will fill it with the charset
+it used to submit the form, but HTTP proxies and other middleware won't be
+able to rely on that unless they know that the application will always
+emit that field.&lt;/p&gt;
+&lt;p&gt;So in short: &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;application/x-www-form-urlencoded&lt;/span&gt;&lt;/tt&gt; does not allow charset
+definitions.  You will have to check with the application to see which
+charset it expects.  Chances are, it's going to be utf-8 these days.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;why-does-it-matter&quot;&gt;
+&lt;h2&gt;Why does it Matter?&lt;/h2&gt;
+&lt;p&gt;It matters because if anything we need to get charsets simplified.  And
+there is already a lot of complexity in character set handling we will
+always need to do.  Adding a whole new set of confusion by adding charset
+parameters to things that previously did not have them should not be done
+without at least drafting up a spec about what that means.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Appreciating Design</title>
+    <id>http://lucumr.pocoo.org/2012/2/11/appreciating-design</id>
+    <updated>2012-02-11T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2012/2/11/appreciating-design" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;I think no piece of software had a bigger impact on my work than
+&lt;a class=&quot;reference external&quot; href=&quot;http://trac.edgewall.org/&quot;&gt;Trac&lt;/a&gt;.  Nowadays people often look down on
+Trac for various different reasons but if you keep in mind how bug
+management and revision control web interfaces in the open source world
+looked before Trac you can see why it initially had that much hype around
+it.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;learning-from-trac&quot;&gt;
+&lt;h2&gt;Learning from Trac&lt;/h2&gt;
+&lt;p&gt;When Trac was released tons of Open Source projects used it.  It had a
+slick design and did the few things it provided quite well.  The wiki was
+not great but useable, the integrated subversion support was very well
+implemented and the bug Tracker was simple but friendly.  It was the first
+bug Tracker that I had used that by default could have been presented to a
+non technical user without having to tweak it.&lt;/p&gt;
+&lt;p&gt;Trac had a reasonable user interface design compared to the competition.
+But the beauty of Trac has always been the code that runs it.  For the
+German ubuntu community I deployed a phpBB installation a few years prior
+to when I used Trac first.  One of the great features of phpBB was that
+people wrote extensions for it that provided extra functionality to the
+base bulletin board system.  The way these plugins worked however was by
+actually modifying the code.  Called “mods” they came with long
+installation instructions that showed the specific places where you had to
+copy/paste code in.  Not even diff files were provided in those days but
+it still sortof worked because people took the time to hand patch their
+installations.&lt;/p&gt;
+&lt;p&gt;Trac on the other hand always had a real plugin system.  The base system
+was littered with interfaces and hook points that plugins could utilize to
+add extra functionality.  Trac's code taught me proper software and API
+design.  Now it seems obvious that this is how you create libraries and
+applications but the perfection that Trac had in that regard is still
+largely unmatched.  At least in the Python world.&lt;/p&gt;
+&lt;p&gt;For instance Trac always supported running more than one Trac instance per
+Python interpreter.  It was from the ground up designed for that.  Django
+as a framework still does not do that.  Which is especially sad
+considering that Django is a framework and not an application.  You could
+not reimplement Trac in Django without losing this functionality.  Trac
+also had the concept of an instance folder where the instance specific
+files are dropped (design, static files, uploads, configuration, the
+sqlite db if used, per instance plugins etc.) which more people should
+consider.&lt;/p&gt;
+&lt;p&gt;Trac also explicitly did not adopt hyped technologies if they went against
+their design principles.  They wanted to use a template engine that was
+extensible and built on XML to properly support XHTML (which was hip and
+cool at the time) but Kid did not serve that purpose.  It did not scale
+properly to the large pages that were generated and it did some funky
+things with the Python import systems.  Christopher Lenz wrote Genshi
+as a result of that which was a reimplementation of the Kid principles but
+with a largely improved implementation.  Genshi is still (from the design
+perspective) the coolest piece of template engine you can get in Python
+land.  It's also the reason why I no longer hate XML all that much because
+properly used it's actually very clever.&lt;/p&gt;
+&lt;p&gt;However all of that is completely irrelevant because Trac and Genshi
+failed in other areas.  They were amazingly well written but all that came
+at huge costs.  Trac was a memory hog and some early design mistakes that
+everybody relied on were only slowly phased out.  For instance before Trac
+had Genshi they used a template engine called quicksilver.  It was
+implemented in C and used a special syntax similar to JSON to specify the
+template context.  When that was replaced with Genshi it broke existing
+plugins and provided users with a good excuse to switch from Trac to
+alternatives that had the functionality they required built in.  Trac was
+also built around the subversion idea of having one huge repository for
+everything.  This became a problem when decentralized version control
+systems popularized the concept of having more than one repository.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;users-don-t-care-or-do-they&quot;&gt;
+&lt;h2&gt;Users don't care, or do they?&lt;/h2&gt;
+&lt;p&gt;Ultimately all of that would have been great however if the users would
+have appreciated the elegance of the design.  But that's not how it seems
+to work.  A user expects his software to work and the internals don't
+matter at all.  And this is not just true for Trac.  Battlefield 3, which
+I &lt;a class=&quot;reference external&quot; href=&quot;/2011/11/15/modern-web-applications-are-here/&quot;&gt;wrote about last year&lt;/a&gt;, moved the main
+menu into a browser.  There are a bunch of reasons why the whole concept
+in generally is technically amazing, but for the user it was not
+understandable why it was cool or useful.&lt;/p&gt;
+&lt;p&gt;It's not that users are dumb and would not understand it, but it was never
+communicated in the first place.  I don't know if it's because the
+developers did not take their pride far enough in showing everybody how
+cool it actually is or if they think users would not understand it.&lt;/p&gt;
+&lt;p&gt;Let's compare this to cars for a moment.  If I look around for a car, the
+design is only half the reason.  I look for the technical details when I
+shell out that much money.  I want to know why it's cool, I was to see
+images of the engine and internals.  I want to read about the design ideas
+that went into every part of the product.  True, there will be some people
+that just want a car, but those are not selling your car anyways.  If a
+friend of mine shows up with a brand new BMW I can promise you he will
+start telling me about the cool details, he wants me to actually try it
+and ultimately he wants me to get this car.&lt;/p&gt;
+&lt;p&gt;Apple seems to be doing very much the same.  Many Apple computer users
+are as loyal to their product as buyers of cars.  They will point how
+cool the case design is, how nicely the lid closes, how cute the machine
+looks when the sleep light is “breathing” or how few problems they have
+with it.  I know many flaws in my Macs but that does not stop me from
+continue supporting the company and getting their products.  That's
+because I appreciate the work that went into every part of it.&lt;/p&gt;
+&lt;p&gt;Head over to the Apple website and you see the product in the center like
+you see a car.  Apple not only sells you the product there, they also
+provide videos of the assembling process.  They let designers share their
+thoughts that went into every aspect of the product and they show you that
+they love what they created.&lt;/p&gt;
+&lt;p&gt;Why don't we do that about software products?  Trac probably would not
+have become better by itself just because users would know what goes on
+behind the scenes, but I can almost promise you that more developers would
+have had a look at the internals if they were communicated properly and
+that might have helped improving it.  As it stands right now, only a small
+community remains around Trac and only one active developer remains.&lt;/p&gt;
+&lt;p&gt;With Battlefield 3 it's very similar.  The advert said “the easiest way to
+play with friends” but it did not say why Battlelog (their online
+community and also main menu) was cool.  Why it's better for the user than
+the main menu being in the game.  Combined with the fact that the game did
+not deliver in some other parts (such as missing VOIP support) people
+suddenly start blaming battlelog for parts it does not have anything to do
+with it.  And an unhappy fanbase is the very last you want to have when it
+comes to multiplayer games because those games are sold in a very similar
+way: if my friends play I want to play it too.  Selling technical
+excellence to computer gamers would not have been hard either because they
+take pride in “knowing more” about computers and game then their console
+playing friends.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;make-them-appreciate-it&quot;&gt;
+&lt;h2&gt;Make them appreciate it&lt;/h2&gt;
+&lt;p&gt;I guess to a large degree the idea of “the best design is the one you
+don't notice” plays into that but that does not mean it wouldn't be great
+to point it out nonetheless.  And by that I don't mean putting a red arrow
+on the product saying “this is a cool design element” but by providing a
+nicely designed website or folder that shows the thought process that went
+into it.&lt;/p&gt;
+&lt;p&gt;I know nothing about cars but damn do I love looking at brochures and
+reading about them.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Battlelog: Modern Web Applications are Here</title>
+    <id>http://lucumr.pocoo.org/2011/11/15/modern-web-applications-are-here</id>
+    <updated>2011-11-15T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2011/11/15/modern-web-applications-are-here" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;It's the shooter season of the year and this fall was all about Modern
+Warfare 3 versus Battlefield 3.  And being the kind of game they are they
+also try to keep their audience playing by introducing some additional
+level of engagement.  Both Call of Duty and Battlefield introduced their
+own online community websites and statistic platforms.  Call of Duty has
+Elite, Battlefield has Battlelog.&lt;/p&gt;
+&lt;p&gt;But just because these services are sitting in the same spot it does not
+mean they are in any way similar.  And that actually goes for more than
+just their monetization plans and feature sets.  Elite is a traditional
+application as traditional as it can be.  You sign up, there is Flash,
+there is a bit of JavaScript, there are tons of requests for each page and
+a playercard transmits about 3 MB of data to your client.  Not very
+interesting to say the least.&lt;/p&gt;
+&lt;p&gt;But what are they doing?  Notwithstanding some of their respective extra
+features both Battlelog and Elite are essentially a social network for
+shooter games that expose the statistics of your individual gameplay as
+well as the one of your friends to you.  Everything you do in the game is
+reflected on these websites and you can further interact with the game
+there by commenting on gameplay and chatting up with friends.&lt;/p&gt;
+&lt;p&gt;Elite by itself is not very interesting technology wise, however Battlelog
+certainly is.  It shows that an application that is probably used by
+millions of gamers can be built on modern web technology as well.  And
+under the hood is one of the most interesting ways to built a modern web
+application that I think you should check out.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;embrace-the-client&quot;&gt;
+&lt;h2&gt;Embrace the Client&lt;/h2&gt;
+&lt;p&gt;A few months back I was claiming that WSGI is not the place for pluggable
+applications and that it would make sense &lt;a class=&quot;reference external&quot; href=&quot;/2011/7/27/the-pluggable-pipedream/&quot;&gt;to assemble applications on the
+client-side&lt;/a&gt;.  Turns out, Battlelog
+is doing just that.  While I do not know what all of their infrastructure
+looks like, their network graph and license information on the page is
+revealing.&lt;/p&gt;
+&lt;p&gt;Battlelog is written by a company called &lt;a class=&quot;reference external&quot; href=&quot;http://esn.me/&quot;&gt;ESN&lt;/a&gt; and their
+infrastructure from the released code is basically Python 2.x with
+gevent as well as JavaScript with jQuery and their own stuff on the client
+and Java for their websocket backend.&lt;/p&gt;
+&lt;p&gt;If you send an HTTP request to the website it appears to work as if it was
+a regular website.  You get a bunch of HTML rendered and nothing
+interesting happens.  However if you click on any link you do not get HTML
+transmitted.  Instead what is transmitted is JSON, the HTML5 history API
+is used to modify the URL dynamically and all the HTML is rendered on the
+client.  Since it appears to be able to do both we can compare the sizes
+of the data transmitted easily.&lt;/p&gt;
+&lt;p&gt;The HTML for the index page is 18KB in size.  If we trigger the request to
+the same URL with just the JSON it's 4KB.  Not only is it less to
+transmit, it also means that the server is essentially just generating
+JSON instead of rendering whole templates which also means a performance
+improvement for the client.&lt;/p&gt;
+&lt;p&gt;The platform is a work of beauty in general and I am amazed how little I
+have heard on the interwebs about it.  So to give you an idea why it's an
+incredible technical achievement on so many levels, here the breakdown.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;feature-overview&quot;&gt;
+&lt;h2&gt;Feature Overview&lt;/h2&gt;
+&lt;p&gt;To understand what Battlelog is here a brief overview of what it does.
+These are not necessarily the features that are immediately obvious to the
+user but are very obvious for the interested developer that wants to peak
+under the hood:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;the website insta-updates based on information coming from the push
+connection.  If you have the website open in the background you can
+hear a notification sound being played just the second your game ends.
+That notification sound is for the report generated from the round you
+played.&lt;/li&gt;
+&lt;li&gt;The same websocket connection for the website is also used for the
+chat feature on the site as well as game invites and more.&lt;/li&gt;
+&lt;li&gt;All the pages can be rendered on both the client side via JavaScript
+as well as the server.  How this work I cannot tell you but I find it
+interesting considering the server side is Python.  So their templates
+compile to Python and JavaScript as it seems.&lt;/li&gt;
+&lt;li&gt;Battlelog comes with an optional browser plugin that makes it possible
+to join into a game on the PC version of Battlefield right from within
+the browser.  This plugin can interact with the game and exposes some
+other functionality that is lacking in HTML5 (such as issuing pings).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;how-the-client-operates&quot;&gt;
+&lt;h2&gt;How the Client Operates&lt;/h2&gt;
+&lt;p&gt;In order to understand why Battlelog is interesting engineering we have to
+reconstruct what it appears to be doing.  Again, I am not claiming
+knowledge of their server technology, I basically just observed what I saw
+and concluded a few things from it.&lt;/p&gt;
+&lt;p&gt;When you access a page you get some nicely rendered HTML back.  One of the
+things that is also transmitted to you is a large JavaScript document that
+contains their client side framework as well as the rendering instructions
+for all pages compiled to JavaScript code.  The framework then hooks into
+your browser's navigation code an intercepts all page loads.  Instead of
+letting the browser replace the page with something new on load it instead
+does the HTTP request via Ajax and adds an additional header to the HTTP
+request: &lt;cite&gt;X-Ajax-Navigation&lt;/cite&gt;.  If the server side sees that header it will
+instead of rendering to HTML deliver the data that is normally passed to
+the template as JSON.&lt;/p&gt;
+&lt;p&gt;The data you get back is everything the page needs to render, including
+the name of the template.  When that data arrives on the client the
+browser replaces the current page content with the data that was rendered
+on the client side from the received JSON.  Not only that, it also makes
+sure to use the HTML5 history API to change the browser URL.&lt;/p&gt;
+&lt;p&gt;The user does not notice that anything interesting is going on unless he's
+tech savvy enough to open the firebug network panel and watch the system
+operate.  In fact the whole thing is so incredible smooth that you would
+not notice anything interesting besides the fact that the page loads fast.
+I mean seriously fast.  Clicking on a link in Battlelog is such a snappy
+operation it's haunting for the trained web developer eye.  Very few
+systems respond this quickly.  This is especially noticeable on pages that
+do not involve a lot of different data such as the news section of the
+website or the forums.&lt;/p&gt;
+&lt;p&gt;If you look at the website it also has a bar on the bottom of the screen
+that shows notifications, your friendlist, open chat windows and a few
+other things.  This bar can have state.  You can toggle windows open and
+closed, you can scroll in the chat window, enter new next and the bar will
+stay open and unchanged if you navigate to a different page.  True, this
+is nothing special these days, facebook does it too.  However from the
+design that Battlelog follows this comes natural.  When the page contents
+are hooked in the DOM element for that bar on the bottom is preserved and
+not touched.&lt;/p&gt;
+&lt;p&gt;The other aspect of Battlelog is the real time component with web sockets.
+I have not looked too far into that but it appears that it's based on an
+abstraction layer on top of web sockets, Flash or whatever is supported
+that was written by ESN for other projects in mind as well.  The server
+code sends an information to the push hub which handles the socket
+connection for the clients.  This way various systems can inform the
+client about updates, that does not even have to be Battlelog itself.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;why-the-client&quot;&gt;
+&lt;h2&gt;Why the Client?&lt;/h2&gt;
+&lt;p&gt;While it's not necessarily the case with Battlelog, there are a bunch of
+really good reasons why you want to render stuff on the client side:&lt;/p&gt;
+&lt;ol class=&quot;arabic simple&quot;&gt;
+&lt;li&gt;You can do partial updates.  And you want partial updates since they
+are good for the user experience.&lt;/li&gt;
+&lt;li&gt;You can mix content together from different resources which is good
+for caching.  If there is information on the page that rarely changes
+and is the same for each user you can load it from a well cached page
+and keep it in the client's DOM and never replace it.&lt;/li&gt;
+&lt;li&gt;Generating HTML on the server side is more expensive than on the
+client.  You don't pay for the client side and even the fastest
+template engine on the server is beaten by an optimized JSON
+serializer.  Faster apps mean more satisfied customers.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Even if you do not have a JavaScript heavy application, moving
+computations to the client side is a good thing.  This obviously assumes
+that it does not break the navigation like some websites do.  Battlelog
+does not do that.  The principles on which Battlelog is built would also
+very well work in a more traditional application.  However it requires a
+well structured architecture were the data you're sending to the template
+engine is simple (and secure!) enough that you can put it in JSON and that
+the templates themselves are simple enough that compiling them to
+JavaScript is an option.&lt;/p&gt;
+&lt;p&gt;Jinja2 for instance could in theory execute on the client but practically
+not.  Practically it's exposing a little bit too much of Python to make
+sense to compile to JavaScript.  But a template language much like Jinja2
+could be written that would make this possible.&lt;/p&gt;
+&lt;p&gt;In fact I think you could build a microframework that would very well
+support this paradigm and still be agnostic to the JavaScript code you're
+running on the client for the most part.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-native-code-thing&quot;&gt;
+&lt;h2&gt;The Native Code Thing&lt;/h2&gt;
+&lt;p&gt;The real interesting thing about Battlelog however is a Windows PC
+specific component.  If you are heading to Battlelog from a Windows PC and
+you own the PC version of Battlefield 3 you can launch into a game right
+from within the browser.  How does this work?  It works with the help of a
+browser plugin that exposes additional functionality to the in browser
+client.  Namely it has a function to start the game and pass it
+information as well as a general purpose function to ping an IP address
+which is used for the server browser.&lt;/p&gt;
+&lt;p&gt;In fact if you are playing on PC this is how the game is launched, always.
+There is no in game menu, you join from within your browser.  This is mind
+blowing thing.  First of all it makes it easier for DICE to update the
+server infrastructure since it's now mostly separated from the client and
+also makes for much quicker iterations.&lt;/p&gt;
+&lt;p&gt;The communication for the most part works in one-way but in a cycle as it
+seems.  If you log into Battlelog and head to the server browser you get a
+list of servers.  How does &lt;em&gt;that&lt;/em&gt; work?  Here's how:&lt;/p&gt;
+&lt;ol class=&quot;arabic simple&quot;&gt;
+&lt;li&gt;When you send an HTTP request to Battlelog it determines your
+approximate location based on the request IP.  This way it can
+pre-filter servers for you that are probably near you.&lt;/li&gt;
+&lt;li&gt;Each server connects to a ping site on connect.  There are a couple
+different ping sites for different countries.  The USA have three I
+think, Europe has one, Japan has one, Australia etc.  Each ping site
+then notifies Battlelog about the distance of that server to the ping
+site.&lt;/li&gt;
+&lt;li&gt;Based on that information as well as your filter settings, Battlelog
+now sends you a list of servers.  Once that data is retrieved by the
+client it starts connecting to the browser plugin and asks it to ping
+all the server IPs it received.&lt;/li&gt;
+&lt;li&gt;If you now want to join that server it sends an HTTP request to
+the Battlelog server side to reserve a slot on that server.  In
+response it gets a token that identifies that slot.  When the server
+managed to reserve a slot for that player the client uses the
+serverlog plugin to boot up the game.  It passes that token to the
+game alongside a secret and lets the game boot in the background.&lt;/li&gt;
+&lt;li&gt;While the game is booting up it uses the received authentication
+information to use the slot that was reserved.  When it loaded up
+properly it notifies the Battlelog client with the help of the plugin
+about changes in the executable.&lt;/li&gt;
+&lt;li&gt;The plugin also exposes some more functionality of the client to the
+website which makes it possible for the JavaScript part of Battlelog
+to close the game away and initiate some other game modes such as coop
+hosting.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;thinking-does-it-need-the-plugin&quot;&gt;
+&lt;h2&gt;Thinking: Does it need the Plugin?&lt;/h2&gt;
+&lt;p&gt;Now here was me thinking.  Would the plugin be necessary to accomplish all
+of the above things or could it be done in a different way?  Native
+applications are here to stay, that's a given.  However more and more
+stuff of what a native application does can be moved into a browser for
+great success.  So how does a web application speak to a native
+application?&lt;/p&gt;
+&lt;p&gt;The traditional way is by letting the application register a custom URL
+scheme and then letting the user click on that link which then launches
+the application.  That's unfortunately a one way communication only.  But
+that might be everything that is needed.&lt;/p&gt;
+&lt;p&gt;So here is how it could be done.  Battlefield or any other application
+that wants to do the same but without the browser plugin could instead
+register a URL handler with a unique name.  Let's say &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;battlefield3://&lt;/span&gt;&lt;/tt&gt;.
+The operating system then knows about this URL scheme and can start a
+handling application.  What can we do with this?&lt;/p&gt;
+&lt;p&gt;The server component would have to uniquely identify a user for starters.
+Considering that each user has to log in that's fine anyways.  Then next
+to that user information one would have to remember if the game is
+running and how.  What does that mean?  Let's start with the simple case:
+the game is not running.  The Battlelog server looks at the current user
+and sees he or she does not have the game running.  Consequently it will
+generate a unique token and generate a URL to the URL scheme (for instance
+&lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;battlefield3://start?token=...&lt;/span&gt;&lt;/tt&gt;.  It then generates a JavaScript prompt
+that informs the user that he has to launch the game by clicking on the
+link generated.  This is the only chance in flow that is necessary.  By
+clicking that link the user agrees that he wants to start that
+application.&lt;/p&gt;
+&lt;p&gt;But instead of launching the game it starts a daemon.  That daemon takes
+the token and picks a random TCP port on the system and starts an HTTP
+server there.  Once that server is running it notifies the central server
+that it's running and on what port.  Since the web browser has a push
+notification channel open it will get a notification now that the daemon
+is running and on which port.&lt;/p&gt;
+&lt;p&gt;After that it can use HTTP and JSONP to communicate with the daemon.  But
+how does the daemon know when to shut down?  Basically that daemon will
+needs to be informed when to shut down.  I would assume that 15 minutes
+without a ping from the browser would be a good indication that it should
+destruct itself.  When shutting down it also tells Battlelog that it's no
+longer running to clear out the port entry.&lt;/p&gt;
+&lt;p&gt;Additionally to make this better it should not only record the port but
+also an identifier that uniquely identifies the machine the daemon is
+running on so that the user can alternate between different computers
+without ending up with weird behavior where the central server is
+informing the browser that the game is running when in fact it's running
+on a different machine.&lt;/p&gt;
+&lt;p&gt;Since Battlefield 3 supports only one running game per user account it
+does not make sense to support more than one session.  If that would be
+wanted it could obviously be done.&lt;/p&gt;
+&lt;p&gt;The downside here obviously is that it needs a websocket connection and a
+central server that acts as mediator between the different systems
+(daemon, client side app).  In Battlefield 3's case that would not be a
+concern (and already is not) since it's an online game.  The second
+problem here is that it needs one additional user interaction: the user
+has to click on the link to activate it.  This currently is not necessary
+in Battlelog since it's provided by a plugin.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;browser-native-code-communication&quot;&gt;
+&lt;h2&gt;Browser &amp;lt;-&amp;gt; Native Code Communication&lt;/h2&gt;
+&lt;p&gt;The whole concept of using a browser application as a frontend for a
+native application is an interesting thing indeed.  Due to offline support
+becoming widespread that is also no longer a concern if the application
+can largely run in the client side.  But that would break my above
+hypothetical example of interacting with a local application.&lt;/p&gt;
+&lt;p&gt;Falling back to a browser plugin currently is the only way to make a
+consenting communication with a local application.  I really wonder if
+there is not room for improvement by having an API in HTML5 that makes
+this possible which would also work for offline applications.&lt;/p&gt;
+&lt;p&gt;Basically what would be needed is a simple way for a two way communication
+with a local application.  That application would have to register itself
+somewhere and then be able to respond to the client's requests.  It could
+totally work like a CGI script (eg: speak HTTP via stdin/stdout).&lt;/p&gt;
+&lt;p&gt;I think there is a lot of potential for such applications in the future
+and Battlelog shows that it can be done already with a little help of a
+small plugin.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;killer-applications&quot;&gt;
+&lt;h2&gt;Killer Applications&lt;/h2&gt;
+&lt;p&gt;One last thing.  Battlefield 3 sold a couple millions of copies.  The PC
+users all have to update to recent version of their browsers since the
+website basically demands a modern browser.  Even with all the fallbacks
+in place, it kinda forces people to update.  For a certain audience
+websites like Battlelog can be the killer application of modern HTML5
+features.  Keep this in mind.  In case you have a similar audience that's
+something to take advantage of.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Be Careful About What You Dislike</title>
+    <id>http://lucumr.pocoo.org/2016/11/5/be-careful-about-what-you-dislike</id>
+    <updated>2016-11-05T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2016/11/5/be-careful-about-what-you-dislike" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;The last few months I keep making the same observation over and over again
+in various different contexts: that whenever you are confronted with a
+very strong opinion about a topic, reasonable discussions about the topic
+often involve arguments that have long become outdated or are no longer
+strictly relevant to the conversation.&lt;/p&gt;
+&lt;p&gt;What I mean by that is that given a controversial topic, a valid argument
+for one side of the other is being repeated by a crowd of people that once
+heard it, even after that argument stops being valid.  This happens because
+often the general situation changed and the argument references a reality
+that no longer exists in the same form.  Instead of reevaluating the
+environment however, goalposts are moved to restore the general sentiment
+of the opinion.&lt;/p&gt;
+&lt;p&gt;To give you a practical example of this problem I can just go by a topic I
+have a very strong opinion about: Python 3.  When Python 3 was not a huge
+thing yet I started having conversations with people in the community
+about the problems I see with splitting the community and complexity of
+porting.  Not just that, I also kept bringing up general questions about
+some of the text and byte decisions.  I started doing talks about the
+topic and write blog articles that kept being shared.  Nowadays when I go
+to a conference I very quickly end up in conversations where other
+developers come to me and see me as the &amp;quot;Does not like Python 3 guy&amp;quot;.
+While I still am not a friend of some of the decisions in Python 3 I am
+very much aware that Python 3 in 2016 is a very different Python 3 than 6
+years ago or earlier.&lt;/p&gt;
+&lt;p&gt;In fact, I myself campaigned for some changes to Python 3 that made it
+possible to achieve better ports (like the reintroduction of the &lt;cite&gt;u&lt;/cite&gt;
+prefix on Unicode string literals) and the bulk of my libraries work on
+Python 3 for many years now.  It's a fact that in 2016 the problems that
+people have with Python 3 are different than they used to have before.&lt;/p&gt;
+&lt;p&gt;This leads to very interesting conversations where I can have a highly
+technical conversation about a very specific issue with Python 3 and
+thoughts about how to do it differently or deal with it (like some of the
+less obvious consequences of the new text storage model) and another
+person joins into the conversation with an argument against Python 3 that
+has long stropped being valid.  Why?  Because there is a cost towards
+porting to Python 3 and a chance is not seen.  This means that a person
+with a general negativity towards Python 3 would seek me out and try to
+reaffirm their opposition to a port to it.&lt;/p&gt;
+&lt;p&gt;Same thing is happening with JavaScript where there is a general negative
+sentiment about programming in it but not everybody is having good
+arguments for it.  There are some that actually program a lot in it and
+dislike specific things about the current state of the ecosystem, but
+generally acknowledge that the language is evolving, and then there are
+those that take advantage of unhappiness and bring their heavily outdated
+opposition against JavaScript into a conversation just to reaffirm their
+own opinion.&lt;/p&gt;
+&lt;p&gt;This is hardly confined to the programming world.  I made the same
+discovery about CETA.  CETA is a free trade agreement between the European
+Union and Canada and it had the misfortune of being negotiated at the same
+time as the more controversial TTIP with the US.  The story goes roughly
+like this: TTIP was negotiated in secrecy (as all trade agreements are)
+and there were strong disagreements between what the EU and what the US
+thought trade should look like.  Those differences were about food safety
+standards and other highly sensitive topics.  Various organizations on
+both the left and right extremes of the political scale started to grab
+any remotely controversial information that leaked out to shift the public
+opinion towards negativity to TTIP.  Then the entire thing spiraled out of
+control: people not only railed against TTIP but took their opposition
+and looked for similar contracts and found CETA.  Since both are trade
+agreements there is naturally a lot of common ground between them.  The
+subtleties where quickly lost.  Where the initial arguments against TTIP
+were food standards, public services and intransparent ISDS courts many of
+the critics failed to realize that CETA fundamentally was a different
+beast.  Not only was it already a much improved agreement from the start,
+but it kept being modified from the initial public version of it to the
+one that was finally sent to national parliaments.&lt;/p&gt;
+&lt;p&gt;However despite what I would have expected: that critics go in and
+acknowledge that their criticism was being heard instead slowly moved the
+goalposts.  At this point there is so much emotion and misinformation in
+the general community that the goalpost moved all the way to not
+supporting further free trade at all.  In the general conversation about
+ISDS and standards many people brought introduced their own opinions about
+free trade and their dislike towards corporations and multinationals.&lt;/p&gt;
+&lt;p&gt;This I assume is human behavior.  Admitting that you might be wrong is
+hard enough, but it's even harder when you had validation that you were
+right in the past.  In particular that an argument against something might
+no longer be valid because that something has changed in the meantime is
+hard.  I'm not sure what the solution to this is but I definitely realized
+in the few years on my own behavior that one needs to be more careful
+about stating strong opinions in public.  At the same time however I think
+we should all be more careful dispelling misinformation in conversations
+even if the general mood supports your opinion.  As an example while
+emotionally I like hearing stories about how JavaScript's packaging causes
+pain to developers since I experienced it first hand, I know from a
+rational point of view that the ecosystem is improving a tremendous
+speeds.  Yes I have been burned by npm but it's not like this is not
+tremendously improving.&lt;/p&gt;
+&lt;p&gt;Something that has been put to paper once is hard to remove from people's
+minds.  In particular in the technological context technology moves so
+fast that very likely something you read once might no longer be up to
+date as little as six months later.&lt;/p&gt;
+&lt;p&gt;So I suppose my proposal to readers is not to fall into that trap and to
+assume that the environment around oneself keeps on changing.&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Beautiful Native Libraries</title>
+    <id>http://lucumr.pocoo.org/2013/8/18/beautiful-native-libraries</id>
+    <updated>2013-08-18T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2013/8/18/beautiful-native-libraries" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;I'm obsessed with nice APIs.  Not just APIs however, also in making the
+overall experience of using a library as good as possible.  For Python
+there are quite a few best practices around by now but it feels like there
+is not really a lot of information available about how to properly
+structure a native library.  What do I mean by native library?
+Essentially a dylib/DLL/so.&lt;/p&gt;
+&lt;p&gt;Since I'm currently spending more time on C and C++ than Python at work I
+figured I might take the opportunity and collect my thoughts on how to
+write proper shared libraries that do not annoy your users.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;shared-or-static&quot;&gt;
+&lt;h2&gt;Shared or Static?&lt;/h2&gt;
+&lt;p&gt;This post almost entirely assumes that you are building a DLL or shared
+library and not something you link statically.  While it sounds like a
+statically and dynamically linked library are essentially the same thing
+where the only difference is how you link against it, there is much more
+to it.&lt;/p&gt;
+&lt;p&gt;With a dynamically linked library you have much better control over your
+symbols.  Dynamically linked libraries also work much better between
+different programming languages.  Nothing stops you from writing a library
+in C++ and then using it in Python.  In fact, that's exactly how I
+recommend doing unittests against such libraries.  More about that later.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;which-language&quot;&gt;
+&lt;h2&gt;Which Language?&lt;/h2&gt;
+&lt;p&gt;So you want to write a library that compiles into a DLL or something of
+that sort and it should be somewhat platform independent.  Which languages
+can you actually use there?  Right now you can pick between C and C++ and
+soon you might also be able to add Rust to that list.  Why not others?  C
+is easy: because that's the only language that actually defines a somewhat
+stable ABI.  Strictly speaking it's not the language that defines it, it's
+the operating system, but in one way or another, C is the language of
+choice for libraries and the C calling conventions is the lingua franca of
+shared libraries.&lt;/p&gt;
+&lt;p&gt;“The greatest trick that C ever pulled was convince the world that it does
+not have a runtime”.  I'm not sure where I heard the quote first, but it's
+incredibly appropriate when talking about libraries.  Essentially C is so
+commonplace that everything can assume that some basic functionality is
+provided by the C standard library.  That's the one thing that everybody
+agreed on that exists.  For C++ the situation is more complicated.  C++
+needs a bunch of extra functionality that is not provided by the C
+standard library.  Primarily it needs support for exception handling.  C++
+however degrades otherwise nicely to C calling conventions so it's very
+easy to still write libraries in it, that completely hide the fact that
+there is C++ behind the scenes.&lt;/p&gt;
+&lt;p&gt;For other languages that's not so easy however.  Why for instance is it
+not a good idea to write a library in Go?  The reason for this is that Go
+for needs quite a heavy runtime that does garbage collection and provides
+a scheduler for it's coroutines.  Rust is getting closer to not having any
+runtime requirements besides the C standard library which will make it
+possible to write libraries in it.&lt;/p&gt;
+&lt;p&gt;Right now however, C++ is most likely the language you want to use.  Why
+not C?  The reason for this is that Microsoft's C compiler is notoriously
+bad at receiving language updates and you would otherwise be stuck with
+C89.  Obviously you could just use a different compiler on Windows but
+that causes a whole bunch of problems for the users of your library if
+they want to compile it themselves.  Requiring a tool chain that is not
+native to the operating system is an easy way to alienate your developer
+audience.&lt;/p&gt;
+&lt;p&gt;I would however generally recommend to a very C like subset of C++: don't
+use exceptions, don't use RTTI, don't build crazy constructors.  The rest
+of the post assumes that C++ is indeed the language of choice.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;public-headers&quot;&gt;
+&lt;h2&gt;Public Headers&lt;/h2&gt;
+&lt;p&gt;The library you're building should ideally have exactly one public header
+file.  Internally go nuts and create as many headers as you want.  You
+want that one public header file to exist, even if you think your library
+is only ever going to be linked against something that is not C.  For
+instance Python's CFFI library can parse header files and build bindings
+out of that.  People of all languages know how headers work, they will
+have a look at them to build their own bindings.&lt;/p&gt;
+&lt;p&gt;What rules are there to follow in headers?&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;header-guards&quot;&gt;
+&lt;h3&gt;Header Guards&lt;/h3&gt;
+&lt;p&gt;Each public header that other people use should have sufficiently unique
+header guards to make sure they can be included multiple times safely.
+Don't get too creative with the guards, but also don't be too generic with
+them.  It's no fun including a header that has a super generic include
+guard at the top (like &lt;tt class=&quot;docutils literal&quot;&gt;UTILS_H&lt;/tt&gt; and nothing else).  You also want to
+make sure that there are &lt;tt class=&quot;docutils literal&quot;&gt;extern &amp;quot;C&amp;quot;&lt;/tt&gt; markers for C++.&lt;/p&gt;
+&lt;p&gt;This would be your minimal header:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;#ifndef YOURLIB_H_INCLUDED&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#define YOURLIB_H_INCLUDED&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#ifdef __cplusplus&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;extern&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;C&amp;quot;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#endif&lt;/span&gt;
+
+&lt;span class=&quot;cm&quot;&gt;/* code goes here */&lt;/span&gt;
+
+&lt;span class=&quot;cp&quot;&gt;#ifdef __cplusplus&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#endif&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#endif&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;export-markers&quot;&gt;
+&lt;h3&gt;Export Markers&lt;/h3&gt;
+&lt;p&gt;Because you yourself will probably include your header file as well you
+will need to make sure that there are macros defined that export your
+functions.  This is necessary on Windows and it's a really good idea on
+other platforms as well.  Essentially it can be used to change the
+visibility of symbols.  I will go into that later, for the time being just
+add something that looks like this:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;#ifndef YL_API&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#  ifdef _WIN32&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#     if defined(YL_BUILD_SHARED) &lt;/span&gt;&lt;span class=&quot;cm&quot;&gt;/* build dll */&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#         define YL_API __declspec(dllexport)&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#     elif !defined(YL_BUILD_STATIC) &lt;/span&gt;&lt;span class=&quot;cm&quot;&gt;/* use dll */&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#         define YL_API __declspec(dllimport)&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#     else &lt;/span&gt;&lt;span class=&quot;cm&quot;&gt;/* static library */&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#         define YL_API&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#     endif&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#  else&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#     if __GNUC__ &amp;gt;= 4&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#         define YL_API __attribute__((visibility(&amp;quot;default&amp;quot;)))&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#     else&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#         define YL_API&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#     endif&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#  endif&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#endif&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;On Windows it will set &lt;tt class=&quot;docutils literal&quot;&gt;YL_API&lt;/tt&gt; (I used &lt;tt class=&quot;docutils literal&quot;&gt;YL&lt;/tt&gt; as short version for
+“Your Library” here, pick a prefix that fits you) for DLLs appropriately
+depending on what flag is set.  Whoever includes the header without doing
+anything fancy before will automatically get &lt;tt class=&quot;docutils literal&quot;&gt;__declspec(dllimport)&lt;/tt&gt; in
+its place.  This is a really good default behavior on Windows.  For other
+platforms nothing is set unless a somewhat recent GCC/clang version is
+used in which case the default visibility marker is added.  As you can see
+some macros can be defined to change which branch is taken.  For instance
+when you build the library you would tell the compiler to also defined
+&lt;tt class=&quot;docutils literal&quot;&gt;YL_BUILD_SHARED&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;On Windows the default behavior for DLLs has always been: all symbols are
+not exported default unless marked with &lt;tt class=&quot;docutils literal&quot;&gt;__declspec(dllexport)&lt;/tt&gt;.  On
+other platforms unfortunately the behavior has always been to export
+everything.  There are multiple ways to fix that, one is the visibility
+control of GCC 4.  This works okay, but there are some extra things that
+need to be considered.&lt;/p&gt;
+&lt;p&gt;The first is that the in-source visibility control is not the silver
+bullet.  For a start the marker will do nothing unless the library is
+compiled with &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;-fvisibility=hidden&lt;/span&gt;&lt;/tt&gt;.  More important than that however
+is that this will only affect your own library.  If you statically link
+anything against your library, that library might expose symbols you do
+not want to expose.  Imagine for instance you write a library that depends
+on another library you want to statically link in.  This library's symbols
+will also be exported from your library unless you prevent that.&lt;/p&gt;
+&lt;p&gt;This works differently on different platforms.  On Linux you can pass
+&lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;--exclude-libs&lt;/span&gt; ALL&lt;/tt&gt; to &lt;tt class=&quot;docutils literal&quot;&gt;ld&lt;/tt&gt; and the linker will remove those symbols
+automatically.  On OS X it's tricker because there is no such
+functionality in the linker.  The easiest solution is to have a common
+prefix for all functions.  For instance if all your functions start with
+&lt;tt class=&quot;docutils literal&quot;&gt;yl_&lt;/tt&gt; it's easy to tell the linker to hide everything else.  You do this
+by creating a symbols file and then pointing the linker to it with
+&lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;-exported_symbols_list&lt;/span&gt; symbols.txt&lt;/tt&gt;.  The contents of this file can be
+the single line &lt;tt class=&quot;docutils literal&quot;&gt;_yl_*&lt;/tt&gt;.  Windows we can ignore as DLLs need explicit
+export markers.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;careful-with-includes-and-defines&quot;&gt;
+&lt;h2&gt;Careful with Includes and Defines&lt;/h2&gt;
+&lt;p&gt;One thing to be careful about is that your headers should not include
+too many things.  Generally I believe it's fine for a header to include
+things like &lt;tt class=&quot;docutils literal&quot;&gt;stdint.h&lt;/tt&gt; to get some common integer types.  However what
+you should not do is being clever and defining types yourself.  For
+instance msgpack had the brilliant idea to define &lt;tt class=&quot;docutils literal&quot;&gt;int32_t&lt;/tt&gt; and a few
+other types for Visual Studio 2008 because it lacks the &lt;tt class=&quot;docutils literal&quot;&gt;stdint.h&lt;/tt&gt;
+header.  This is problematic as only one library can define those types
+then.  Instead the better solution is to ask the user to provide a
+replacement &lt;tt class=&quot;docutils literal&quot;&gt;stdint.h&lt;/tt&gt; header for older Visual Studio versions.&lt;/p&gt;
+&lt;p&gt;Especially do not ever include &lt;tt class=&quot;docutils literal&quot;&gt;windows.h&lt;/tt&gt; in a library header.  That
+header pulls in so much stuff that Microsoft added extra defines to make
+it leaner (&lt;tt class=&quot;docutils literal&quot;&gt;WINDOWS_LEAN_AND_MEAN&lt;/tt&gt;, &lt;tt class=&quot;docutils literal&quot;&gt;WINDOWS_EXTRA_LEAN&lt;/tt&gt; and
+&lt;tt class=&quot;docutils literal&quot;&gt;NOMINMAX&lt;/tt&gt;).  If you need &lt;tt class=&quot;docutils literal&quot;&gt;windows.h&lt;/tt&gt; included, have a private header
+file that's only included for your &lt;tt class=&quot;docutils literal&quot;&gt;.cpp&lt;/tt&gt; files.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;stable-abi&quot;&gt;
+&lt;h2&gt;Stable ABI&lt;/h2&gt;
+&lt;p&gt;Do not put any structs into public headers unless you are 100% sure that
+you will never change them.  If you do want to expose structs and you do
+want to add extra members later, make sure that the user does not have to
+allocate that header.  If the user does have to allocate that header, add
+a version or size information as first member into the struct.&lt;/p&gt;
+&lt;p&gt;Microsoft generally puts the size of structs into the structs to allow
+adding members later, but this leads to APIs that are just not fun to use.
+If you can try to avoid having too many structs in the headers, if you
+can't at least try to come up with alternative methods to make the API
+suck less.&lt;/p&gt;
+&lt;p&gt;With structs you also run into the issue that alignments might differ
+between different compilers.  Unfortunately there are cases where you are
+dealing with a project that forces the alignment to be different for the
+whole project and that will obviously also affect the structs in your
+header file.  The fewer structs the better :-)&lt;/p&gt;
+&lt;p&gt;Something that should go without saying: do not make macros part of your
+API.  A macro is not a symbol and users of languages not based on C will
+hate you for having macros there.&lt;/p&gt;
+&lt;p&gt;One more note on the ABI stability: it's a very good idea to include
+the version of the library both in the header as well as compiled into
+the binary.  That way you can easily verify that the header matches the
+binary which can save you lots of headaches.&lt;/p&gt;
+&lt;p&gt;Something like this in the header:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;#define YL_VERSION_MAJOR 1&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#define YL_VERSION_MINOR 0&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#define YL_VERSION ((YL_VERSION_MAJOR &amp;lt;&amp;lt; 16) | YL_VERSION_MINOR)&lt;/span&gt;
+
+&lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;yl_get_version&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;yl_is_compatible_dll&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;And this in the implementation file:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;yl_get_version&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;YL_VERSION&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;yl_is_compatible_dll&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;major&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;yl_get_version&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;16&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;major&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;YL_VERSION_MAJOR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;exporting-a-c-api&quot;&gt;
+&lt;h2&gt;Exporting a C API&lt;/h2&gt;
+&lt;p&gt;When exposing a C++ API to C there is not much that needs to be
+considered.  Generally for each internal class you have, you would have an
+external opaque struct without any fields.  Then provide functions that
+call into your internal functions.  Picture a class like this:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;namespace&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;yourlibrary&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Task&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;public&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+        &lt;span class=&quot;o&quot;&gt;~&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+
+        &lt;span class=&quot;kt&quot;&gt;bool&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;is_pending&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;tick&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;result_string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;The internal C++ API is quite obvious, but how do you expose that via C?
+Because the external ABI now no longer knows how large the structs are you
+will need to allocate memory for the external caller or give it a method
+to figure out how much memory to allocate.  I generally prefer to allocate
+for the external user and provide a free function as well.  For how to
+make the memory allocation system still flexible, have a look at the next
+part.&lt;/p&gt;
+&lt;p&gt;For now this is the external header (this has to be in &lt;tt class=&quot;docutils literal&quot;&gt;extern &amp;quot;C&amp;quot;&lt;/tt&gt;
+braces):&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;yl_task_s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;yl_task_s&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;yl_task_t&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;YL_API&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;yl_task_t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;yl_task_new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;YL_API&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;yl_task_free&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;yl_task_t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;YL_API&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;yl_task_is_pending&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;yl_task_t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;YL_API&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;yl_task_tick&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;yl_task_t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;YL_API&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;yl_task_get_result_string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;yl_task_t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;And this is how the shim layer would look like in the implementation:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;#define AS_TYPE(Type, Obj) reinterpret_cast&amp;lt;Type *&amp;gt;(Obj)&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#define AS_CTYPE(Type, Obj) reinterpret_cast&amp;lt;const Type *&amp;gt;(Obj)&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;yl_task_t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;yl_task_new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;AS_TYPE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;yl_task_t&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;yourlibrary&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;());&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;yl_task_free&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;yl_task_t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;delete&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;AS_TYPE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;yourlibrary&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;yl_task_is_pending&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;yl_task_t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;AS_CTYPE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;yourlibrary&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;is_pending&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;?&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;yl_task_tick&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;yl_task_t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;AS_TYPE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;yourlibrary&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tick&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;yl_task_get_result_string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;yl_task_t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;AS_CTYPE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;yourlibrary&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;result_string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Notice how the constructor and destructor is fully wrapped.  Now there is
+one problem with standard C++: it raises exceptions.  Because constructors
+have no return value to signal to the outside that something went wrong it
+will raise exceptions if the allocation fails.  That's however not the
+only problem.  How do we customize how the library allocates memory now?
+C++ is pretty ugly in that regard.  But it's largely fixable.&lt;/p&gt;
+&lt;p&gt;Before we go on: please under no circumstances, make a library, that
+pollutes the namespace with generic names.  Always put a common prefix
+before all your symbols (like &lt;tt class=&quot;docutils literal&quot;&gt;yl_&lt;/tt&gt;) to lower the risk of namespace
+clashes.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;context-objects&quot;&gt;
+&lt;h2&gt;Context Objects&lt;/h2&gt;
+&lt;p&gt;Global state is terrible, so what's the solution?  Generally the solution
+is to have what I would call “context” objects that hold the state
+instead.  These objects would have all the important stuff on that you
+would otherwise put into a global variable.  That way the user of your
+library can have multiple of those.  Then make each API function take that
+context as first parameter.&lt;/p&gt;
+&lt;p&gt;This is especially useful if your library is not threadsafe.  That way you
+can have one per thread at least, which might already be enough to get
+some parallelism out of your code.&lt;/p&gt;
+&lt;p&gt;Ideally each of those context objects could also use a different
+allocator, but given the complexities of doing that in C++ I would not be
+super disappointed if you did not make that work.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;memory-allocation-customization&quot;&gt;
+&lt;h2&gt;Memory Allocation Customization&lt;/h2&gt;
+&lt;p&gt;As mentioned before, constructors can fail and we want to customize memory
+allocations, so how do we do this?  In C++ there are two systems
+responsible for memory allocations: the allocation operators &lt;tt class=&quot;docutils literal&quot;&gt;operator
+new&lt;/tt&gt; and &lt;tt class=&quot;docutils literal&quot;&gt;operator new[]&lt;/tt&gt; as well as the allocators for containers.  If
+you want to customize the allocator you will need to deal with both.
+First you need a way to let others override the allocator functions.  The
+simplest is to provide something like this in the public header:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;YL_API&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;yl_set_allocators&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_malloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;size_t&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+                              &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_realloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;size_t&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+                              &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_free&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;YL_API&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;yl_malloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;size_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;YL_API&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;yl_realloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ptr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;size_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;YL_API&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;yl_calloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;size_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;count&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;size_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;YL_API&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;yl_free&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ptr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;YL_API&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;yl_strdup&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;And then in your internal header you can add a bunch of inline functions
+that redirect to the function pointers set to an internal struct.  Because
+we do not let users provide &lt;tt class=&quot;docutils literal&quot;&gt;calloc&lt;/tt&gt; and &lt;tt class=&quot;docutils literal&quot;&gt;strdup&lt;/tt&gt; you probably also
+want to reimplement those functions:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;yl_allocators_s&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_malloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;size_t&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_realloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;size_t&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_free&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;extern&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;yl_allocators_s&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_yl_allocators&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;kr&quot;&gt;inline&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;yl_malloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;size_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_yl_allocators&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_malloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;kr&quot;&gt;inline&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;yl_realloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ptr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;size_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_yl_allocators&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_realloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ptr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;kr&quot;&gt;inline&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;yl_free&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ptr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;_yl_allocators&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_free&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ptr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;kr&quot;&gt;inline&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;yl_calloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;size_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;count&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;size_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ptr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_yl_allocators&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_malloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;memset&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ptr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ptr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;kr&quot;&gt;inline&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;yl_strdup&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;size_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;length&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;strlen&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rv&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;yl_malloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;length&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;memcpy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;length&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;For the setting of the allocators themselves you probably want to put that
+into a separate source file:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;yl_allocators_s&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_yl_allocators&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;malloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;realloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;free&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+
+&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;yl_set_allocators&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_malloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;size_t&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+                       &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_realloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;size_t&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+                       &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_free&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;_yl_allocators&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_malloc&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;f_malloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;_yl_allocators&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_realloc&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;f_realloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;_yl_allocators&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_free&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;f_free&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;memory-allocators-and-c&quot;&gt;
+&lt;h2&gt;Memory Allocators and C++&lt;/h2&gt;
+&lt;p&gt;Now that we have those functions set, how do we make C++ use them?  This
+part is tricky and annoying.  To get your custom classes allocated through
+your &lt;tt class=&quot;docutils literal&quot;&gt;yl_malloc&lt;/tt&gt; you need to implement the allocation operators in all
+your classes.  Because that's quite a repetitive process I recommend
+writing a macro for it that can be placed in the private section of the
+class.  I chose to pick by convention that it has to go into private, even
+though the function it implements are public.  Primarily I did that so
+that it lives close to where the data is defined, which in my case is
+usually private.  You will need to make sure you don't forget adding that
+macro to all your classes private sections:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;#define YL_IMPLEMENTS_ALLOCATORS \&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;public: \&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;    void *operator new(size_t size) { return yl_malloc(size); } \&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;    void operator delete(void *ptr) { yl_free(ptr); } \&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;    void *operator new[](size_t size) { return yl_malloc(size); } \&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;    void operator delete[](void *ptr) { yl_free(ptr); } \&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;    void *operator new(size_t, void *ptr) { return ptr; } \&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;    void operator delete(void *, void *) {} \&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;    void *operator new[](size_t, void *ptr) { return ptr; } \&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;    void operator delete[](void *, void *) {} \&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;private:&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Here is how an example usage would look like:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Task&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;public&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;~&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;private&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;YL_IMPLEMENTS_ALLOCATORS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// ...&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Now with that all &lt;em&gt;your&lt;/em&gt; classes will be allocated through your allocator
+functions.  But what if you want to use STL containers?  Those containers
+will not be allocated through your functions yet.  To fix that particular
+issue you need to write an STL proxy allocator.  That's an enormously
+annoying process because of how complex the interface is, for essentially
+doing nothing.&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;#include&lt;/span&gt; &lt;span class=&quot;cpf&quot;&gt;&amp;lt;limits&amp;gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;template&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;proxy_allocator&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;size_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;size_type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;ptrdiff_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;difference_type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;T&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pointer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;T&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;const_pointer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;reference&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;T&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;const_reference&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;T&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;value_type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;template&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;U&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rebind&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;proxy_allocator&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;U&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;other&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;proxy_allocator&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;throw&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{}&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;proxy_allocator&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;proxy_allocator&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;throw&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{}&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;template&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;U&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;proxy_allocator&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;proxy_allocator&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;U&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;throw&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{}&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;~&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;proxy_allocator&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;throw&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{}&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;pointer&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;address&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;reference&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;const_pointer&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;address&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;const_reference&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;pointer&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;allocate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;size_type&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;?&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;reinterpret_cast&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pointer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;yl_malloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;sizeof&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)))&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;deallocate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pointer&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;size_type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;yl_free&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;size_type&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;max_size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;throw&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;std&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;numeric_limits&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;size_t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;max&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;/&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;sizeof&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;construct&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pointer&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;reinterpret_cast&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;destroy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pointer&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;~&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;kt&quot;&gt;bool&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;operator&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;==&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;proxy_allocator&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;other&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;kt&quot;&gt;bool&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;operator&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;proxy_allocator&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;other&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;false&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;So before we go on, how does one use this abomination?  Like this:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;#include&lt;/span&gt; &lt;span class=&quot;cpf&quot;&gt;&amp;lt;deque&amp;gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#include&lt;/span&gt; &lt;span class=&quot;cpf&quot;&gt;&amp;lt;string&amp;gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;std&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;deque&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;proxy_allocator&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&amp;gt;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;TaskQueue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;std&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;basic_string&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;std&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;char_traits&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+                          &lt;span class=&quot;n&quot;&gt;proxy_allocator&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;I would recommend making a header somewhere that defines all the
+containers you want to use and then force yourself not to use anything
+else from the STL without typedefing it to use the right allocator.
+Careful: do not &lt;tt class=&quot;docutils literal&quot;&gt;new TaskQueue()&lt;/tt&gt; those things as you would invoke the
+global new operator.  Place them instead as members in your own structs so
+that the allocation happens as part of your object which has a custom
+allocator.  Alternatively just put them on the stack.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;memory-allocation-failures&quot;&gt;
+&lt;h2&gt;Memory Allocation Failures&lt;/h2&gt;
+&lt;p&gt;In my mind the best way to deal with memory allocation failures is to not
+deal with them.  Just don't cause any allocation to fail.  For a library
+that's easy to accomplish, just be aware of how much memory you will
+allocate in the worst case scenario and if you are unbounded, provide the
+user of the library with a way to get an idea of how bad things are.  The
+reason for this is that nobody deals with allocation failures either.&lt;/p&gt;
+&lt;p&gt;For a start the STL entirely depends on &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;std::bad_alloc&lt;/span&gt;&lt;/tt&gt; being thrown
+from operator new (which we're not doing above, hehe) and will just bubble
+up the error for you to deal with it.  When you compile your library
+without exception handling then the library will just terminate the
+process.  That's pretty terrible, but that's what's going to happen
+anyways if you're not careful.  I have seen more code that ignores the
+return value of malloc than code that deals with it properly.&lt;/p&gt;
+&lt;p&gt;Aside from that: on some systems malloc will totally lie to you about how
+much memory is available anyways.  Linux will gladly give you pointers to
+memory it can't back up with real physical memory.  This fiat memory
+behavior is quite useful but also will mean that you generally already
+have to assume that allocation failure might not happen.  So instead of
+reporting allocation errors, if you use C++ and you also want to stick to
+the STL, then give up on that and just don't run out of memory.&lt;/p&gt;
+&lt;p&gt;In computer games the general concept there is to give subsystems their
+own allocator and just make sure they never allocate more than what they
+are given.  EA seems to recommend the allocator to handle allocation
+failures.  For instance when it fails to load more memory it would check
+if it can free up some resources that are not needed (like caches) instead
+of letting the caller know there is a memory failure.  This works even
+with the limited design that the C++ standard gives with allocators.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;building&quot;&gt;
+&lt;h2&gt;Building&lt;/h2&gt;
+&lt;p&gt;Now that you have written the code, how do you build your library without
+making your users unhappy?  If you're like me you come from a Unix
+background where makefiles are what builds software.  However that's not
+what everybody wants.  Autotools/autoconf are terrible, terrible pieces of
+software and if you give that to a windows guy they will call you all
+kinds of names.  Instead make sure there are Visual Studio solutions
+sitting around.&lt;/p&gt;
+&lt;p&gt;What if you don't want to deal with Visual Studio because it's not your
+toolchain of choice?  What if you want to keep solutions and makefiles in
+sync?  The answer to that question is &lt;a class=&quot;reference external&quot; href=&quot;http://industriousone.com/premake&quot;&gt;premake&lt;/a&gt; or &lt;a class=&quot;reference external&quot; href=&quot;http://www.cmake.org/&quot;&gt;cmake&lt;/a&gt;.  Which of the two you use depends largely on
+you.  Both can generate Makefiles, XCode or Visual Studio solutions out of
+a simple definition script.&lt;/p&gt;
+&lt;p&gt;I used to be a huge fan of cmake but I now switched to premake.  The
+reason for this is that cmake has some stuff hardcoded which I need to
+customize (for instance building a Visual Studio solution for Xbox 360 is
+something you cannot do with stock cmake).  Premake has many of the same
+problems as cmake but it's written almost entirely in lua and can be
+easily customized.  Premake is essentially one executable that includes a
+lua interpreter and a bunch of lua scripts.  It's easy to recompile and if
+you don't want to, your premake file can override everything if you just
+know how.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;testing&quot;&gt;
+&lt;h2&gt;Testing&lt;/h2&gt;
+&lt;p&gt;Lastly: how do you test your library?  Now obviously there are tons of
+testing tools written in C and C++ you can use, but I think the best tools
+are actually somewhere else.  Shared libraries are not just for C and C++
+to enjoy, you can use them in a variety of languages.  What better way is
+there to test your API by using it from a language that is not C++?&lt;/p&gt;
+&lt;p&gt;In my case I am using Python to test my libraries.  More to the point: I'm
+using &lt;a class=&quot;reference external&quot; href=&quot;http://pytest.org/&quot;&gt;py.test&lt;/a&gt; and &lt;a class=&quot;reference external&quot; href=&quot;http://cffi.readthedocs.org/&quot;&gt;CFFI&lt;/a&gt; to test my library.  This has a couple
+of big advantages over directly doing it in C/C++.&lt;/p&gt;
+&lt;p&gt;The biggest advantage is the increased iteration speed.  I do not have to
+compile my tests at all, they just run.  Not only does the compilation
+step fall away, I can also take advantage of Python's dynamic typing and
+py.test's good assert statement.  I write myself helpers to print out
+information and to convert data between my library and Python and I get
+all the benefit of good error reporting.&lt;/p&gt;
+&lt;p&gt;The second advantage is good isolation.  &lt;a class=&quot;reference external&quot; href=&quot;https://pypi.python.org/pypi/pytest-xdist&quot;&gt;pytest-xdist&lt;/a&gt; is a plugin for py.test
+that adds the &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;--boxed&lt;/span&gt;&lt;/tt&gt; flag to py.test which runs each test in a
+separate process.  That's amazingly useful if you have tests that might
+crash due to a segfault.  If you enable coredumps on your system you can
+then afterwards load up the segfault in gdb and figure out what's wrong.
+This also works really well because you don't need to deal with memory
+leaks that happen because an assertion failed and the code skips the
+cleanup.  The OS will clean up for each test separately.  Unfortunately
+that's implemented through the &lt;tt class=&quot;docutils literal&quot;&gt;fork()&lt;/tt&gt; system call so it does not work
+well on windows right now.&lt;/p&gt;
+&lt;p&gt;So how do you use your library with CFFI?  You will need to do two things:
+you need to make sure your public header file does not include any other
+headers.  If you can't do that, just add a define that disables the
+includes (like &lt;tt class=&quot;docutils literal&quot;&gt;YL_NOINCLUDE&lt;/tt&gt;).&lt;/p&gt;
+&lt;p&gt;This is all that's needed to make CFFI work:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;os&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;subprocess&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;cffi&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FFI&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;here&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;os&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;abspath&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;os&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dirname&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;vm&quot;&gt;__file__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;header&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;os&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;join&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;here&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;include&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;yourlibrary.h&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;ffi&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cdef&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;subprocess&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Popen&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([&lt;/span&gt;
+    &lt;span class=&quot;s1&quot;&gt;&amp;#39;cc&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;-E&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;-DYL_API=&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;-DYL_NOINCLUDE&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;header&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stdout&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;subprocess&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PIPE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;communicate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;lib&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ffi&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dlopen&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;os&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;join&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;here&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;build&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;libyourlibrary.dylib&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Place it in a file called &lt;tt class=&quot;docutils literal&quot;&gt;testhelpers.py&lt;/tt&gt; next to your tests.&lt;/p&gt;
+&lt;p&gt;Now obviously that is the simple version that only works on OS X but it's
+simple to extend for different operating systems.  In essence this
+invokes the C preprocessor and adds some extra defines, then feeds the
+return value of that to the CFFI parser.  Afterwards you have a beautiful
+wrapped library to work with.&lt;/p&gt;
+&lt;p&gt;Here an example of how such a test could look like.  Just place it in a
+file called &lt;tt class=&quot;docutils literal&quot;&gt;test_something.py&lt;/tt&gt; and let &lt;tt class=&quot;docutils literal&quot;&gt;py.test&lt;/tt&gt; execute it:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;time&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;testhelpers&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ffi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lib&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;test_basic_functionality&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;task&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lib&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;yl_task_new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;while&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lib&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;yl_task_is_pending&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;lib&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;yl_task_process&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;time&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sleep&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;0.001&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lib&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;yl_task_get_result_string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;assert&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ffi&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;result&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;lib&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;yl_task_free&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;py.test has other advantages too.  For instance it supports fixtures which
+allow you to set up common resources that can be reused between tests.
+This is super useful for instance, if using your library requires creating
+some sort of context object, setting up common configuration on it, and
+later destroying it.&lt;/p&gt;
+&lt;p&gt;To do that, just create a &lt;tt class=&quot;docutils literal&quot;&gt;conftest.py&lt;/tt&gt; file with the following content:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;pytest&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;testhelpers&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lib&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ffi&lt;/span&gt;
+
+&lt;span class=&quot;nd&quot;&gt;@pytest.fixture&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;scope&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;function&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lib&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;yl_context_new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;lib&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;yl_context_set_api_key&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;my api key&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;lib&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;yl_context_set_debug_mode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;cleanup&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;lib&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;yl_context_free&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;addfinalizer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cleanup&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;To use this now, all you need to do is to add a parameter called
+&lt;tt class=&quot;docutils literal&quot;&gt;context&lt;/tt&gt; to your test function:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;testhelpers&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ffi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lib&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;test_basic_functionality&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;task&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lib&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;yl_task_new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;summary&quot;&gt;
+&lt;h2&gt;Summary&lt;/h2&gt;
+&lt;p&gt;Since this is longer than usual, here a quick summary of the most
+important things to keep in mind when building a native shared library:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;Write it in C or C++, don't get crazy with building it in a language
+that pulls in a whole runtime that takes up CPU and memory.&lt;/li&gt;
+&lt;li&gt;No global state if you can avoid it!&lt;/li&gt;
+&lt;li&gt;Do not define common types in your public headers&lt;/li&gt;
+&lt;li&gt;Do not include crazy headers like &lt;tt class=&quot;docutils literal&quot;&gt;windows.h&lt;/tt&gt; in your public
+headers.&lt;/li&gt;
+&lt;li&gt;Be light on includes in your headers altogether.  Consider adding a
+way to disable all includes through a define.&lt;/li&gt;
+&lt;li&gt;take good care about your namespace.  Don't expose symbols you do not
+want to be exposed.&lt;/li&gt;
+&lt;li&gt;Create a macro like &lt;tt class=&quot;docutils literal&quot;&gt;YL_API&lt;/tt&gt; that prefixes each symbol you want to
+expose.&lt;/li&gt;
+&lt;li&gt;Try to build a stable ABI&lt;/li&gt;
+&lt;li&gt;Don't go crazy with structs&lt;/li&gt;
+&lt;li&gt;let people customize the memory allocators.  If you can't do it per
+“context” object, at least do it per library.&lt;/li&gt;
+&lt;li&gt;Be careful when using the STL, always only through a typedef that adds
+your allocator.&lt;/li&gt;
+&lt;li&gt;Don't force your users to use your favourite build tool, always make
+sure that the user of a library finds a Visual Studio solution and
+makefile in place.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;That's it!  Happy library building!&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+</feed>
+

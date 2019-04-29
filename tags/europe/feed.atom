@@ -1,0 +1,376 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Armin Ronacher's Thoughts and Writings</title>
+  <id>http://lucumr.pocoo.org/feed.atom</id>
+  <updated>2016-05-18T00:00:00Z</updated>
+  <link href="http://lucumr.pocoo.org/" />
+  <link href="http://lucumr.pocoo.org/feed.atom" rel="self" />
+  <subtitle type="text">Armin Ronacher's personal blog about programming, games and random thoughts that come to his mind.</subtitle>
+  <generator>Werkzeug</generator>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">A Europe For Our Children</title>
+    <id>http://lucumr.pocoo.org/2016/5/18/for-our-children</id>
+    <updated>2016-05-18T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2016/5/18/for-our-children" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Most of the readers of this blog are not from Europe, let alone Austria,
+the country I was born in.  As such I'm not sure how many will actually
+care about Austrian politics here, especially if it's a lengthy post.  But
+I would still like if you read it because I think the topic is important
+and not just because of Austria.  Our problems here are not just ours,
+they are a general issue that affects all of Europe and the western world.&lt;/p&gt;
+&lt;p&gt;So since you are probably in no way familiar with Austrian politics or the
+situation in the country I want to give you a brief overview.  Austria has
+recovered very quickly from the war torn country it was after World War 2
+and emerged as one of the most powerful economies of Europe if looked at
+on a GDP per capita basis.  It underwent a conversion from an agricultural
+country with some tourism attached to being dominated by the service
+industry and producing technology and parts (the economical tree map looks
+confusing because it's so heavily diversified).&lt;/p&gt;
+&lt;p&gt;However as great as the country has developed after the wars and as
+profitable the creation of the Eurozone was, there was an end to this
+positive trend and it came with the financial crisis of 2007/2008
+(although with a bit of a delay).  The economy did recover, but it did not
+do it to the extent people wanted.  At the same time necessary reforms
+were not implemented (or not implemented in the right ways) and as a
+result the country has suffered major blows in the last few years.  From a
+personal point of view I cannot stress enough how disappointed I am that
+many of my collegues went to other countries and started their companies
+there or work there.  But it would be foolish to blame politics on this
+alone.  This is as much a problem of politics as it is a problem of
+culture.&lt;/p&gt;
+&lt;p&gt;We now reached the point where cheap and populist ideas like reducing
+social welfare for non citizens gets popular support.  In this environment
+right wing parties emerge and this sunday Austrians will probably elect
+the first right wing leader of the country since the end of World War 2.&lt;/p&gt;
+&lt;p&gt;But politics not what I want to talk about.  What I want to talk about is
+the erosion of civilized discourse in Austria and I think in all of
+Europe.  A large part of the general public are unable to have civilized
+discussions on the bases of facts and instead conspiracies and emotions
+take over and this is something that extends to politicians in Austria as
+well.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-symptoms-and-problems&quot;&gt;
+&lt;h2&gt;The Symptoms and Problems&lt;/h2&gt;
+&lt;p&gt;If you look at the emotional state of the country you can see a few
+symptoms and problems that help the populists to raise to power:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;&lt;strong&gt;Inability (or unwillingness) to learn and understand&lt;/strong&gt; how Austria and
+the world changed in the last few years.  I think this is a big one of the
+people who want to leave the European Union and do similar crazy things
+to the Austrian economy.  We're so intertwined with it, that I doubt
+anyone can predict what would happen as a consequence of leaving it.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;&lt;strong&gt;Comparing things that cannot directly be compared&lt;/strong&gt; is a very related
+problem. As an example the Euro might have been a mistake for Germany
+but that does not mean that the Euro was not a profit for Austria.  We
+were pegged to the Mark before, for us not much changed.  If anything the
+situation improved because we're an export nation and our export partners
+are other European countries and if they also use the Euro they cannot
+harm our exports by devaluing their own currencies.&lt;/p&gt;
+&lt;p&gt;But despite the fact it's so very hard to compare countries because they
+are so fundamentally differently structured - yet people will still do
+it in conversations.  Switzerland is heralded as the great example of
+continental Europe in Austria but it's so specific out of history that
+it's incredible hard to copy or imitate.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;&lt;strong&gt;Not being able consider the other side&lt;/strong&gt;. I am shocked sometimes what
+people here in Austria think the US are like.  The idea that both
+Europeans and Americans might have very similar fears or hopes for TTIP
+for instance does not seem to exist here.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;&lt;strong&gt;Fear of change&lt;/strong&gt;. I think this is a typical Austrian problem but to
+smaller extent it probably exists elsewhere too. Everything new is
+torpedoed until it cannot be avoided any more because every single other
+country already did it before. That applies to smoking bans as much as
+to embracing of credit cards, online services, acceptance of
+homosexuality, Sunday shopping, flexible working hours and much more.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;&lt;strong&gt;Broad categorization&lt;/strong&gt;. I think Austrians are masters at giving
+good/bad labels to large masses of people based on some categorization
+instead of considering the individual.  Refugees are either good or bad,
+the industry is good or bad, corporations are good or bad, immigrants
+are good or bad. That individually a refugee could be good or bad is
+impossible to comprehend in the general discourse and if someone does
+bring it up, it often gets dismissed as an outlier.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;&lt;strong&gt;Inability to give credit&lt;/strong&gt;. This is particularly a problem in Austrian
+politics. It's one party against the other and never ever would a ruling
+party give an opposition party credit or the other way round. Likewise
+would social democratic voters never give conservative parties credit
+for something or the other way round.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-root-causes&quot;&gt;
+&lt;h2&gt;The Root Causes&lt;/h2&gt;
+&lt;p&gt;But what causes this behavior?  I think Austria's history has a lot to do
+with it.  In the recent history there were conservatives versus social
+democrats.  Combined with the fact that after the war Austria emerged not
+only as a loser but also has one with a lot of baggage due to the support
+to national socialism and the complicated way to deal with it after the
+war.  As such the population was always split in two on this level.
+However they could unity at least somewhat by voting for one of the two
+large centrist parties.  Because the country was doing really well, there
+was no reason to reevaluate this.&lt;/p&gt;
+&lt;p&gt;However when disaster struck this rift became bigger instead of smaller
+and particular with this upcoming presidential election only the most
+extreme candidates made it into the run-off. Voters did not vote for
+people they believed in as much as they voted by using tactics against
+predictions.  This now has lead to one the ugliest pre-elections I have
+seen.&lt;/p&gt;
+&lt;p&gt;Politics are no longer about doing the right thing but defending
+principles, even if they are completely unfounded.  Even though everybody
+says they have the best for Austrian in mind everyone is so stuck to their
+own opinion that not a single meter of compromise can be achieved.
+Newspapers paint scary pictures of the different outcomes of the election,
+how the country will be torn, how one candidate would mean European
+sanctions and how the other candidate would mean the end of a functioning
+society.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;a-path-forward&quot;&gt;
+&lt;h2&gt;A Path Forward&lt;/h2&gt;
+&lt;p&gt;There are clearly many things wrong in this country but so is it
+everywhere else.  We're not alone with the changes in the world and we
+cannot fall back to local solutions for these problems.  But likewise can
+we not pretend that problems don't exist.  This behavior of ruling parties
+has helped the rise of the populists.  It does not help to pretend that
+immigration without integration does not contribute to problems in
+society.  We need a more honest approach with more talking to each other.&lt;/p&gt;
+&lt;p&gt;Just a few days ago we got &lt;a class=&quot;reference external&quot; href=&quot;https://en.wikipedia.org/wiki/Christian_Kern&quot;&gt;a new chancellor&lt;/a&gt; and he has indicated that
+he wants to end the course of confrontation his predecessors had.  This
+has been supported by all other parties other than the right wing FPOe.  I
+hope they reconsider and also want to constructively work together with
+the rest of the government to lead the country forward and to restore a
+positive way of thinking rather than the fear that has been going around
+for the last years.&lt;/p&gt;
+&lt;p&gt;This however is not something that is a problem that needs to be solved in
+government.  This is a problem that we as people in that country have and
+we need to talk to each other more.  If we talk more to each other I hope
+it becomes clear that we share many core values, we just don't always
+agree on all of them.&lt;/p&gt;
+&lt;p&gt;And to my friends in Austria: please vote. But more than that: please
+accept that if the outcome is not what you wanted, that it does not mean
+the end of the country as you know it.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">The End of Safe Harbor and a Scary Path Forward</title>
+    <id>http://lucumr.pocoo.org/2015/10/6/end-of-safe-harbor</id>
+    <updated>2015-10-06T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2015/10/6/end-of-safe-harbor" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;In the Austrian internets &lt;a class=&quot;reference external&quot; href=&quot;http://www.politico.eu/wp-content/uploads/2015/10/schrems-judgment.pdf&quot;&gt;the news about the end of the safe harbor act&lt;/a&gt;
+has been universally welcomed it seems.  Especially from non technical
+folks that see this as a big win for their privacy.  Surprisingly many
+technical people also welcomed this ruling.  And hey, if Snowden says
+that's a good ruling, who will argue against.&lt;/p&gt;
+&lt;p&gt;I'm very torn about this issue because from a purely technical point of
+view it is very tricky to follow the ruling and by keeping to the current
+state of our data center environments in the light of some other rulings.&lt;/p&gt;
+&lt;p&gt;I'm as disappointed as everybody else that government agencies are
+operating above what seems reasonable from a privacy point of view, but we
+should be careful about what how this field develops.  Fundamentally
+sharing information on the internet and the right to privacy stand in
+conflict to each other and the topic is a lot more complex than to just
+demand more privacy without considering what this means on a technical
+level.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;what-was-safe-harbor&quot;&gt;
+&lt;h2&gt;What Was Safe Harbor?&lt;/h2&gt;
+&lt;p&gt;The US-EU Safe Harbor laws declared US soil as a safe location for user
+data to fulfill the European Privacy Directive.  In a nutshell: this was
+the only reason any modern internet service could keep their primary user
+data in the United States on services like Amazon EC2 or Heroku.&lt;/p&gt;
+&lt;p&gt;In essence Safe Harbor was a self assessment that an American company
+could sign to make itself subject to the European Data Protection
+Directive.  At least in principle.  Practically very few US companies
+cared about privacy which is probably a big reason why we ended up in this
+situation right now.  The second one is the NSA surveillance but I want to
+cover this in particular separately a bit later.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;what-changed&quot;&gt;
+&lt;h2&gt;What Changed?&lt;/h2&gt;
+&lt;p&gt;Maximillian Schrems, an Austrian citizen, has started an investigation
+into Facebook and its data deletion policies a while ago and been
+engaging with the Irish authorities on that matter ever since.  The Irish
+rejected the complaint because they referred to the Safe Harbor act.  What
+changed now is that the European Court of Justice ruled the following:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;In today’s judgment, the Court of Justice holds that the existence of
+a Commission decision finding that a third country ensures an adequate
+level of protection of the personal data transferred cannot eliminate
+or even reduce the powers available to the national supervisory
+authorities under the Charter of Fundamental Rights of the European
+Union and the directive.&lt;/p&gt;
+&lt;p&gt;[…]&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;For all those reasons, the Court declares the Safe Harbour Decision
+invalid&lt;/strong&gt;. This judgment has the consequence that the Irish supervisory
+authority is required to examine Mr Schrems’ complaint with all due
+diligence and, at the conclusion of its investigation, is to decide
+whether, pursuant to the directive, transfer of the data of Facebook’s
+European subscribers to the United States should be suspended on the
+ground that that country does not afford an adequate level of
+protection of personal data.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;The detailed ramifications of this are a bit unclear, but if you were
+relying on Safe Harbor so far, you probably have to move servers now.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;why-was-safe-harbor-useful&quot;&gt;
+&lt;h2&gt;Why Was Safe Harbor Useful?&lt;/h2&gt;
+&lt;p&gt;So if you take the internet three years ago (before the Ukrainian
+situation happened) the most common of legally running an international
+internet platform as a smallish startup was to put the servers somewhere
+in the US and fill out the safe harbor self assessment every 12 months.&lt;/p&gt;
+&lt;p&gt;To understand why that was a common setup you need to consider why it was
+chosen in the first place.  The European Data Protection Directive came
+into effect quite a long time ago.  It's dated for the end of 1995 and
+required user data to be either stored in EFTA states or optionally in
+another country if it can be ensured that the same laws are upheld.  This
+is what safe harbor did.  In absence of this, all data from European
+citizens must be stored on European soil.&lt;/p&gt;
+&lt;p&gt;After the Ukrainian upraising and after Crimea fell to the Russian
+Federation a few things changed.  International sanctions were put up
+against Russia and Russia decided to adopt the same provision as the
+European Union: Russian citizen's data has to be stored on Russian
+servers.  This time however without an option to get exceptions to this
+rule.&lt;/p&gt;
+&lt;p&gt;It's true that the US do not yet have a provision that requires US citizen
+data to be stored in the States, but this is something that has been
+discussed in the past and it's a requirement for working with the
+government already.  However with both Russia and Europe we now have two
+large international players that set the precedent and it can only get
+worse from here.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;privacy-vs-data-control&quot;&gt;
+&lt;h2&gt;Privacy vs Data Control&lt;/h2&gt;
+&lt;p&gt;The core of the issue currently is that data is considered power and
+privacy is a secondary issue there.  While upholding privacy is an
+important and necessary goal, we need to be careful to not forget that
+the European countries are not any better.  While it's nice to blame the
+NSA for world wide surveillance programs, we Europeans have our own
+governmental agencies that act with very little supervision and especially
+in the UK operate on the same invasiveness as in the US.&lt;/p&gt;
+&lt;p&gt;A European cloud provider will have to comply with local law enforcement
+just as much as an American cloud provider will have to be with federal US
+one.  The main difference just being the institutions involved.&lt;/p&gt;
+&lt;p&gt;The motivation for the Russian government is most likely related to law
+enforcement over privacy.  I'm almost sure they care more about keeping
+certain power over companies doing business in Russia to protect
+themselves against international sanctions than their citizens privacy.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;data-locality-and-personal-data&quot;&gt;
+&lt;h2&gt;Data Locality and Personal Data&lt;/h2&gt;
+&lt;p&gt;So what exactly is the problem with storing European citizens data in
+Europe, data of Americans in the states and the data of Russians somewhere
+in the Russian Federation?  Unsurprisingly this is a very hard problem to
+solve if you want to allow people from those different countries to
+interact with each other.&lt;/p&gt;
+&lt;p&gt;Let's take a hypothetical startup here that wants to build some sort of
+Facebook for climbers.  They have a very niche audience but they attract
+users from all over the world.  Users of the platform can make
+international friendships, upload their climbing trips, exchange messages
+with each other and also purchase subscriptions for &amp;quot;pro&amp;quot; features like
+extra storage.&lt;/p&gt;
+&lt;p&gt;So let's say we want to identify Russians, Americans and Europeans to keep
+the data local to each of their jurisdictions.  The easy part is to set up
+some servers in all of those countries and make them talk to each other.
+The harder part is to figure out which user belongs to which jurisdiction.
+One way would be to make users upload their passport upon account creation
+and determine their main data center by their citizenship.  This obviously
+would not cover dual citizens.  A Russian-American might fall into two
+shards on a legal basis but they would only opt into one of them.  So
+let's ignore those outliers.  Let's also ignore what happens if the
+citizenship of a user changes because that process is quite involved and
+usually takes a few years and does not happen all that commonly.&lt;/p&gt;
+&lt;p&gt;Now that we know where users are supposed to be stored, the question is
+how users are supposed to interact with each other.  While distributed
+databases exist, they are not magic.  Sending information from country to
+country takes a lot of time so operations that affect two users from
+different regions will involve quite a bit of delay.  It also requires
+that the data temporarily crosses into another region.  So if an American
+user sends data to a Russian user, that information will have to be
+processed somewhere.&lt;/p&gt;
+&lt;p&gt;The problem however is if the information is not temporarily in flux.  For
+instance sending a message from Russia to America could be seen as falling
+as being a duplicated message that is both intended for the American and
+Russian jurisdiction.  Tricker it gets with information that cannot be
+directly correlated to a user.  For instance what your friends are.
+Social relationships can only be modelled efficiently if the data is
+sufficiently local.  We do not have magic in computing and we are bound to
+the laws of physics.  If your friends are on the other side of the world
+(which nowadays the most likely are) it becomes impossible to handle.&lt;/p&gt;
+&lt;p&gt;Credit card processing also falls in to this.  Just because you are
+British does not mean your credit card is.  Many people live in other
+countries and have many different bank accounts.  The data inherently
+flows from system to system to clear the transaction.  Our world is very
+connected nowadays and the concept of legal data locality is very much at
+odds with the realities of our world.&lt;/p&gt;
+&lt;p&gt;The big cloud services are out, because they are predominantly placed in
+the US.  Like it or not, Silicon Valley is many, many years ahead of what
+European companies can do.  While there are some tiny cloud service
+providers in Europe, they barely go further than providing you with
+elastically priced hardware.  For European startups this is a significant
+disadvantage over their American counterparts when they can no longer use
+American servers.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;privacy-not-data-locality&quot;&gt;
+&lt;h2&gt;Privacy not Data Locality&lt;/h2&gt;
+&lt;p&gt;The case has been made that this discussion is not supposed to be about
+data locality but about privacy.  That is correct for sure, but
+unfortunately data centers fall into the jurisdiction of where they are
+placed.  Unless we come up with a rule where data centers are placed on
+international soil where they computers within them are out of
+government's reach, a lot of this privacy discussion is dishonest.&lt;/p&gt;
+&lt;p&gt;What if the bad player are the corporates and now the governments?  Well
+in that case that was the whole point of safe harbor to begin with: to
+enforce stricter privacy standards on foreign corporations for European
+citizens.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;how-to-comply&quot;&gt;
+&lt;h2&gt;How to Comply?&lt;/h2&gt;
+&lt;p&gt;Now the question is how to comply with what this is going into.  These new
+rules are more than implementable for Facebook size corporations, but it
+is incredibly hard to do for small startups.  It's also not quite clear
+what can and what cannot be done with data now.  At which point data is
+considered personal and at which point it is not, is something that
+differs from country to country and is in some situations even not
+entirely clear.  For instance according to the UK DPA user relationships
+are personal information if they have &amp;quot;biographical significance&amp;quot;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;a-disconnected-world&quot;&gt;
+&lt;h2&gt;A Disconnected World&lt;/h2&gt;
+&lt;p&gt;What worries me is that we are taking a huge step back from an
+interconnected world where people can share information with each other,
+to more and more incompatible decentralization.  Computer games
+traditionally have already enforced shards where people from different
+countries could not play together because of legal reasons.  For instance
+many of my Russian friends could never play a computer game with me,
+because they are forced to play in their own little online world.&lt;/p&gt;
+&lt;p&gt;Solutions will be found, and this ruling will probably have no significance
+for the average user.  Most likely companies will ignore the ruling
+entirely anyways because nobody is going to prosecute anyone unless they
+are Facebook size.  However that decisions of this magnitude are made
+without considering the technical feasibility is problematic.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-workaround&quot;&gt;
+&lt;h2&gt;The Workaround&lt;/h2&gt;
+&lt;p&gt;For all intents and purposes nothing will really change for large
+companies like Facebook anyways.  They will have their lawyers argue that
+their system cannot be implemented in a way to comply with forcing data to
+live in Europe and as such will refer to Article 26 of the Data Protection
+Directive which states that personal data to an untrusted third country on
+either a user given consent to this or there being a technical necessity
+for fulfilling the contract between user and service provider.  The TOS
+will change, the lawyers will argue and in the end the only one who will
+really have to pick up the shards are small scale companies which are
+already overwhelmed by all the prior rules.&lt;/p&gt;
+&lt;p&gt;Today does not seem to be a good day for small cloud service providers.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+</feed>
+

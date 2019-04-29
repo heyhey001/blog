@@ -1,0 +1,570 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>The Updated Guide to Unicode on Python | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">The Updated Guide to Unicode on Python</h1>
+
+  
+  <p class=date>written on Tuesday, July 2, 2013
+  
+
+  <p>I figured that it might be the right time to do an updated introduction to
+unicode in Python.  Primarily because the unicode chapter got a whole lot
+of new confusing chapters on Python 3 that a developer needs to know.</p>
+<p>Let's start first with how unicode worked on Python 2.</p>
+<div class="section" id="unicode-on-python-2">
+<h2>Unicode on Python 2</h2>
+<p>Unicode on Python 2 is a fairly simple thing.  There are two types of
+string literals: bytestrings (look like this on 2.x: <tt class="docutils literal">'foo'</tt>) and
+unicode strings (which have a leading <tt class="docutils literal">u</tt> prefix like this: <tt class="docutils literal">u'foo'</tt>).
+Since 2.6 you can also be explicit about bytestrings and write them with a
+leading <tt class="docutils literal">b</tt> prefix like this: <tt class="docutils literal">b'foo'</tt>.</p>
+<p>Python 2's biggest problem with unicode was that some APIs did not support
+it.  The most common ones were many filesystem operations, the datetime
+module, the csv reader and quite a few interpreter internals.  In addition
+to that a few APIs only ever worked with non unicode strings or caused a
+lot of confusion if you introducted unicode.  For instance docstrings
+break some tools if they are unicode instead of bytestrings, the return
+value of <tt class="docutils literal">__repr__</tt> must only ever be bytes and not unicode strings etc.</p>
+<p>Aside from that Python had one feature that usually confused developers: a
+byte string for as long as it only contained ASCII characters could be
+upgraded to a unicode string implicitly.  If however it was not ASCII safe
+it would have caused some form of <tt class="docutils literal">UnicodeError</tt>.  Either a
+<tt class="docutils literal">UnicodeEncodeErrror</tt> or a <tt class="docutils literal">UnicodeDecodeError</tt> depending on when it
+failed.</p>
+<p>Because of all that the rule of thumb on 2.x was this:</p>
+<ul class="simple">
+<li>the first time you know your encoding properly decode from bytes into
+unicode.</li>
+<li>when it's most convenient for you and you know the target encoding,
+encode back to bytes.</li>
+<li>internally feel free to use bytes literals for as long as they are
+restricted to the ascii subset.</li>
+</ul>
+<p>This worked really well for many 2.x libraries.  On Flask for instance you
+will only encounter unicode issues if you try to pass byte string literals
+with non ascii characters to the templates or if you try to use Flask with
+APIs that do not support unicode.  Aside from that it takes a lot of work
+to create a unicode error.</p>
+<p>This is accomplished because the whole WSGI layer is byte based and the
+whole Flask layer is unicode based (for text).  As such Flask just does
+the encoding when it transfers from WSGI over to Flask.  Likewise the
+return value is inspected and if the return type is unicode it will
+automatically encode it before handling data back to the WSGI layer.</p>
+</div>
+<div class="section" id="basic-unicode-on-python-3">
+<h2>Basic Unicode on Python 3</h2>
+<p>On Python 3 two things happened that make unicode a whole lot more
+complicated.  The biggest one is that the bytestring was removed.  It was
+replaced with an object called <tt class="docutils literal">bytes</tt> which is created by the Python 3
+bytes syntax: <tt class="docutils literal">b'foo'</tt>.  It might look like a string at first, but it's
+not.  Unfortunately it does not share much of the API with strings.</p>
+<p>The following code example shows that the bytes object is very different
+of the string object indeed:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;key=</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="s1">&#39;value&#39;</span>
+<span class="go">&#39;key=value&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;key=</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="sa">b</span><span class="s1">&#39;value&#39;</span>
+<span class="go">&quot;key=b&#39;value&#39;&quot;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="sa">b</span><span class="s1">&#39;key=</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="sa">b</span><span class="s1">&#39;value&#39;</span>
+<span class="gt">Traceback (most recent call last):</span>
+  File <span class="nb">&quot;&lt;stdin&gt;&quot;</span>, line <span class="m">1</span>, in <span class="n">&lt;module&gt;</span>
+<span class="gr">TypeError</span>: <span class="n">unsupported operand type(s) for %: &#39;bytes&#39; and &#39;bytes&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">str</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+<span class="go">&#39;10&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">bytes</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+<span class="go">b&#39;\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">list</span><span class="p">(</span><span class="s1">&#39;foo&#39;</span><span class="p">)</span>
+<span class="go">[&#39;f&#39;, &#39;o&#39;, &#39;o&#39;]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">list</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;foo&#39;</span><span class="p">)</span>
+<span class="go">[102, 111, 111]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;foo&#39;</span> <span class="o">==</span> <span class="sa">b</span><span class="s1">&#39;foo&#39;</span>
+<span class="go">False</span>
+</pre></div>
+<p>One could argue that that's fine, because you will no longer mix bytes and
+unicode, but unfortunately that's not the case.  The reason for this is
+that a whole bunch of APIs work on bytes and unicode strings
+interchangeably.  For instance all the file system APIs operate on both
+unicode and bytes:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="s1">&#39;/tmp/test&#39;</span><span class="p">)</span>
+<span class="go">[&#39;Scheiß_Encoding&#39;]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;/tmp/test&#39;</span><span class="p">)</span>
+<span class="go">[b&#39;Schei\xc3\x9f_Encoding&#39;]</span>
+</pre></div>
+<p>That might not seem like a big deal at first, but APIs have the attitude
+of spreading further.  For instance opening a file will set the name
+attribute to a “string” of that type:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">open</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;/tmp/test/Schei</span><span class="se">\xc3\x9f</span><span class="s1">_Encoding&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">name</span>
+<span class="go">b&#39;/tmp/test/Schei\xc3\x9f_Encoding&#39;</span>
+</pre></div>
+<p>As a result every user of the <tt class="docutils literal">.name</tt> attribute will have to force it to
+the right type before interacting with it.  The same thing also has been
+true on 2.x, however on 3.x this behavior is mostly undocumented.</p>
+<p>It's not just file operations, it also happens on other APIs like the
+urllib parsing module which can produce both bytes and unicode strings:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">x</span><span class="o">.</span><span class="n">parse_qs</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;foo=bar&#39;</span><span class="p">)</span>
+<span class="go">{b&#39;foo&#39;: [b&#39;bar&#39;]}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">x</span><span class="o">.</span><span class="n">parse_qs</span><span class="p">(</span><span class="s1">&#39;foo=bar&#39;</span><span class="p">)</span>
+<span class="go">{&#39;foo&#39;: [&#39;bar&#39;]}</span>
+</pre></div>
+</div>
+<div class="section" id="magic-defaults-in-3-x">
+<h2>Magic Defaults in 3.x</h2>
+<p>Python 3 unfortunately made a choice of guessing a little bit too much
+with unicode in some places.  When I asked the question at one conference
+before about what people believe the default encoding for text files on
+Python 3 was, most were replying UTF-8.  This is correct on some operating
+systems.  It's definitely true for OS X and it's true for most linux
+distributions I tried.  However how does Python determine that encoding?
+The answer is by looking into the locale settings in the environment
+variables.</p>
+<p>Unfortunately those break very quickly.  A good example for instance is
+SSH'ing from a german locale into a US linux box that does not support the
+german locale.  Linux will then attempt to set the locale and fails, and
+default to <tt class="docutils literal">C</tt> which is ASCII.  Python then very happily opens a file in
+ASCII mode.  Here is the logic that Python applies to guessing the default
+encoding on files:</p>
+<ol class="arabic simple">
+<li>it first starts out finding the device the file is located on and will
+try to get the encoding from that device.  This function currently
+only ever does something for terminals.  As far as I know this only
+ever does something really interesting on windows where it might
+return a codepage (which totally is not unicode, but that's expected).</li>
+<li>The same function that finds out the device encoding might also call
+<tt class="docutils literal">nl_langinfo(CODESET)</tt> which returns the current encoding that the
+locale system is aware of.  Traditionally the locale support was not
+initialized on the Python interpreter but it definitely gets
+initialized somewhere.  This call is also the one that can fail when a
+locale is not available but set (SSH example from above).</li>
+<li>If for whatever reason <tt class="docutils literal">device_encoding</tt> does not return anything
+(for instance because the device was not a terminal) it will try to
+import the locale module (which BTW is written in Python, always
+interesting to see when the stuff written in C imports a Python
+module) and call into the <tt class="docutils literal">locale.getpreferredencoding</tt> function and
+use the return value of that.</li>
+</ol>
+<p>Because it does not set the locale there it basically only calls into
+<tt class="docutils literal">nl_langinfo(CODESET)</tt> again.  Because that call sometimes fails on OS X
+it converts the return value for OS X into utf-8 if it does not get a
+useful result otherwise.</p>
+<p>I am not a fan of that behavior and I strongly recommend explicitly
+passing the encoding of text files as third parameter.  That's how we did
+it on 2.x and that's also how I recommend doing it on Python 3.  I really
+wish the default encoding was changed to utf-8 in all cases except for
+terminal devices and maybe have some encoding='auto' flag that guesses.</p>
+<p>I failed installing a package on python 3 a while ago because a
+contributor name was containing a non ASCII name and the setup.py file was
+opening the README file for the docstring.  Worked fine on OS X and normal
+Linux, but broke hard when I SSH'ed into my Linux box from an Austrian OS
+X.  I am not sure how many people run into that (I assume not a lot) but
+it's annoying when it happens and there is literally nothing that
+guarantees that a file opened in text mode and without a defined encoding
+is UTF-8.  So do the world a favor and open text files like this:</p>
+<div class="highlight"><pre><span></span><span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+<div class="section" id="different-types-of-unicode-strings">
+<h2>Different Types of Unicode Strings</h2>
+<p>In addition to regular unicode strings, on Python 3 you have to deal with
+two additional types of unicode strings.  The reason for this is that
+a library (or the Python interpreter) does not have enough knowledge about
+the encoding so it has to apply some tricks.  Where in Python 2.x we made
+a string stick to being bytes in that case, on Python 3 there are two more
+choices you have.  These strings don't have proper names and look like
+regular unicode strings, so I am going to give them names for the sake of
+the argument.  Let's call the regular unicode string a “text” string.
+Each character in that string is correctly internally represented and no
+surprises are to be expected.</p>
+<p>In addition to that there are strings I would call “transport decoded”
+strings.  Those strings are used in a few places.  The most common case
+where you are dealing with those strings is the WSGI protocol and most
+things that interface with HTTP.  WSGI declares that strings in the WSGI
+environment are represented as incorrectly decoded latin1 strings.  In
+other words what happens is that all unicode strings in the Python 3 WSGI
+environment are actually incorrectly encoded for any codepoint above
+ASCII.  In order to properly decode that strings you will need to encode
+the string back to latin 1 and decode from the intended encoding.
+Werkzeug internally refers to such strings as “dance encoded” strings.
+The following logic has to be applied to properly re-decode them to the
+actual character set:</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">wsgi_decoding_dance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">charset</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s1">&#39;replace&#39;</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">s</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;latin1&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">charset</span><span class="p">,</span> <span class="n">errors</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">wsgi_encoding_dance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">charset</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s1">&#39;replace&#39;</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">s</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;latin1&#39;</span><span class="p">,</span> <span class="n">errors</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">s</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">charset</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;latin1&#39;</span><span class="p">,</span> <span class="n">errors</span><span class="p">)</span>
+</pre></div>
+<p>This logic is not just required for WSGI however, the same requirement
+comes up for any MIME and HTTP header.  Theoretically it's not a problem
+for these headers because they are limited to latin1 out of the box and
+use explicit encoding information if a string does not fit into latin1.
+Unfortunately in practical terms it's not uncommon for certain headers to
+be utf-8 encoded.  This is incredibly common with custom headers emitted
+by applications as well as the cookie headers if the cookie header is set
+via JavaScript as the browser API does not provide automatic encoding.</p>
+<p>The second string type that is common on Python 3 is the “surrogate
+escaped string”.  These are unicode strings that cannot be encoded to an
+unicode encoding because they are actually invalid.  These strings are
+created by APIs that think an encoding is a specific one but cannot
+guarantee it because the underlying system does not fully enforce that.
+This functionality is provided by the <tt class="docutils literal">'surrogateescape'</tt> error handler:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">letter</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\N{LATIN CAPITAL LETTER U WITH DIAERESIS}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;latin1&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">decoded_letter</span> <span class="o">=</span> <span class="n">letter</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">,</span> <span class="s1">&#39;surrogateescape&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">decoded_letter</span>
+<span class="go">&#39;\udcdc&#39;</span>
+</pre></div>
+<p>This is for instance happening for <tt class="docutils literal">os.environ</tt> as well as all the
+unicode based filesystem functions.  If you try to encode such a string to
+<tt class="docutils literal"><span class="pre">utf-8</span></tt> for instance you will receive an <tt class="docutils literal">UnicodeEncodeError</tt>:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">decoded_letter</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+<span class="gt">Traceback (most recent call last):</span>
+  File <span class="nb">&quot;&lt;stdin&gt;&quot;</span>, line <span class="m">1</span>, in <span class="n">&lt;module&gt;</span>
+<span class="gr">UnicodeEncodeError</span>: <span class="n">&#39;utf-8&#39; codec can&#39;t encode character</span>
+<span class="go">  &#39;\udcdc&#39; in position 0: surrogates not allowed</span>
+</pre></div>
+<p>To solve this problem you need to encode such strings with the encoding
+error handling set to <tt class="docutils literal">'surrogateescape'</tt>.  As an extension this means
+that strings received from functions that might carry surrogates need to
+be resolved before passed to APIs not dealing with such strings.</p>
+<p>This primarily means that you have two options: change all your
+<tt class="docutils literal">encode()</tt> errorhandling anywhere in your codebase from <tt class="docutils literal">'strict'</tt>
+(which is the default) to <tt class="docutils literal">'surrogateescape'</tt> or remove surrogates from
+your strings.  The easiest form I believe is going through a encode/decode
+dance.  I believe that currently that's also the only simple way to check
+if something was indeed surrogate escaped.</p>
+<p>My suggestion is that every time you deal with an API that might produce
+surrogate escaped strings (<tt class="docutils literal">os.environ</tt> etc.) you should just do a basic
+check if the value is surrogate escaped and raise an error (or remove the
+surrogate escaping and call it a day).  But don't forward those strings
+onwards as it will make it very painful to figure out what's wrong later.</p>
+<p>If you for instance pass such a string to a template engine you will get
+an error somewhere else entirely and because the encoding happens at a
+much later stage you no longer know why the string was incorrect.  If you
+detect that error when it happens the issue becomes much easier to debug
+(basically restores 2.x behavior).</p>
+<p>These functions might be useful:</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">remove_surrogate_escaping</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;ignore&#39;</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="n">method</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;ignore&#39;</span><span class="p">,</span> <span class="s1">&#39;replace&#39;</span><span class="p">),</span> <span class="s1">&#39;invalid removal method&#39;</span>
+    <span class="k">return</span> <span class="n">s</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">,</span> <span class="n">method</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">is_surrogate_escaped</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">s</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">UnicodeEncodeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">reason</span> <span class="o">==</span> <span class="s1">&#39;surrogates not allowed&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">True</span>
+        <span class="k">raise</span>
+    <span class="k">return</span> <span class="bp">False</span>
+</pre></div>
+<p>Both “transport decoded” and “surrogate escaped” strings are the same type
+as regular strings so the best way to keep them apart is memorize where
+they come from.  In Werkzeug I wrote helper functions that fetch the
+strings from their container (WSGI environ) and immediately decode them so
+that a user never has to deal with the low level details.</p>
+<p>The following interfaces produce some of those strings:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="38%" />
+<col width="63%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">API</th>
+<th class="head">String Type</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td><tt class="docutils literal">os.environ</tt></td>
+<td>surrogate escaped</td>
+</tr>
+<tr><td><tt class="docutils literal">os.listdir</tt></td>
+<td>surrogate escaped</td>
+</tr>
+<tr><td>WSGI environ</td>
+<td>transport decoded (<em>latin1</em>)</td>
+</tr>
+<tr><td>HTTP/MIME headers</td>
+<td>transport decoded (<em>latin1</em>)</td>
+</tr>
+<tr><td><tt class="docutils literal">email</tt> text payload</td>
+<td>surrogate escaped</td>
+</tr>
+<tr><td><tt class="docutils literal">nntplib</tt> all data</td>
+<td>surrogate escaped</td>
+</tr>
+<tr><td><tt class="docutils literal">os.exec*</tt> functions</td>
+<td>surrogate escaped (except on windows)</td>
+</tr>
+<tr><td><tt class="docutils literal">subprocess</tt> environ</td>
+<td>surrogate escaped (except on windows)</td>
+</tr>
+<tr><td><tt class="docutils literal">subprocess</tt> arguments</td>
+<td>surrogate escaped (except on windows)</td>
+</tr>
+</tbody>
+</table>
+<p>There are also some special cases in the stdlib where strings are very
+confusing.  The <tt class="docutils literal">cgi.FieldStorage</tt> module which WSGI applications are
+sometimes still using for form data parsing is now treating
+<tt class="docutils literal">QUERY_STRING</tt> as surrogate escaping, but instead of using utf-8 as
+charset for the URLs (as browsers) it treats it as the encoding returned
+by <tt class="docutils literal">locale.getpreferredencoding()</tt>.  I have no idea why it would do
+that, but it's incorrect.  As workaround I recommend not using
+<tt class="docutils literal">cgi.FieldStorage</tt> for query string parsing.</p>
+<p>Unfortunately the docs generally are very quiet about where they are using
+surrogate escaping or not.  Generally the best way is to look at the
+source currently.</p>
+</div>
+<div class="section" id="detecting-errors">
+<h2>Detecting Errors</h2>
+<p>On Python 2.x detecting misuse of Unicode was quite simple.  Generally if
+you did dodgy things you got some form of <tt class="docutils literal">UnicodeError</tt> or
+<tt class="docutils literal">UnicodeWarning</tt>.  Usually you either got a fatal <tt class="docutils literal">UnicodeEncodeError</tt>
+or <tt class="docutils literal">UnicodeDecodeError</tt> or you got logged a <tt class="docutils literal">UnicodeWarning</tt>.  The
+latter for instance happened when comparing bytes and unicode where the
+bytes could not be decoded from ASCII.  On Python 3 the situation looks
+very different unfortunately.</p>
+<ul class="simple">
+<li><tt class="docutils literal">AttributeError</tt>: this usually happens if you try to use a string
+only API on a bytes object.  Usually this happens for calls to
+<tt class="docutils literal">casefold()</tt>, <tt class="docutils literal">encode()</tt>, or <tt class="docutils literal">format()</tt>.</li>
+<li><tt class="docutils literal">TypeError</tt>: this can happen for a variety of different reasons.
+The most common one is string formatting which does not work on bytes.
+If you try to do <tt class="docutils literal">foo % bar</tt> and <tt class="docutils literal">foo</tt> turns out to be a bytes
+object you will get a <tt class="docutils literal">TypeError</tt>.  Another form of this is that
+something iterates over a string and expects a one-character string to
+be returned but actually an integer is produced.</li>
+<li><tt class="docutils literal">UnicodeEncodeError</tt>: usually happens now due to surrogate escaping
+problems when you're not using the <tt class="docutils literal">'surrogateescape'</tt> error handler
+on encoding strings or forget to remove surrogates from strings.</li>
+<li>garbled unicode: happens if you're not dealing with transport decoded
+strings properly.  This usually happens with WSGI.  The best to catch
+this is to never expose WSGI strings directly and always go through an
+extra level of indirection.  That way you don't accidentally mix
+unicode strings of different types.</li>
+<li>no error: that happens for instance when you compare bytes and strings
+and the comparison will just return <tt class="docutils literal">False</tt> without giving a
+warning.  This can be remedied by running the Python interpreter with
+the <tt class="docutils literal"><span class="pre">-b</span></tt> flag which will emit warnings for bytes and text
+comparisons.</li>
+<li>running out of memory / huge strings: this happens when you try to
+pass a large integer to the <tt class="docutils literal">bytes()</tt> constructor.  I have seen this
+happen a few times when porting to Python 3 where the pattern was a
+form of “if object not an instance of bytes, call <tt class="docutils literal">bytes()</tt> on it”.
+This is dangerous because integers are valid input values to the
+<tt class="docutils literal">bytes()</tt> constructor that will allocate as many null bytes as
+the integer passed.  The recommendation there is to stop using that
+pattern and write a <tt class="docutils literal">soft_bytes</tt> function that catches integer
+parameters before passing it to <tt class="docutils literal">bytes</tt>.</li>
+</ul>
+</div>
+<div class="section" id="writing-unicode-bytes-combination-apis">
+<h2>Writing Unicode/Bytes Combination APIs</h2>
+<p>Because there are so many cases where an API can return both bytes or
+unicode strings depending on where they come from, new patterns need to be
+created.  In Python 2 that problem solved itself because bytestrings were
+promoted to unicode strings automatically.  On Python 3 that is no longer
+the case which makes it much harder to implement with APIs that do both.</p>
+<p>Werkzeug and Flask use the following helpers to provide (or work with)
+APIs that deal with both strings and bytes:</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">normalize_string_tuple</span><span class="p">(</span><span class="n">tup</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Ensures that all types in the tuple are either strings</span>
+<span class="sd">    or bytes.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">tupiter</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">tup</span><span class="p">)</span>
+    <span class="n">is_text</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="n">tupiter</span><span class="p">,</span> <span class="bp">None</span><span class="p">),</span> <span class="nb">str</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">tupiter</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="o">!=</span> <span class="n">is_text</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Cannot mix str and bytes arguments (got </span><span class="si">%s</span><span class="s1">)&#39;</span>
+                <span class="o">%</span> <span class="nb">repr</span><span class="p">(</span><span class="n">tup</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">tup</span>
+
+<span class="k">def</span> <span class="nf">make_literal_wrapper</span><span class="p">(</span><span class="n">reference</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Given a reference string it returns a function that can be</span>
+<span class="sd">    used to wrap ASCII native-string literals to coerce it to the</span>
+<span class="sd">    given string type.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">reference</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span>
+    <span class="k">return</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;ascii&#39;</span><span class="p">)</span>
+</pre></div>
+<p>These functions together go quite far to make APIs work for both strings
+and bytes.  For instance this is how URL joining works in Werkzeug which
+is enabled by the <tt class="docutils literal">normalize_string_tuple</tt> and <tt class="docutils literal">make_literal_wrapper</tt>
+helpers:</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">url_unparse</span><span class="p">(</span><span class="n">components</span><span class="p">):</span>
+    <span class="n">scheme</span><span class="p">,</span> <span class="n">netloc</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">fragment</span> <span class="o">=</span> \
+        <span class="n">normalize_string_tuple</span><span class="p">(</span><span class="n">components</span><span class="p">)</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">make_literal_wrapper</span><span class="p">(</span><span class="n">scheme</span><span class="p">)</span>
+    <span class="n">url</span> <span class="o">=</span> <span class="n">s</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">netloc</span> <span class="ow">or</span> <span class="p">(</span><span class="n">scheme</span> <span class="ow">and</span> <span class="n">path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">s</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">))):</span>
+        <span class="k">if</span> <span class="n">path</span> <span class="ow">and</span> <span class="n">path</span><span class="p">[:</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">s</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">):</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">s</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="n">path</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="n">s</span><span class="p">(</span><span class="s1">&#39;//&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">netloc</span> <span class="ow">or</span> <span class="n">s</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">))</span> <span class="o">+</span> <span class="n">path</span>
+    <span class="k">elif</span> <span class="n">path</span><span class="p">:</span>
+        <span class="n">url</span> <span class="o">+=</span> <span class="n">path</span>
+    <span class="k">if</span> <span class="n">scheme</span><span class="p">:</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="n">scheme</span> <span class="o">+</span> <span class="n">s</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="n">url</span>
+    <span class="k">if</span> <span class="n">query</span><span class="p">:</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="n">url</span> <span class="o">+</span> <span class="n">s</span><span class="p">(</span><span class="s1">&#39;?&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="n">query</span>
+    <span class="k">if</span> <span class="n">fragment</span><span class="p">:</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="n">url</span> <span class="o">+</span> <span class="n">s</span><span class="p">(</span><span class="s1">&#39;#&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="n">fragment</span>
+    <span class="k">return</span> <span class="n">url</span>
+</pre></div>
+<p>This way the function only needs to be written once for handling both
+bytes and strings which is in my mind a nicer solution than what the
+standard library does which is implementing every function twice which
+means a lot of copy/pasting.</p>
+<p>Another problem is wrapping file objects in Python 3 because they now only
+support either texts or bytes but there is no documented interface to
+figure out what they accept.  Flask uses the following workaround:</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">is_text_reader</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Given a file object open for reading this function checks if</span>
+<span class="sd">    the reader is text based.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">type</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span> <span class="ow">is</span> <span class="nb">str</span>
+
+<span class="k">def</span> <span class="nf">is_bytes_reader</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Given a file object open for reading this function checks if</span>
+<span class="sd">    the reader is bytes based.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">type</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span> <span class="ow">is</span> <span class="nb">bytes</span>
+
+<span class="k">def</span> <span class="nf">is_text_writer</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Given a file object open for writing this function checks if</span>
+<span class="sd">    the reader is text based.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">s</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">True</span>
+    <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">False</span>
+
+<span class="k">def</span> <span class="nf">is_bytes_writer</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Given a file object open for writing this function checks if</span>
+<span class="sd">    the reader is bytes based.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">s</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">True</span>
+    <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">False</span>
+</pre></div>
+<p>For instance Flask uses this to make JSON work with both text and bytes
+again similar to how it worked in 2.x:</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">io</span>
+<span class="kn">import</span> <span class="nn">json</span> <span class="kn">as</span> <span class="nn">_json</span>
+
+<span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">encoding</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;encoding&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span> <span class="ow">or</span> <span class="s1">&#39;utf-8&#39;</span>
+    <span class="k">if</span> <span class="n">is_bytes_reader</span><span class="p">(</span><span class="n">fp</span><span class="p">):</span>
+        <span class="n">fp</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">TextIOWrapper</span><span class="p">(</span><span class="n">io</span><span class="o">.</span><span class="n">BufferedReader</span><span class="p">(</span><span class="n">fp</span><span class="p">),</span> <span class="n">encoding</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">dump</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">encoding</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;encoding&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">encoding</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="n">is_bytes_reader</span><span class="p">(</span><span class="n">fp</span><span class="p">):</span>
+        <span class="n">fp</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">TextIOWrapper</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="n">encoding</span><span class="p">)</span>
+    <span class="n">_json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="section" id="unicode-is-hard">
+<h2>Unicode is Hard</h2>
+<p>Unicode is still hard, and in my experience it's not much easier on 3.x
+than it was on 2.x.  While the transition forced me to make some APIs work
+better with unicode (and now more correct) I still had to add a lot of
+extra code that was not necessary on Python 2.  If someone does another
+dynamic language in the future I believe the correct solution would have
+been this:</p>
+<ol class="arabic simple">
+<li>take the approach of Python 2.x and allow mixing of bytes and unicode
+strings.</li>
+<li>Make <tt class="docutils literal">'foo'</tt> mean unicode strings and <tt class="docutils literal">b'foo'</tt> mean byte strings.</li>
+<li>Make byte strings have an encoding attribute that defaults to
+<tt class="docutils literal">ASCII</tt></li>
+<li>Add a method to replace the encoding information (eg:
+<tt class="docutils literal"><span class="pre">b'foo'.replace_encoding_hint('latin1')</span></tt></li>
+<li>When comparing strings and bytes use the encoding hint instead of the
+ASCII default (or more correct system default encoding which for
+better or worse was always ASCII).</li>
+<li>Have a separate <tt class="docutils literal">bytes</tt> type that works exactly like strings
+that is not hashable and cannot carry encoding information and
+generally just barks when trying to convert it to strings.  That way
+you can tag true binary data which can be useful sometimes (for
+instance for serialization interfaces).</li>
+</ol>
+<p>If someone wants to see how much complexity the new unicode support in
+Python 3 caused have a look at the code of the <tt class="docutils literal">os</tt> module on 3.x, the
+internal <tt class="docutils literal">io</tt> module file operation utilities and things like
+<tt class="docutils literal">urllib.parse</tt>.</p>
+<p>On the bright side: nothing changes much for high level users of Python.
+I think Flask provides for instance a painless experience for unicode on
+both 2.x and 3.x.  Users are almost entirely shielded from the
+complexities of unicode handling.  The higher level the API, the fewer
+does encoding play a role in it.</p>
+</div>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/python/">python</a> and 
+      <a href="/tags/unicode/">unicode</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,107 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>Why Python Sucks | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">Why Python Sucks</h1>
+
+  
+  <p class=date>written on Monday, June 11, 2007
+  
+
+  <p>And of course also why it sucks a lot less than any other language. But
+it's not perfect. My personal problems with python:</p>
+<ul class="simple">
+<li>It's dict and not Dict, it's list and not List and you cannot
+subclass them without overriding every method.......</li>
+<li>it's copy.copy and not just copy. Why in god's name is that an
+import?</li>
+<li>clean up the stdlib</li>
+<li>there is BaseHTTPServer and not py.http.baseserver or something like
+that. Why is that darn stdlib flat?</li>
+<li>there are soo many bad libraries in the stdlib and so many good ones
+not...</li>
+<li>no goddamn styleguide for the stdlib. it's UnitTest.assertEqual and
+not UnitTest.assert_equal like PEP 8 proposes</li>
+<li>By now you cannot reassign a variable from and outer scope. (there
+is a pep!)</li>
+<li>clean up the stdlib</li>
+<li>assignments are not expressions. gaaaaa. I want to do <tt class="docutils literal">(foo |=
+<span class="pre">[]).append(42)</span></tt> and not <tt class="docutils literal">foo |= []; foo.append(42)</tt> etc.</li>
+<li>No regexp literal and match objects are not instances of a Regexp
+class. Move the sre module into the core, add a <tt class="docutils literal">&#64;/foo/</tt> literal and
+create a Regexp class instead of something like _sre.SRE_Pattern which
+you cannot import to make isinstance tests</li>
+<li>missing blocks. darn. i want blocks</li>
+<li>unify unicode and string. quick! (waiting for Python 3000)</li>
+<li>clean up the stdlib</li>
+</ul>
+<p>Why it still sucks less? Good question. Probably because the meta
+programming capabilities are great, the libraries are awesome, indention
+based syntax is hip, <strong>first class functions</strong>, quite fast, many
+bindings (PyGTW FTW!) and the community is nice and friendly. And there
+is WSGI!</p>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/python/">python</a> and 
+      <a href="/tags/rant/">rant</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

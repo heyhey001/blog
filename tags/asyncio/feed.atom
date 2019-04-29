@@ -1,0 +1,418 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Armin Ronacher's Thoughts and Writings</title>
+  <id>http://lucumr.pocoo.org/feed.atom</id>
+  <updated>2016-10-30T00:00:00Z</updated>
+  <link href="http://lucumr.pocoo.org/" />
+  <link href="http://lucumr.pocoo.org/feed.atom" rel="self" />
+  <subtitle type="text">Armin Ronacher's personal blog about programming, games and random thoughts that come to his mind.</subtitle>
+  <generator>Werkzeug</generator>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">I don't understand Python's Asyncio</title>
+    <id>http://lucumr.pocoo.org/2016/10/30/i-dont-understand-asyncio</id>
+    <updated>2016-10-30T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2016/10/30/i-dont-understand-asyncio" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Recently I started looking into Python's new &lt;a class=&quot;reference external&quot; href=&quot;https://docs.python.org/3/library/asyncio.html&quot;&gt;asyncio&lt;/a&gt; module a bit more.
+The reason for this is that I needed to do something that works better
+with evented IO and I figured I might give the new hot thing in the Python
+world a try.  Primarily what I learned from this exercise is that I it's a
+much more complex system than I expected and I am now at the point where I
+am very confident that I do not know how to use it properly.&lt;/p&gt;
+&lt;p&gt;It's not conceptionally hard to understand and borrows a lot from Twisted,
+but it has so many elements that play into it that I'm not sure any more
+how the individual bits and pieces are supposed to go together.  Since I'm
+not clever enough to actually propose anything better I just figured I
+share my thoughts about what confuses me instead so that others might be
+able to use that in some capacity to understand it.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-primitives&quot;&gt;
+&lt;h2&gt;The Primitives&lt;/h2&gt;
+&lt;p&gt;&lt;cite&gt;asyncio&lt;/cite&gt; is supposed to implement asynchronous IO with the help of
+coroutines.  Originally implemented as a library around the &lt;cite&gt;yield&lt;/cite&gt; and
+&lt;cite&gt;yield from&lt;/cite&gt; expressions it's now a much more complex beast as the
+language evolved at the same time.  So here is the current set of things
+that you need to know exist:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;event loops&lt;/li&gt;
+&lt;li&gt;event loop policies&lt;/li&gt;
+&lt;li&gt;awaitables&lt;/li&gt;
+&lt;li&gt;coroutine functions&lt;/li&gt;
+&lt;li&gt;old style coroutine functions&lt;/li&gt;
+&lt;li&gt;coroutines&lt;/li&gt;
+&lt;li&gt;coroutine wrappers&lt;/li&gt;
+&lt;li&gt;generators&lt;/li&gt;
+&lt;li&gt;futures&lt;/li&gt;
+&lt;li&gt;concurrent futures&lt;/li&gt;
+&lt;li&gt;tasks&lt;/li&gt;
+&lt;li&gt;handles&lt;/li&gt;
+&lt;li&gt;executors&lt;/li&gt;
+&lt;li&gt;transports&lt;/li&gt;
+&lt;li&gt;protocols&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;In addition the language gained a few special methods that are new:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;&lt;tt class=&quot;docutils literal&quot;&gt;__aenter__&lt;/tt&gt; and &lt;tt class=&quot;docutils literal&quot;&gt;__aexit__&lt;/tt&gt; for asynchronous &lt;cite&gt;with&lt;/cite&gt; blocks&lt;/li&gt;
+&lt;li&gt;&lt;tt class=&quot;docutils literal&quot;&gt;__aiter__&lt;/tt&gt; and &lt;tt class=&quot;docutils literal&quot;&gt;__anext__&lt;/tt&gt; for asynchronous iterators (async loops
+and async comprehensions).  For extra fun that protocol already changed
+once.  In 3.5 it returns an awaitable (a coroutine) in Python 3.6 it
+will return a newfangled async generator.&lt;/li&gt;
+&lt;li&gt;&lt;tt class=&quot;docutils literal&quot;&gt;__await__&lt;/tt&gt; for custom awaitables&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;That's quite a bit to know and the documentation covers those parts.
+However here are some notes I made on some of those things to understand
+them better:&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;event-loops&quot;&gt;
+&lt;h3&gt;Event Loops&lt;/h3&gt;
+&lt;p&gt;The event loop in asyncio is a bit different than you would expect from
+first look.  On the surface it looks like each thread has one event loop
+but that's not really how it works.  Here is how I think this works:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;if you are the main thread an event loop is created when you call
+&lt;tt class=&quot;docutils literal&quot;&gt;asyncio.get_event_loop()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;if you are any other thread, a runtime error is raised from
+&lt;tt class=&quot;docutils literal&quot;&gt;asyncio.get_event_loop()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;You can at any point &lt;tt class=&quot;docutils literal&quot;&gt;asyncio.set_event_loop()&lt;/tt&gt; to bind an event loop
+with the current thread.  Such an event loop can be created with the
+&lt;tt class=&quot;docutils literal&quot;&gt;asyncio.new_event_loop()&lt;/tt&gt; function.&lt;/li&gt;
+&lt;li&gt;Event loops can be used without being bound to the current thread.&lt;/li&gt;
+&lt;li&gt;&lt;tt class=&quot;docutils literal&quot;&gt;asyncio.get_event_loop()&lt;/tt&gt; returns the thread bound event loop, it
+does not return the currently running event loop.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The combination of these behaviors is super confusing for a few reasons.
+First of all you need to know that these functions are delegates to the
+underlying event loop policy which is globally set.  The default is to
+bind the event loop to the thread.  Alternatively one could in theory bind
+the event loop to a greenlet or something similar if one would so desire.
+However it's important to know that library code does not control the
+policy and as such cannot reason that asyncio will scope to a thread.&lt;/p&gt;
+&lt;p&gt;Secondly asyncio does not require event loops to be bound to the context
+through the policy.  An event loop can work just fine in isolation.
+However this is the first problem for library code as a coroutine or
+something similar does not know which event loop is responsible for
+scheduling it.  This means that if you call &lt;tt class=&quot;docutils literal&quot;&gt;asyncio.get_event_loop()&lt;/tt&gt;
+from within a coroutine you might not get the event loop back that ran
+you.  This is also the reason why all APIs take an optional explicit loop
+parameter.  So for instance to figure out which coroutine is currently
+running one cannot invoke something like this:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;get_task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;loop&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;asyncio&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get_event_loop&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;asyncio&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get_current&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;loop&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;RuntimeError&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Instead the loop has to be passed explicitly.  This furthermore requires
+you to pass through the loop explicitly everywhere in library code or very
+strange things will happen.  Not sure what the thinking for that design is
+but if this is not being fixed (that for instance &lt;tt class=&quot;docutils literal&quot;&gt;get_event_loop()&lt;/tt&gt;
+returns the actually running loop) then the only other change that makes
+sense is to explicitly disallow explicit loop passing and require it to be
+bound to the current context (thread etc.).&lt;/p&gt;
+&lt;p&gt;Since the event loop policy does not provide an identifier for the current
+context it also is impossible for a library to &amp;quot;key&amp;quot; to the current
+context in any way.  There are also no callbacks that would permit to hook
+the tearing down of such a context which further limits what can be done
+realistically.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;awaitables-and-coroutines&quot;&gt;
+&lt;h3&gt;Awaitables and Coroutines&lt;/h3&gt;
+&lt;p&gt;In my humble opinion the biggest design mistake of Python was to overload
+iterators so much.  They are now being used not just for iteration but
+also for various types of coroutines.  One of the biggest design mistakes
+of iterators in Python is that &lt;cite&gt;StopIteration&lt;/cite&gt; bubbles if not caught.
+This can cause very frustrating problems where an exception somewhere can
+cause a generator or coroutine elsewhere to abort.  This is a long running
+issue that Jinja for instance has to fight with.  The template engine
+internally renders into a generator and when a template for some reason
+raises a &lt;cite&gt;StopIteration&lt;/cite&gt; the rendering just ends there.&lt;/p&gt;
+&lt;p&gt;Python is slowly learning the lesson of overloading this system more.
+First of all in 3.something the asyncio module landed and did not have
+language support.  So it was decorators and generators all the way down.
+To implemented the &lt;cite&gt;yield from&lt;/cite&gt; support and more, the &lt;cite&gt;StopIteration&lt;/cite&gt; was
+overloaded once more.  This lead to surprising behavior like this:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;foo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;n&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;... &lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;... &lt;/span&gt;  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;... &lt;/span&gt; &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;item&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;range&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;n&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;... &lt;/span&gt;  &lt;span class=&quot;k&quot;&gt;yield&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;item&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;...&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;list&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;foo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+&lt;span class=&quot;go&quot;&gt;[]&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;list&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;foo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+&lt;span class=&quot;go&quot;&gt;[]&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;list&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;foo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+&lt;span class=&quot;go&quot;&gt;[0, 2]&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;No error, no warning.  Just not the behavior you expect.  This is because
+a &lt;cite&gt;return&lt;/cite&gt; with a value from a function that is a generator actually
+raises a &lt;cite&gt;StopIteration&lt;/cite&gt; with a single arg that is not picked up by the
+iterator protocol but just handled in the coroutine code.&lt;/p&gt;
+&lt;p&gt;With 3.5 and 3.6 a lot changed because now in addition to generators we
+have coroutine objects.  Instead of making a coroutine by wrapping a
+generator there is no a separate object which creates a coroutine
+directly.  It's implemented by prefixing a function with &lt;tt class=&quot;docutils literal&quot;&gt;async&lt;/tt&gt;.  For
+instance &lt;tt class=&quot;docutils literal&quot;&gt;async def x()&lt;/tt&gt; will make such a coroutine.  Now in 3.6 there
+will be separate async generators that will raise &lt;cite&gt;AsyncStopIteration&lt;/cite&gt; to
+keep it apart.  Additionally with Python 3.5 and later there is now a
+future import (&lt;tt class=&quot;docutils literal&quot;&gt;generator_stop&lt;/tt&gt;) that will raise a &lt;cite&gt;RuntimeError&lt;/cite&gt; if
+code raises &lt;cite&gt;StopIteration&lt;/cite&gt; in an iteration step.&lt;/p&gt;
+&lt;p&gt;Why am I mentioning all this?  Because the old stuff does not really go
+away.  Generators still have &lt;cite&gt;send&lt;/cite&gt; and &lt;cite&gt;throw&lt;/cite&gt; and coroutines still
+largely behave like generators.  That is a lot of stuff you need to know
+now for quite some time going forward.&lt;/p&gt;
+&lt;p&gt;To unify a lot of this duplication we have a few more concepts in Python
+now:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;awaitable: an object with an &lt;tt class=&quot;docutils literal&quot;&gt;__await__&lt;/tt&gt; method.  This is for instance
+implemented by native coroutines and old style coroutines and some
+others.&lt;/li&gt;
+&lt;li&gt;coroutinefunction: a function that returns a native coroutine.  Not to
+be confused with a function returning a coroutine.&lt;/li&gt;
+&lt;li&gt;a coroutine: a native coroutine.  Note that old asyncio coroutines are
+not considered coroutines by the current documentation as far as I can
+tell.  At the very least &lt;tt class=&quot;docutils literal&quot;&gt;inspect.iscoroutine&lt;/tt&gt; does not consider that
+a coroutine.  It's however picked up by the future/awaitable branches.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;In particularly confusing is that &lt;tt class=&quot;docutils literal&quot;&gt;asyncio.iscoroutinefunction&lt;/tt&gt; and
+&lt;tt class=&quot;docutils literal&quot;&gt;inspect.iscoroutinefunction&lt;/tt&gt; are doing different things.  Same with
+&lt;tt class=&quot;docutils literal&quot;&gt;inspect.iscoroutine&lt;/tt&gt; and &lt;tt class=&quot;docutils literal&quot;&gt;inspect.iscoroutinefunction&lt;/tt&gt;.  Note that
+even though inspect does not know anything about asycnio legacy coroutine
+functions in the type check, it is apparently aware of them when you check
+for awaitable status even though it does not conform to &lt;tt class=&quot;docutils literal&quot;&gt;__await__&lt;/tt&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;coroutine-wrappers&quot;&gt;
+&lt;h3&gt;Coroutine Wrappers&lt;/h3&gt;
+&lt;p&gt;Whenever you run &lt;tt class=&quot;docutils literal&quot;&gt;async def&lt;/tt&gt; Python invokes a thread local coroutine
+wrapper.  It's set with &lt;tt class=&quot;docutils literal&quot;&gt;sys.set_coroutine_wrapper&lt;/tt&gt; and it's a function
+that can wrap this.  Looks a bit like this:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&amp;gt;&amp;gt;&amp;gt; import sys
+&amp;gt;&amp;gt;&amp;gt; sys.set_coroutine_wrapper(lambda x: 42)
+&amp;gt;&amp;gt;&amp;gt; async def foo():
+...  pass
+...
+&amp;gt;&amp;gt;&amp;gt; foo()
+__main__:1: RuntimeWarning: coroutine &amp;#39;foo&amp;#39; was never awaited
+42
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;In this case I never actually invoke the original function and just give
+you a hint of what this can do.  As far as I can tell this is always
+thread local so if you swap out the event loop policy you need to figure
+out separately how to make this coroutine wrapper sync up with the same
+context if that's something you want to do.  New threads spawned will not
+inherit that flag from the parent thread.&lt;/p&gt;
+&lt;p&gt;This is not to be confused with the asyncio coroutine wrapping code.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;awaitables-and-futures&quot;&gt;
+&lt;h3&gt;Awaitables and Futures&lt;/h3&gt;
+&lt;p&gt;Some things are awaitables.  As far as I can see the following things are
+considered awaitable:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;native coroutines&lt;/li&gt;
+&lt;li&gt;generators that have the fake &lt;tt class=&quot;docutils literal&quot;&gt;CO_ITERABLE_COROUTINE&lt;/tt&gt; flag set (we
+will cover that)&lt;/li&gt;
+&lt;li&gt;objects with an &lt;tt class=&quot;docutils literal&quot;&gt;__await__&lt;/tt&gt; method&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Essentially these are all objects with an &lt;tt class=&quot;docutils literal&quot;&gt;__await__&lt;/tt&gt; method except that
+the generators don't for legacy reasons.  Where does the
+&lt;tt class=&quot;docutils literal&quot;&gt;CO_ITERABLE_COROUTINE&lt;/tt&gt; flag come from?  It comes from a coroutine
+wrapper (now to be confused with &lt;tt class=&quot;docutils literal&quot;&gt;sys.set_coroutine_wrapper&lt;/tt&gt;) that is
+&lt;tt class=&quot;docutils literal&quot;&gt;&amp;#64;asyncio.coroutine&lt;/tt&gt;.  That through some indirection will wrap the
+generator with &lt;tt class=&quot;docutils literal&quot;&gt;types.coroutine&lt;/tt&gt; (to to be confused with
+&lt;tt class=&quot;docutils literal&quot;&gt;types.CoroutineType&lt;/tt&gt; or &lt;tt class=&quot;docutils literal&quot;&gt;asyncio.coroutine&lt;/tt&gt;) which will re-create the
+internal code object with the additional flag &lt;tt class=&quot;docutils literal&quot;&gt;CO_ITERABLE_COROUTINE&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;So now that we know what those things are, what are futures?  First we
+need to clear up one thing: there are actually two (completely
+incompatible) types of futures in Python 3. &lt;tt class=&quot;docutils literal&quot;&gt;asyncio.futures.Future&lt;/tt&gt; and
+&lt;tt class=&quot;docutils literal&quot;&gt;concurrent.futures.Future&lt;/tt&gt;.  One came before the other but they are
+also also both still used even within asyncio.  For instance
+&lt;tt class=&quot;docutils literal&quot;&gt;asyncio.run_coroutine_threadsafe()&lt;/tt&gt; will dispatch a coroutine to a
+event loop running in another thread but it will then return a
+&lt;tt class=&quot;docutils literal&quot;&gt;concurrent.futures.Future&lt;/tt&gt; object instead of a
+&lt;tt class=&quot;docutils literal&quot;&gt;asyncio.futures.Future&lt;/tt&gt; object.  This makes sense because only the
+&lt;tt class=&quot;docutils literal&quot;&gt;concurrent.futures.Future&lt;/tt&gt; object is thread safe.&lt;/p&gt;
+&lt;p&gt;So now that we know there are two incompatible futures we should clarify
+what futures are in asyncio.  Honestly I'm not entirely sure where the
+differences are but I'm going to call this &amp;quot;eventual&amp;quot; for the moment.
+It's an object that eventually will hold a value and you can do some
+handling with that eventual result while it's still computing.  Some
+variations of this are called deferreds, others are called promises.  What
+the exact difference is is above my head.&lt;/p&gt;
+&lt;p&gt;What can you do with a future?  You can attach a callback that will be
+invoked once it's ready or you can attach a callback that will be invoked
+if the future fails.  Additionally you can &lt;tt class=&quot;docutils literal&quot;&gt;await&lt;/tt&gt; it (it implements
+&lt;tt class=&quot;docutils literal&quot;&gt;__await__&lt;/tt&gt; and is thus awaitable).  Additionally futures can be
+cancelled.&lt;/p&gt;
+&lt;p&gt;So how do you get such a future?  By calling &lt;tt class=&quot;docutils literal&quot;&gt;asyncio.ensure_future&lt;/tt&gt; on
+an awaitable object.  This will also make a good old generator into such a
+future.  However if you read the docs you will read that
+&lt;tt class=&quot;docutils literal&quot;&gt;asyncio.ensure_future&lt;/tt&gt; actually returns a &lt;tt class=&quot;docutils literal&quot;&gt;Task&lt;/tt&gt;.  So what's a task?&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;tasks&quot;&gt;
+&lt;h3&gt;Tasks&lt;/h3&gt;
+&lt;p&gt;A task is a future that is wrapping a coroutine in particular.  It works
+like a future but it also has some extra methods to extract the current
+stack of the contained coroutine.  We already saw the tasks mentioned
+earlier because it's the main way to figure out what an event loop is
+currently doing via &lt;tt class=&quot;docutils literal&quot;&gt;Task.get_current&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;There is also a difference in how cancellation works for tasks and futures
+but that's beyond the scope of this.  Cancellation is its own entire
+beast.  If you are in a coroutine and you know you are currently running
+you can get your own task through &lt;tt class=&quot;docutils literal&quot;&gt;Task.get_current&lt;/tt&gt; as mentioned but
+this requires knowledge of what event loop you are dispatched on which
+might or might not be the thread bound one.&lt;/p&gt;
+&lt;p&gt;It's not possible for a coroutine to know which loop goes with it.  Also the
+&lt;cite&gt;Task&lt;/cite&gt; does not provide that information through a public API.  However if
+you did manage to get hold of a task you can currently access
+&lt;tt class=&quot;docutils literal&quot;&gt;task._loop&lt;/tt&gt; to find back to the event loop.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;handles&quot;&gt;
+&lt;h3&gt;Handles&lt;/h3&gt;
+&lt;p&gt;In addition to all of this there are handles.  Handles are opaque objects
+of pending executions that cannot be awaited but they can be cancelled.
+In particular if you schedule the execution of a call with &lt;tt class=&quot;docutils literal&quot;&gt;call_soon&lt;/tt&gt;
+or &lt;tt class=&quot;docutils literal&quot;&gt;call_soon_threadsafe&lt;/tt&gt; (and some others) you get that handle you can
+then use to cancel the execution as a best effort attempt but you can't
+wait for the call to actually take place.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;executors&quot;&gt;
+&lt;h3&gt;Executors&lt;/h3&gt;
+&lt;p&gt;Since you can have multiple event loops but it's not obvious what the use
+of more than one of those things per thread is the obvious assumption can
+be made that a common setup is to have N threads with an event loop each.
+So how do you inform another event loop about doing some work?  You cannot
+schedule a callback into an event loop in another thread &lt;em&gt;and&lt;/em&gt; get the
+result back.  For that you need to use executors instead.&lt;/p&gt;
+&lt;p&gt;Executors come from &lt;tt class=&quot;docutils literal&quot;&gt;concurrent.futures&lt;/tt&gt; for instance and they allow you
+to schedule work into threads that itself is not evented.  For instance if
+you use &lt;tt class=&quot;docutils literal&quot;&gt;run_in_executor&lt;/tt&gt; on the event loop to schedule a function to be
+called in another thread.  The result is then returned as an asyncio
+coroutine instead of a concurrent coroutine like
+&lt;tt class=&quot;docutils literal&quot;&gt;run_coroutine_threadsafe&lt;/tt&gt; would do.  I did not yet have enough mental
+capacity to figure out why those APIs exist, how you are supposed to use
+and when which one.  The documentation suggests that the executor stuff
+could be used to build multiprocess things.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;transports-and-protocols&quot;&gt;
+&lt;h3&gt;Transports and Protocols&lt;/h3&gt;
+&lt;p&gt;I always though those would be the confusing things but that's basically a
+verbatim copy of the same concepts in Twisted.  So read those docs if you
+want to understand them.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;how-to-use-asyncio&quot;&gt;
+&lt;h2&gt;How to use asyncio&lt;/h2&gt;
+&lt;p&gt;Now that we know roughly understand asyncio I found a few patterns that
+people seem to use when they write asyncio code:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;pass the event loop to all coroutines.  That appears to be what a part
+of the community is doing.  Giving a coroutine knowledge about what loop
+is going to schedule it makes it possible for the coroutine to learn
+about its task.&lt;/li&gt;
+&lt;li&gt;alternatively you require that the loop is bound to the thread.  That
+also lets a coroutine learn about that.  Ideally support both.  Sadly
+the community is already torn of what to do.&lt;/li&gt;
+&lt;li&gt;If you want to use contextual data (think thread locals) you are a bit
+out of luck currently.  The most popular workaround is apparently
+atlassian's &lt;tt class=&quot;docutils literal&quot;&gt;aiolocals&lt;/tt&gt; which basically requires you to manually
+propagate contextual information into coroutines spawned since the
+interpreter does not provide support for this.  This means that if you
+have a utility library spawning coroutines you will lose context.&lt;/li&gt;
+&lt;li&gt;Ignore that the old coroutine stuff in Python exists.  Use 3.5 only with
+the new &lt;tt class=&quot;docutils literal&quot;&gt;async def&lt;/tt&gt; keyword and co.  In particular you will need that
+anyways to somewhat enjoy the experience because with older versions you
+do not have async context managers which turn out to be very necessary
+for resource management.&lt;/li&gt;
+&lt;li&gt;Learn to restart the event loop for cleanup.  This is something that
+took me longer to realize than I wish it did but the sanest way to deal
+with cleanup logic that is written in async code is to restart the event
+loop a few times until nothing pending is left.  Since sadly there is no
+common pattern to deal with this you will end up with some ugly
+workaround at time.  For instance &lt;cite&gt;aiohttp&lt;/cite&gt;'s web support also does this
+pattern so if you want to combine two cleanup logics you will probably
+have to reimplement the utility helper that it provides since that
+helper completely tears down the loop when it's done.  This is also not
+the first library I saw do this :(&lt;/li&gt;
+&lt;li&gt;Working with subprocesses is non obvious.  You need to have an event
+loop running in the main thread which I suppose is listening in on
+signal events and then dispatches it to other event loops.  This
+requires that the loop is notified via
+&lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;asyncio.get_child_watcher().attach_loop(...)&lt;/span&gt;&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;Writing code that supports both async and sync is somewhat of a lost
+cause.  It also gets dangerous quickly when you start being clever and
+try to support &lt;tt class=&quot;docutils literal&quot;&gt;with&lt;/tt&gt; and &lt;tt class=&quot;docutils literal&quot;&gt;async with&lt;/tt&gt; on the same object for
+instance.&lt;/li&gt;
+&lt;li&gt;If you want to give a coroutine a better name to figure out why it was
+not being awaited, setting &lt;tt class=&quot;docutils literal&quot;&gt;__name__&lt;/tt&gt; doesn't help.  You need to set
+&lt;tt class=&quot;docutils literal&quot;&gt;__qualname__&lt;/tt&gt; instead which is what the error message printer uses.&lt;/li&gt;
+&lt;li&gt;Sometimes internal type conversations can screw you over.  In particular
+the &lt;tt class=&quot;docutils literal&quot;&gt;asyncio.wait()&lt;/tt&gt; function will make sure all things passed are
+futures which means that if you pass coroutines instead you will have a
+hard time finding out if your coroutine finished or is pending since the
+input objects no longer match the output objects.  In that case the only
+real sane thing to do is to ensure that everything is a future upfront.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;context-data&quot;&gt;
+&lt;h2&gt;Context Data&lt;/h2&gt;
+&lt;p&gt;Aside from the insane complexity and lack of understanding on my part of
+how to best write APIs for it my biggest issue is the complete lack of
+consideration for context local data.  This is something that the node
+community learned by now.  &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;continuation-local-storage&lt;/span&gt;&lt;/tt&gt; exists but has
+been accepted as implemented too late.  Continuation local storage and
+similar concepts are regularly used to enforce security policies in a
+concurrent environment and corruption of that information can cause severe
+security issues.&lt;/p&gt;
+&lt;p&gt;The fact that Python does not even have any store at all for this is more
+than disappointing.  I was looking into this in particular because I'm
+investigating how to best support &lt;a class=&quot;reference external&quot; href=&quot;https://docs.sentry.io/learn/breadcrumbs/&quot;&gt;Sentry's breadcrumbs&lt;/a&gt; for asyncio and I do not
+see a sane way to do it.  There is no concept of context in asyncio, there
+is no way to figure out which event loop you are working with from generic
+code and without monkeypatching the world this information will not be
+available.&lt;/p&gt;
+&lt;p&gt;Node is currently going through the process of &lt;a class=&quot;reference external&quot; href=&quot;https://github.com/nodejs/node-eps/pull/18&quot;&gt;finding a long term
+solution for this problem&lt;/a&gt;.
+That this is not something to be left ignored can be seen by this being a
+recurring issue in all ecosystems.  It comes up with JavaScript, Python
+and the .NET environment.  The problem &lt;a class=&quot;reference external&quot; href=&quot;https://docs.google.com/document/d/1tlQ0R6wQFGqCS5KeIw0ddoLbaSYx6aU7vyXOkv-wvlM/edit&quot;&gt;is named async context propagation&lt;/a&gt;
+and solutions go by many names.  In Go the context package needs to be
+used and explicitly passed to all goroutines (not a perfect solution but
+at least one).  .NET has the best solution in the form of local call
+contexts.  It can be a thread context, an web request context, or
+something similar but it's automatically propagating unless suppressed.
+This is the gold standard of what to aim for.  Microsoft had this solved
+since more than 15 years now I believe.&lt;/p&gt;
+&lt;p&gt;I don't know if the ecosystem is still young enough that logical call
+contexts can be added but now might still be the time.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;personal-thoughts&quot;&gt;
+&lt;h2&gt;Personal Thoughts&lt;/h2&gt;
+&lt;p&gt;Man that thing is complex and it keeps getting more complex.  I do not
+have the mental capacity to casually work with asyncio.  It requires
+constantly updating the knowledge with all language changes and it has
+tremendously complicated the language.  It's impressive that an ecosystem
+is evolving around it but I can't help but get the impression that it will
+take quite a few more years for it to become a particularly enjoyable and
+stable development experience.&lt;/p&gt;
+&lt;p&gt;What landed in 3.5 (the actual new coroutine objects) is great.  In
+particular with the changes that will come up there is a sensible base
+that I wish would have been in earlier versions.  The entire mess with
+overloading generators to be coroutines was a mistake in my mind.  With
+regards to what's in asyncio I'm not sure of anything.  It's an incredibly
+complex thing and super messy internally.  It's hard to comprehend how it
+works in all details.  When you can pass a generator, when it has to be a
+real coroutine, what futures are, what tasks are, how the loop works and
+that did not even come to the actual IO part.&lt;/p&gt;
+&lt;p&gt;The worst part is that asyncio is not even particularly fast.  David
+Beazley's live demo hacked up asyncio replacement is twice as fast as it.
+There is an enormous amount of complexity that's hard to understand and
+reason about and then it fails on it's main promise.  I'm not sure what to
+think about it but I know at least that I don't understand asyncio enough
+to feel confident about giving people advice about how to structure code
+for it.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+</feed>
+

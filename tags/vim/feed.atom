@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Armin Ronacher's Thoughts and Writings</title>
+  <id>http://lucumr.pocoo.org/feed.atom</id>
+  <updated>2010-07-29T00:00:00Z</updated>
+  <link href="http://lucumr.pocoo.org/" />
+  <link href="http://lucumr.pocoo.org/feed.atom" rel="self" />
+  <subtitle type="text">Armin Ronacher's personal blog about programming, games and random thoughts that come to his mind.</subtitle>
+  <generator>Werkzeug</generator>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Sharing Vim Tricks</title>
+    <id>http://lucumr.pocoo.org/2010/7/29/sharing-vim-tricks</id>
+    <updated>2010-07-29T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2010/7/29/sharing-vim-tricks" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;If you are a Vim user, you probably have your own set of tricks that
+make your editing life a more pleasant experience. So here my set of
+things I love about Vim and might be worth sharing.&lt;/p&gt;
+&lt;p&gt;Some things first: normal mode = mode you enter with ESC, insert mode =
+mode you enter with i (or any other insert starting key).&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;searching&quot;&gt;
+&lt;h2&gt;Searching&lt;/h2&gt;
+&lt;p&gt;That's probably a no brainer because everybody does it all the time, but
+searching in Vim is a pretty cool experience. Standard search is from
+normal mode by typing &lt;cite&gt;/searchword&lt;/cite&gt;. To go to the next result use &lt;cite&gt;n&lt;/cite&gt;.
+If you want to search in the reverse direction, use &lt;cite&gt;?&lt;/cite&gt; instead of &lt;cite&gt;/&lt;/cite&gt;.
+If you want to continue the search with the last searchword, just use
+&lt;cite&gt;/&lt;/cite&gt; or &lt;cite&gt;?&lt;/cite&gt;.&lt;/p&gt;
+&lt;p&gt;Sometimes you want to search for the word you are just having your
+cursor over. That's possible by using &lt;cite&gt;*&lt;/cite&gt; in normal mode, which will
+search for that words forward, &lt;cite&gt;#&lt;/cite&gt; searches for that word backwards.&lt;/p&gt;
+&lt;p&gt;When you use &lt;cite&gt;*&lt;/cite&gt; you will notice in the status bar that Vim is wrapping
+the word in &lt;cite&gt;&amp;lt;&lt;/cite&gt; and &lt;cite&gt;&amp;gt;&lt;/cite&gt;. This marks beginning of word and end of word.
+That way if you search for &lt;cite&gt;&amp;lt;foo&amp;gt;&lt;/cite&gt;, it will match &lt;cite&gt;foo&lt;/cite&gt; but not
+&lt;cite&gt;foobar&lt;/cite&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;replacing&quot;&gt;
+&lt;h2&gt;Replacing&lt;/h2&gt;
+&lt;p&gt;Generally replacing works with the command &lt;cite&gt;:%s/search for/replace
+with/g&lt;/cite&gt;. For replacing some weird rules exist which are worth knowing.
+First of all, the &lt;cite&gt;/&lt;/cite&gt; can be replaced with pretty much everything else.
+If the slash is part of your searchword, you could also use &lt;cite&gt;:%s#search
+for#replace with#g&lt;/cite&gt;. The second weird rule is that if you want to insert
+a newline, &lt;cite&gt;n&lt;/cite&gt; won't do that, &lt;cite&gt;r&lt;/cite&gt; does. For replacements &lt;cite&gt;n&lt;/cite&gt; is
+actually the nullbyte! But don't worry, &lt;cite&gt;r&lt;/cite&gt; inserts the correct newline
+sign that is currently in use for this document. The &lt;cite&gt;g&lt;/cite&gt; means: “replace
+all matches in a line”. Without that, it would only replace the first
+occurrence of each line. This is a pretty obscure thing that this is not
+the default, but in some cases you might want to remove the &lt;cite&gt;/g&lt;/cite&gt;. If you
+replace that way, Vim will do replacements for the searchword on each
+line in the file without asking. If you add a &lt;cite&gt;c&lt;/cite&gt; to the flags, it will
+ask for confirmation for each match.&lt;/p&gt;
+&lt;p&gt;So far, so good. Now how would you search for the last searchword and
+replace this? Just leave out the last search: &lt;cite&gt;:%s//replace with/&lt;/cite&gt;. This
+is especially useful when combined with &lt;cite&gt;*&lt;/cite&gt;.&lt;/p&gt;
+&lt;p&gt;Another helpful thing is to only replace in a selection. That's very
+easy. Just select the lines you want with visual selection and then
+leave out the &lt;cite&gt;%&lt;/cite&gt; sign when doing the replacement. The &lt;cite&gt;%&lt;/cite&gt; just tells
+vim to operate on the whole document, not having anything there would
+mean just operating on the current line.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;ways-to-insert&quot;&gt;
+&lt;h2&gt;Ways to Insert&lt;/h2&gt;
+&lt;p&gt;As programmer in most languages it makes a lot of sense to think in
+lines. Vim does that. The most common block selection operates on lines
+and so do searching and replacing. This line-based thinking also comes
+in handy when doing inserts. &lt;cite&gt;o&lt;/cite&gt; inserts a new line, &lt;cite&gt;O&lt;/cite&gt; creates a new
+line in front of the current one. In both cases you will end up in
+insert mode.&lt;/p&gt;
+&lt;p&gt;But there are cooler ways to insert too by using motion commands!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;motion-commands&quot;&gt;
+&lt;h2&gt;Motion Commands&lt;/h2&gt;
+&lt;p&gt;Vim has a couple of motion commands. These need a bit of explanation but
+trust me, they are awesome. First the most common commands that support
+motion: &lt;cite&gt;y{motion}&lt;/cite&gt; for copying into a register, &lt;cite&gt;c{motion}&lt;/cite&gt; for
+deleting and stepping into insert mode, &lt;cite&gt;d{motion}&lt;/cite&gt; for just deleting
+without going to the insert mode and of course &lt;cite&gt;v{motion}&lt;/cite&gt; to select
+something.&lt;/p&gt;
+&lt;p&gt;Now what the hell is &lt;cite&gt;{motion}&lt;/cite&gt;? Motion commands are commands that move
+the cursor. The probably most awesome motion command is &lt;cite&gt;iCHAR&lt;/cite&gt; where
+&lt;cite&gt;CHAR&lt;/cite&gt; is a special character to search for in both directions. There
+the extra rule applies that parentheses are properly inverted for you.
+This works for &lt;cite&gt;&amp;quot;&lt;/cite&gt;, &lt;cite&gt;'&lt;/cite&gt;, &lt;cite&gt;(&lt;/cite&gt; and others. Vim is clever enough to adhere
+to the escaping rules of the language you are working with. This for
+example means that the command &lt;cite&gt;ci&amp;quot;&lt;/cite&gt; looks selects everything between
+the next two quotes, deletes the contents and goes to insert mode (c =
+change). If you want to have it selected instead, you can use &lt;cite&gt;vi&amp;quot;&lt;/cite&gt;.
+&lt;cite&gt;vi(&lt;/cite&gt; will select everything between the current set of parentheses etc
+(v = visual selection).&lt;/p&gt;
+&lt;p&gt;The following other motion commands exist: &lt;cite&gt;b&lt;/cite&gt; moves the cursor to the
+beginning of the word, &lt;cite&gt;e&lt;/cite&gt; to the end. &lt;cite&gt;{count}j&lt;/cite&gt; would go &lt;cite&gt;{count}&lt;/cite&gt;
+lines down (j = jump I suppose). &lt;cite&gt;f{char}&lt;/cite&gt; looks for a character on the
+right, &lt;cite&gt;F{char}&lt;/cite&gt; to the left. &lt;cite&gt;t&lt;/cite&gt; and &lt;cite&gt;T&lt;/cite&gt; work like &lt;cite&gt;f&lt;/cite&gt; and &lt;cite&gt;F&lt;/cite&gt; but go
+one character more (before match, after match). Last but not least there
+is &lt;cite&gt;{count}w&lt;/cite&gt; which moves &lt;cite&gt;{count}&lt;/cite&gt; words.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;awesome-file-navigation&quot;&gt;
+&lt;h2&gt;Awesome File Navigation&lt;/h2&gt;
+&lt;p&gt;There is a little undocumented (or badly documented feature) of Vim
+called autochdir. Some people warn about it because it might break
+plugins, but I never had any issues with it and I am using it for a
+long, long time. To enable it, you just have to add this to the vimrc:
+&lt;cite&gt;set autochdir&lt;/cite&gt;.&lt;/p&gt;
+&lt;p&gt;When enabled, Vim will change into the folder of the file of the buffer.
+This is pretty handy because &lt;cite&gt;:e&lt;/cite&gt; then works relative to the file. So
+for example if you are in &lt;cite&gt;foo/bar.py&lt;/cite&gt; and want to edit &lt;cite&gt;foo/baz.py&lt;/cite&gt; you
+only have to do &lt;cite&gt;:e baz.py&lt;/cite&gt;. Thanks to the automatic completion with
+&lt;cite&gt;Tab&lt;/cite&gt; and &lt;cite&gt;^D&lt;/cite&gt; this makes navigating in trees fun. If you have a file
+open already it will be put into a buffer. If you then substitute &lt;cite&gt;:e&lt;/cite&gt;
+with &lt;cite&gt;:b&lt;/cite&gt; it will only complete to files that were already open. Because
+this also supports partial matches, very often a &lt;cite&gt;:b baz&lt;/cite&gt; is enough to
+go to the &lt;cite&gt;baz.py&lt;/cite&gt; file.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;why-the-hell-is-this-not-a-default&quot;&gt;
+&lt;h2&gt;Why The Hell is this not a Default?&lt;/h2&gt;
+&lt;p&gt;There are a couple of things to add to the vimrc where I really wonder
+why this is not the default:&lt;/p&gt;
+&lt;p&gt;&lt;cite&gt;set title&lt;/cite&gt;. When this is on your vimrc, the terminal title will
+automatically reflect what buffer you are working in. This also works in
+GUI mode, but there it just does nothing. This really should be the
+default.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;steal-my-config&quot;&gt;
+&lt;h2&gt;Steal my Config&lt;/h2&gt;
+&lt;p&gt;If you want my config, you can download it together with the rest of
+my dotfiles from this git repository:
+&lt;a class=&quot;reference external&quot; href=&quot;http://github.com/mitsuhiko/dotfiles&quot;&gt;mitsuhiko/dotfiles&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+</feed>
+

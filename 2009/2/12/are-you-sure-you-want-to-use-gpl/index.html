@@ -1,0 +1,214 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>Are you sure you want to use GPL? | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">Are you sure you want to use GPL?</h1>
+
+  
+  <p class=date>written on Thursday, February 12, 2009
+  
+
+  <p>When I started using Linux I was totally sold to the concept of Open
+Source. I still am, but my view changed. The first code I released under
+an Open Source license was GPL licensed and I continued to do so for
+some time. The last code under the GPL license I actively developed was
+<a class="reference external" href="http://zine.pocoo.org/">Zine</a> until a few days before the release
+when I relicensed it under the modified BSD license.</p>
+<p>The reason why I changed the license is a rather complex one and I want
+to share my experiences with the GPL and other Open Source licenses here
+for a moment. I suppose many people acted like me and chose the GPL
+because everyone else did but didn't know about all the implications it
+has.</p>
+<div class="section" id="left-versus-right">
+<h2>Left versus Right</h2>
+<p>The GPL and BSD (and friends) licenses couldn't be more different. It
+starts with the length of the paper. The BSD license is two or three
+clauses of text plus a copyright information and no-warranty clause. The
+GPLv3 on the other hand has 600 lines of text. BSD restricts the rights,
+GPL permits. Restricting rights sounds bad, but it just means that you
+can do everything with it, except the stuff listed in the license. The
+GPL starts by explaining what you can do with it. The GPL is following
+the <a class="reference external" href="http://en.wikipedia.org/wiki/Copyleft">Copyleft</a> principle,
+something the BSD license is not doing.</p>
+<p>This has some very complex implications many GPL / BSD users don't know
+about but should.</p>
+</div>
+<div class="section" id="what-bsd-means">
+<h2>What BSD means</h2>
+<p>Let's start with the BSD license, the license of my choice. The three
+clause version is very similar to the MIT license and the two clause
+version is basically the MIT license. What does it say?</p>
+<blockquote>
+<p>Copyright (c) &lt;year&gt;, &lt;copyright holder&gt; All rights reserved.</p>
+<p>Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:</p>
+<ul class="simple">
+<li>Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.</li>
+<li>Redistributions in binary form must reproduce the above
+copyright notice, this list of conditions and the following
+disclaimer in the documentation and/or other materials provided
+with the distribution.</li>
+<li>Neither the name of the &lt;organization&gt; nor the names of its
+contributors may be used to endorse or promote products derived
+from this software without specific prior written permission.</li>
+</ul>
+</blockquote>
+<p>Pretty simple. It allows the user to do everything with the application
+but removing the Copyright. The third clause means that derived works
+may not use the author's names for advertising. This clause is not in
+the 2 clause BSD and MIT licenses.</p>
+<p>Now this of course means that someone can take your software, change the
+branding and sell it. The world is bad and you can be sure that this
+will happen if your application is worth it. We'll cover that part of
+the license a little bit later.</p>
+<p>Let's see how the GPL works there.</p>
+</div>
+<div class="section" id="what-gpl-means">
+<h2>What GPL means</h2>
+<p>The GPL license is too long to be quoted here, but I'll try to sum up
+the most important aspects of it:</p>
+<ul class="simple">
+<li>Copies may be distributed free of charge or for money, but the
+source code has to be shipped or provided free of charge (or at cost
+price) on demand. The receiver of the source code has the same rights
+meaning he can share copies free of charge or resell.</li>
+<li>The licensed material may be analysed or modified.</li>
+<li>Modified material may be distributed under the same licensing terms
+but don't have to be distributed.</li>
+</ul>
+<p>There is a lot more in the license, like how long source code has to be
+available and how to deal with that, but the essence is that. Like for
+the BSD license someone can take the application, rebrand it and sell
+it, however the license demands that the modified source is available
+under the same license.</p>
+<p>However modifications only have to be made available to the public if
+distribution happens. So it's perfectly fine to take GPL code, modify it
+heavily and use it in a not distributed application / library. This is
+how companies like Google can run their own patched versions of Linux
+for example.</p>
+<p>But what this also means is that non GPL code can't use GPL code which
+is also the main problem of it.</p>
+</div>
+<div class="section" id="license-compatibilities">
+<h2>License Compatibilities</h2>
+<p>BSD is GPL compatible, but GPL does not permit the use of GPL licensed
+code in non-GPL code. This is especially annoying if important libraries
+users expect are GPL. For example the very popular <a class="reference external" href="http://en.wikipedia.org/wiki/GNU_readline">readline</a> library is GPL licensed.
+Users of OS X will know that, because interactive shells of Python and
+other non GPL applications sucks there. People tried to rewrite readline
+to get rid of the GPL problem but the alternatives are not as well
+maintained as the original one.</p>
+<p>I guess this is also what Steve Ballmer referred to as “cancer”.
+Unfortunately he's not entirely wrong there. For example I tried to
+develop an interactive administration shell for <a class="reference external" href="http://zine.pocoo.org/">Zine</a> but without readline (which I cannot use as
+Zine is BSD licensed) the user experience is just meh. I would have to
+relicense the entire application to GPL just so that I can have an
+interactive shell with readline support.</p>
+</div>
+<div class="section" id="freedom">
+<h2>Freedom</h2>
+<p>Now this depends on how you define freedom. The people behind the GPL
+have a very communistic point of view in terms of freedom: free software
+should be available to everybody under the same terms. Unfortunately
+like communism it does not work out that well because it turns out
+humans are not really compatible to that way to look at things. On the
+other hand there are the permissive licenses like BSD that just give
+away all rights except the copyright and do not enforce freedom. You can
+take BSD code and re-license it under the GPL if you want to. That kind
+of freedom however is a one-way ticket. Once you made a GPL release of
+your code there will always be a GPL version of it. If not for future
+releases, at least for that one release as you can't revoke the license.</p>
+</div>
+<div class="section" id="making-money">
+<h2>Making Money</h2>
+<p>Ultimately the goal of software development for many is to make money.
+Many people decide to utilize the GPL license for that by dual-licensing
+the code under the GPL and a proprietary license where the latter is
+only available to costumers. As a single developer it's arguable harder
+to sell code that is licensed under the BSD license. There the business
+model is probably more selling non-open-source extensions to paying
+costumers. If you open source all your code under the BSD you have to be
+really good so that you can make money out of it.</p>
+<p>Many developers don't really care about that, have their fun developing
+it and BSD license it for others to start where they stopped. A good
+example of successful BSD / MIT code are <a class="reference external" href="http://www.djangoproject.com/">Django</a> and <a class="reference external" href="http://rubyonrails.org/">Ruby on Rails</a>. Both projects developed by strong
+communities with supporting companies behind it. The company behind
+Rails creates very successful closed source applications based on Rails;
+Many of the developers working on Django are paid by individual
+companies that work with it.</p>
+</div>
+<div class="section" id="recap">
+<h2>Recap</h2>
+<p>Before you license your code under an Open Source license: Think about
+the license! Both types of licenses have their advantages and
+disadvantages and it would be stupid to use the GPL without thinking
+just because “everybody does”. Many just do because they haven't read
+the license either.</p>
+</div>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/licensing/">licensing</a> and 
+      <a href="/tags/rant/">rant</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

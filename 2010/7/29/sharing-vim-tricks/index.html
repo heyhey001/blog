@@ -1,0 +1,188 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>Sharing Vim Tricks | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">Sharing Vim Tricks</h1>
+
+  
+  <p class=date>written on Thursday, July 29, 2010
+  
+
+  <p>If you are a Vim user, you probably have your own set of tricks that
+make your editing life a more pleasant experience. So here my set of
+things I love about Vim and might be worth sharing.</p>
+<p>Some things first: normal mode = mode you enter with ESC, insert mode =
+mode you enter with i (or any other insert starting key).</p>
+<div class="section" id="searching">
+<h2>Searching</h2>
+<p>That's probably a no brainer because everybody does it all the time, but
+searching in Vim is a pretty cool experience. Standard search is from
+normal mode by typing <cite>/searchword</cite>. To go to the next result use <cite>n</cite>.
+If you want to search in the reverse direction, use <cite>?</cite> instead of <cite>/</cite>.
+If you want to continue the search with the last searchword, just use
+<cite>/</cite> or <cite>?</cite>.</p>
+<p>Sometimes you want to search for the word you are just having your
+cursor over. That's possible by using <cite>*</cite> in normal mode, which will
+search for that words forward, <cite>#</cite> searches for that word backwards.</p>
+<p>When you use <cite>*</cite> you will notice in the status bar that Vim is wrapping
+the word in <cite>&lt;</cite> and <cite>&gt;</cite>. This marks beginning of word and end of word.
+That way if you search for <cite>&lt;foo&gt;</cite>, it will match <cite>foo</cite> but not
+<cite>foobar</cite>.</p>
+</div>
+<div class="section" id="replacing">
+<h2>Replacing</h2>
+<p>Generally replacing works with the command <cite>:%s/search for/replace
+with/g</cite>. For replacing some weird rules exist which are worth knowing.
+First of all, the <cite>/</cite> can be replaced with pretty much everything else.
+If the slash is part of your searchword, you could also use <cite>:%s#search
+for#replace with#g</cite>. The second weird rule is that if you want to insert
+a newline, <cite>n</cite> won't do that, <cite>r</cite> does. For replacements <cite>n</cite> is
+actually the nullbyte! But don't worry, <cite>r</cite> inserts the correct newline
+sign that is currently in use for this document. The <cite>g</cite> means: “replace
+all matches in a line”. Without that, it would only replace the first
+occurrence of each line. This is a pretty obscure thing that this is not
+the default, but in some cases you might want to remove the <cite>/g</cite>. If you
+replace that way, Vim will do replacements for the searchword on each
+line in the file without asking. If you add a <cite>c</cite> to the flags, it will
+ask for confirmation for each match.</p>
+<p>So far, so good. Now how would you search for the last searchword and
+replace this? Just leave out the last search: <cite>:%s//replace with/</cite>. This
+is especially useful when combined with <cite>*</cite>.</p>
+<p>Another helpful thing is to only replace in a selection. That's very
+easy. Just select the lines you want with visual selection and then
+leave out the <cite>%</cite> sign when doing the replacement. The <cite>%</cite> just tells
+vim to operate on the whole document, not having anything there would
+mean just operating on the current line.</p>
+</div>
+<div class="section" id="ways-to-insert">
+<h2>Ways to Insert</h2>
+<p>As programmer in most languages it makes a lot of sense to think in
+lines. Vim does that. The most common block selection operates on lines
+and so do searching and replacing. This line-based thinking also comes
+in handy when doing inserts. <cite>o</cite> inserts a new line, <cite>O</cite> creates a new
+line in front of the current one. In both cases you will end up in
+insert mode.</p>
+<p>But there are cooler ways to insert too by using motion commands!</p>
+</div>
+<div class="section" id="motion-commands">
+<h2>Motion Commands</h2>
+<p>Vim has a couple of motion commands. These need a bit of explanation but
+trust me, they are awesome. First the most common commands that support
+motion: <cite>y{motion}</cite> for copying into a register, <cite>c{motion}</cite> for
+deleting and stepping into insert mode, <cite>d{motion}</cite> for just deleting
+without going to the insert mode and of course <cite>v{motion}</cite> to select
+something.</p>
+<p>Now what the hell is <cite>{motion}</cite>? Motion commands are commands that move
+the cursor. The probably most awesome motion command is <cite>iCHAR</cite> where
+<cite>CHAR</cite> is a special character to search for in both directions. There
+the extra rule applies that parentheses are properly inverted for you.
+This works for <cite>&quot;</cite>, <cite>'</cite>, <cite>(</cite> and others. Vim is clever enough to adhere
+to the escaping rules of the language you are working with. This for
+example means that the command <cite>ci&quot;</cite> looks selects everything between
+the next two quotes, deletes the contents and goes to insert mode (c =
+change). If you want to have it selected instead, you can use <cite>vi&quot;</cite>.
+<cite>vi(</cite> will select everything between the current set of parentheses etc
+(v = visual selection).</p>
+<p>The following other motion commands exist: <cite>b</cite> moves the cursor to the
+beginning of the word, <cite>e</cite> to the end. <cite>{count}j</cite> would go <cite>{count}</cite>
+lines down (j = jump I suppose). <cite>f{char}</cite> looks for a character on the
+right, <cite>F{char}</cite> to the left. <cite>t</cite> and <cite>T</cite> work like <cite>f</cite> and <cite>F</cite> but go
+one character more (before match, after match). Last but not least there
+is <cite>{count}w</cite> which moves <cite>{count}</cite> words.</p>
+</div>
+<div class="section" id="awesome-file-navigation">
+<h2>Awesome File Navigation</h2>
+<p>There is a little undocumented (or badly documented feature) of Vim
+called autochdir. Some people warn about it because it might break
+plugins, but I never had any issues with it and I am using it for a
+long, long time. To enable it, you just have to add this to the vimrc:
+<cite>set autochdir</cite>.</p>
+<p>When enabled, Vim will change into the folder of the file of the buffer.
+This is pretty handy because <cite>:e</cite> then works relative to the file. So
+for example if you are in <cite>foo/bar.py</cite> and want to edit <cite>foo/baz.py</cite> you
+only have to do <cite>:e baz.py</cite>. Thanks to the automatic completion with
+<cite>Tab</cite> and <cite>^D</cite> this makes navigating in trees fun. If you have a file
+open already it will be put into a buffer. If you then substitute <cite>:e</cite>
+with <cite>:b</cite> it will only complete to files that were already open. Because
+this also supports partial matches, very often a <cite>:b baz</cite> is enough to
+go to the <cite>baz.py</cite> file.</p>
+</div>
+<div class="section" id="why-the-hell-is-this-not-a-default">
+<h2>Why The Hell is this not a Default?</h2>
+<p>There are a couple of things to add to the vimrc where I really wonder
+why this is not the default:</p>
+<p><cite>set title</cite>. When this is on your vimrc, the terminal title will
+automatically reflect what buffer you are working in. This also works in
+GUI mode, but there it just does nothing. This really should be the
+default.</p>
+</div>
+<div class="section" id="steal-my-config">
+<h2>Steal my Config</h2>
+<p>If you want my config, you can download it together with the rest of
+my dotfiles from this git repository:
+<a class="reference external" href="http://github.com/mitsuhiko/dotfiles">mitsuhiko/dotfiles</a>.</p>
+</div>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/vim/">vim</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,540 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Armin Ronacher's Thoughts and Writings</title>
+  <id>http://lucumr.pocoo.org/feed.atom</id>
+  <updated>2013-06-13T00:00:00Z</updated>
+  <link href="http://lucumr.pocoo.org/" />
+  <link href="http://lucumr.pocoo.org/feed.atom" rel="self" />
+  <subtitle type="text">Armin Ronacher's personal blog about programming, games and random thoughts that come to his mind.</subtitle>
+  <generator>Werkzeug</generator>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">April 1st Post Mortem</title>
+    <id>http://lucumr.pocoo.org/2010/4/3/april-1st-post-mortem</id>
+    <updated>2010-04-03T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2010/4/3/april-1st-post-mortem" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;This year I decided to finally do what I planned for quite some time: an
+April's fool joke. (I did contribute a bit to &lt;a class=&quot;reference external&quot; href=&quot;http://www.python.org/dev/peps/pep-3117/&quot;&gt;PEP 3117&lt;/a&gt;, but that does not count).
+This year I decided to make a little joke about Python microframeworks
+(micro-web-frameworks?) and wrote a little thing, and created a website
+and screencast for it: &lt;a class=&quot;reference external&quot; href=&quot;http://denied.immersedcode.org/&quot;&gt;denied.immersedcode.org&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;I did expect some responses to that, but I was a little bit surprised by
+some of them though. So here my full disclosure of the april's fool
+prank, what people thought of it and what my conclusion is.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-motivation&quot;&gt;
+&lt;h2&gt;The Motivation&lt;/h2&gt;
+&lt;p&gt;It seems like everybody likes microframeworks. Not sure what caused
+that, but there are plenty of them. web.py (Python) and camping (Ruby)
+where the first of their kind I think. Later others followed and it
+seemed that people love the idea of software that does not have
+dependencies and comes in a single file. So I thought, I can do the same
+and make fun of it, so let's just create a framework based on existing
+technology and throw everything together in a large single file: denied
+was born. I just bundled a Werkzeug, simplejson and Jinja2 into a single
+file and added a bit of code that glues them together.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-implementation&quot;&gt;
+&lt;h2&gt;The Implementation&lt;/h2&gt;
+&lt;p&gt;Denied consists of 160 lines of code that implements a very basic WSGI
+application based on Werkzeug and Jinja2 that incorporates really stupid
+ideas into the code:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;it &lt;a class=&quot;reference external&quot; href=&quot;http://lucumr.pocoo.org/2009/7/24/singletons-and-their-problems-in-python&quot;&gt;stores state in the module&lt;/a&gt;
+and uses implicitly defined data structures&lt;/li&gt;
+&lt;li&gt;there is a function that accepts both a template filename or a
+template source string as the same parameter and guesses based on the
+contents of the string.&lt;/li&gt;
+&lt;li&gt;it introspects the interpreter frame to figure out the name of the
+function that called a template render function to automagically guess
+the name of the template.&lt;/li&gt;
+&lt;li&gt;it uses automatic function registration and decorators to register
+URL rules.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I don't want to go into details why I hate everything there, that would
+be a blog post of its own, but I want to point out that nearly all of
+these &amp;quot;features&amp;quot; were inspired by existing microframeworks.&lt;/p&gt;
+&lt;p&gt;I did not expect anyone to detect from these things that the framework
+was an April's fool joke, but I thought that the obfuscated sourcecode
+and the fact that it was basically just a zipfile would be obvious.
+However I got more than one mail asking me to release the sourcecode of
+it because people want to hack on it. Right now it has more than 50
+followers and 6 forks on github which is insane if you keep in mind that
+Jinja2 and Werkzeug have less than 30 on bitbucket.&lt;/p&gt;
+&lt;p&gt;Thinking about it a bit more made me realize that camping back in the
+days was in fact delivered as obfuscated 2K file of Ruby code. Not sure
+why _why did that, but he was a man of mysteries so probably just
+because he thought it was fun.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-screencast&quot;&gt;
+&lt;h2&gt;The Screencast&lt;/h2&gt;
+&lt;p&gt;To make the joke more obvious I created a screencast that would showcase
+the framework and do pretty much everything wrong. For that I created a
+persona called &amp;quot;Eirik Lahavre&amp;quot; that implemented the framework and did
+the screencast. Originally I wanted that person to be a Norwegian web
+developer but unfortunately the designated speaker disappeared so I had
+to ask a friend of mine (Jeroen Ruigrok van der Werven) to record it for
+me but he told me he can't do a norwegian accent so he went with French
+and Eirik Lundbergh became Eirik Lahavre. I lay flat on the floor when I
+listened to the recording for the first time because he's actually Dutch
+:)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-website&quot;&gt;
+&lt;h2&gt;The Website&lt;/h2&gt;
+&lt;p&gt;For the website I collected tongue-in-cheek fake endorsements from
+popular Python programmers and added one for myself that was just
+bashing the quality of the code. I'm afraid I sort of made myself
+popular by bashing other people's web frameworks, at least reading
+reddit, hacker news and various mailinglists leaves that impression so I
+thought it would be fun to emphasize that a bit more on that website.
+This also comes very close to the website of web.py which shows a few
+obviously bad comments from popular Python hackers.&lt;/p&gt;
+&lt;p&gt;Furthermore the website shows a useless and short hello world example
+which shows nothing about how the framework works. This was inspired by
+every other microframework website out there. It claims RESTfulnes and
+super scaling capabilities, kick-ass performance and describes the
+developer of the project (the fictional Eirik Lahavre) as god of Python
+code and coming from a professional company.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-details&quot;&gt;
+&lt;h2&gt;The Details&lt;/h2&gt;
+&lt;p&gt;For everything in the joke I did what I would never do. I even went so
+far to create the HTML of the website against my own code style, to use
+deprecated HTML tags in the presentation, claim to use XHTML even though
+the doctype and mimetype was wrong. The screencast also claims that flat
+files were a scalable NoSQL database and that missing form helpers were
+something positive because it means full flexibility.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-impact&quot;&gt;
+&lt;h2&gt;The Impact&lt;/h2&gt;
+&lt;p&gt;The screencast was downloaded over 10,000 times and the website got more
+than 50.000 hits. The link is still tweeted and I never got that many
+retweets for anything related to my projects so far. The fake project on
+github has more than 50 followers and 6 forks. Quite a few people took
+the project serious from the few comments on reddit and the emails I
+got.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;what-i-learned&quot;&gt;
+&lt;h2&gt;What I learned&lt;/h2&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;It does not matter how good intended or well written a project is,
+the bold marketing is king. Being present on github is &lt;em&gt;huge&lt;/em&gt;. As much
+as I love bitbucket and mercurial, but there is an immense difference
+between having your project on github or bitbucket, and I'm afraid
+that no matter what bitbucket does or what the mercurial people do,
+they will never even come close to github in terms of user base people
+following your code and contributing.&lt;/li&gt;
+&lt;li&gt;Small snippets of code on the website are killer. Werkzeug tries to
+be honest by not showcasing a small &amp;quot;Hello World&amp;quot; application but
+something more complex to show the API, but that does not attract
+users. Jinja2 does not even try to show anything at all, you have to
+look at the documentation to see how it looks like. That drives
+potential users away.&lt;/li&gt;
+&lt;li&gt;Don't be honest: be bold. Nobody will check your claims anyway and
+if they don't live up to the promise, you can still say that your test
+setup was or your understanding of the problem is different.&lt;/li&gt;
+&lt;li&gt;There is no such thing as a &amp;quot;bad endorsement&amp;quot;. People took it as a
+good sign that I did not give the project my blessing.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-small-library&quot;&gt;
+&lt;h2&gt;The Small Library&lt;/h2&gt;
+&lt;p&gt;I'm currently trying to learn everything about game development and 3D
+graphics I possibly can. I found out that the best way to learn that is
+to write a minimal engine from scratch. Right now I'm doing that by
+looking at other source code and reading books and writing the most
+minimal code I can. I always try to prove to myself: existing code is
+way to complex, that has to be easier. After the third refactoring and
+improvements I usually end up with something as complex as the original
+code or the explanation from the book.&lt;/p&gt;
+&lt;p&gt;There is a reason why things are as complex as they are and not easier.
+I think the same is true for microframeworks. The reason why everybody
+is that crazy about having a single file implementing whatever is
+necessary to implement a web application is because you can claim it's
+easy and you can understand it. However things are not that easy in
+reality. I am pretty sure that other framework developers will agree.&lt;/p&gt;
+&lt;p&gt;web.py is the perfect example for that. It started as a library in 1000
+lines of code in a single file, and look at what it became. It's not
+that simple any more. Many of the initial design decisions that were
+plain wrong were reverted. Such as abusing the print statement for
+outputting values to the browser. There were good reasons why nobody
+before web.py used print to output strings, yet web.py did it that way.
+And a few versions later it disappeared again for good.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;what-will-change&quot;&gt;
+&lt;h2&gt;What will Change?&lt;/h2&gt;
+&lt;p&gt;For one I will put small example snippets on the Werkzeug and Jinja2
+website. Also for the fun of it I will publish one of the projects on
+github just to see how that works out. In general though, I will try to
+keep things low profile because I just feel more comfortable with that.&lt;/p&gt;
+&lt;p&gt;Obviously, denied will stay the April's fool joke it was and not get
+further attention. The &amp;quot;promised&amp;quot; documentation will not come :) However
+I will probably blog about &amp;quot;how to create your own microframework based
+on Werkzeug&amp;quot; because right now people base their microframeworks on the
+standard library which I think is a terrible idea. One dependency might
+not be as good as no dependency, but with Tarek Ziade's tremendous work
+on packaging with Python that should not be a problem in the near
+future.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Flask at PyCon 2011</title>
+    <id>http://lucumr.pocoo.org/2011/3/18/flask-at-pycon</id>
+    <updated>2011-03-18T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2011/3/18/flask-at-pycon" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;What a week this was.  Though overshadowed by the &lt;a class=&quot;reference external&quot; href=&quot;http://en.wikipedia.org/wiki/2011_T%C5%8Dhoku_earthquake_and_tsunami&quot;&gt;recent events in Japan&lt;/a&gt;
+PyCon was an interesting and fun experience for everybody involved.  I had
+&lt;a class=&quot;reference external&quot; href=&quot;/talks/&quot;&gt;a talk about Flask&lt;/a&gt; there and overall I was quite happy with
+it.  It was announced as a 45 minute talks by the session runner however
+it was registered as a 30 minute talk so I had to keep it short in order
+to get a few questions through.&lt;/p&gt;
+&lt;p&gt;I also manage to discuss the future of Werkzeug and WebOb with Chris and
+Ian briefly and we might just do a request/response object library based
+on both Werkzeug and WebOb over the next couple of months.  Though none of
+this is set in stone yet.&lt;/p&gt;
+&lt;p&gt;The sprints on Flask themselves were quite successful too.  We have an
+improved extension development documentation now and Flask-SQLAlchemy can
+connect to multiple databases now.  The latter also will have new
+documentation with the next release.&lt;/p&gt;
+&lt;p&gt;Flask-Principal did not get enough love yet and other extensions were also
+not reviewed yet, but there is a good reason for this: our extension
+testing script does not scale well to many extensions.  In order to fix
+this we now have a Jenkins installation running on a dedicated machine
+sponsored by Ron DuPlain who will also help out with extension reviewing
+from now on.&lt;/p&gt;
+&lt;p&gt;What else?  Modules!  Flask modules are the one part of Flask I am very
+unhappy with and it took us a while to find something that solves most of
+the problems (including the name).  So with the next Flask release we will
+ship a new concept for modules called “Blueprints”.  Essentially what
+these blueprints will do is capturing construction information.  You can
+then attach these blueprints to applications (even multiple times if you
+like).  They can either extend the application itself or are registered
+with their own name.  I will soon have a working implementation of them in
+a branch on github, so stay tuned.&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">New Werkzeug and Flask Releases</title>
+    <id>http://lucumr.pocoo.org/2013/6/13/werkzeug-and-flask-releases</id>
+    <updated>2013-06-13T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2013/6/13/werkzeug-and-flask-releases" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;I'm very happy to announce that after a long break there are finally new
+releases for &lt;a class=&quot;reference external&quot; href=&quot;http://werkzeug.pocoo.org/&quot;&gt;Werkzeug&lt;/a&gt; and &lt;a class=&quot;reference external&quot; href=&quot;http://flask.pocoo.org/&quot;&gt;Flask&lt;/a&gt;.  These releases took their fair amount of
+time and I will ensure the process is quicker next time around.  There is
+however a good reason it took this long: they come with support for Python
+3 and we had to do some API changes in the process.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;what-s-going-to-break-for-you&quot;&gt;
+&lt;h2&gt;What's going to break for you&lt;/h2&gt;
+&lt;p&gt;Let's start with the unfortunate things first: we probably (slightly)
+broke your code in Werkzeug.  This was necessary because some
+functionality just does not map well to the updated &lt;a class=&quot;reference external&quot; href=&quot;http://www.python.org/dev/peps/pep-3333/&quot;&gt;PEP 3333&lt;/a&gt; specification.  This
+backwards incompatible breakage is mostly limited to the &lt;tt class=&quot;docutils literal&quot;&gt;werkzeug.urls&lt;/tt&gt;
+module as well as the &lt;tt class=&quot;docutils literal&quot;&gt;Headers&lt;/tt&gt; and &lt;tt class=&quot;docutils literal&quot;&gt;EnvironHeaders&lt;/tt&gt; data structures.
+You will notice that headers are now coming back in unicode at all times,
+decoded from latin1 and the URLs module now transparently unifies URI and
+IRI representation of URLs.&lt;/p&gt;
+&lt;p&gt;The &lt;tt class=&quot;docutils literal&quot;&gt;Headers&lt;/tt&gt; object also lost the ability to modify WSGI headers
+in-place through the old &lt;tt class=&quot;docutils literal&quot;&gt;linked&lt;/tt&gt; classmethod.  This was necessary as we
+could not replace the logic for PEP 3333 with acceptable performance and
+not producing a too complex implementation.&lt;/p&gt;
+&lt;p&gt;Flask itself should not break that much, but what do you know.  We cleaned
+up some internal implementations.  Primarily you will notice that the
+&lt;tt class=&quot;docutils literal&quot;&gt;|tojson&lt;/tt&gt; filter in Flask now uses different JSON serialization and HTML
+safety rules.  If you have some tests that rely on that old behavior you
+will need to adjust.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;goodbye-python-2-5&quot;&gt;
+&lt;h2&gt;Goodbye Python 2.5&lt;/h2&gt;
+&lt;p&gt;Bad news for you if you're on 2.5: support for your Python version is
+gone.  That was necessary to make the Python 3 port go forward.  Python
+2.5 by now is nearly 7 years old, it's time to move on.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;hello-python-3&quot;&gt;
+&lt;h2&gt;Hello Python 3&lt;/h2&gt;
+&lt;p&gt;On the flip-side support for Python 3 is in.  To be more exact: Python 3.3
+and higher.  For Werkzeug applications porting to Python 3 might be not as
+trivial but Flask applications should actually work mostly out of the box
+assuming their extensions are ported.  For instance all of the Flask
+examples work out of the box on 2.x and 3.x and with the exception of
+unit tests no modifications were necessary to their code.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;notable-changes&quot;&gt;
+&lt;h2&gt;Notable Changes&lt;/h2&gt;
+&lt;p&gt;Other than that, here are some changes that you will hopefully enjoy:&lt;/p&gt;
+&lt;p&gt;Werkzeug:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Werkzeug now pastes traceback into private github gists.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Some smaller improvements to make the HTTP exception classes in
+Werkzeug more useful.  They can now carry some payload and aborting
+with exceptions is streamlined.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Werkzeug's URL module now gained vastly improved IRI support and
+can properly parse and join URLs.  This support is currently
+intentionally in violation with the RFC to cover real-world cases
+better and to support parsing of unknown schemes.&lt;/p&gt;
+&lt;p&gt;This makes it possible for you to parse things like
+&lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;sqlite:///foo.db&lt;/span&gt;&lt;/tt&gt; without being surprised by the behavior.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Werkzeug gained a lot of utility functions to support bridging the
+differences between PEP 333/PEP 3333 and WSGI on 2.x and 3.x.  This
+includes access to the streams and URLs.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Werkzeug's internal form parsing got vastly improved which now makes
+it possible to access the stream in all cases.  It also no longer
+relies on content length which makes it possible to finally deal with
+chunked request bodies assuming the WSGI server provides support for
+it.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Introduced &lt;tt class=&quot;docutils literal&quot;&gt;get_data&lt;/tt&gt; methods as future proof replacement for the
+old &lt;tt class=&quot;docutils literal&quot;&gt;.data&lt;/tt&gt; descriptor on requests and responses.  This allows
+greater flexibility on dealing with form data.  In the future we will
+remove support for &lt;tt class=&quot;docutils literal&quot;&gt;.data&lt;/tt&gt; at which point attribute access on the
+request and response objects is largely side-effect free.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Flask:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Flask gained a &lt;tt class=&quot;docutils literal&quot;&gt;json&lt;/tt&gt; module which unifies JSON support for 2.x and
+3.x and extends it with useful helpers.  It provides safe methods to
+dump JSON for script blocks in HTML and also automatically serializes
+some common types like UUIDs and &lt;tt class=&quot;docutils literal&quot;&gt;datetime&lt;/tt&gt; objects.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Further work has been done to make the application context more
+prominent.  Templates can now be rendered from the application context
+only and &lt;tt class=&quot;docutils literal&quot;&gt;flask.g&lt;/tt&gt; is now bound to the application context as well.&lt;/p&gt;
+&lt;p&gt;This change might seem tiny but actually simplifies working with Flask
+from outside web environments.  You can now easier maintain database
+connections that are not bound to a HTTP request's lifetime.&lt;/p&gt;
+&lt;p&gt;The documentation also has started to shift to this new mode of
+working.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Flask's internal error handling has been improved to make responding
+to error cases more consistent.  This also has the added benefit of
+making the “commit on success, rollback on error” finally fully
+reliable.  Previously the test client would suppress the error
+information in some cases.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Introduced a &lt;tt class=&quot;docutils literal&quot;&gt;get_json&lt;/tt&gt; method on the request to go in line with
+Werkzeug's new &lt;tt class=&quot;docutils literal&quot;&gt;get_data&lt;/tt&gt; method.  The plan here is to remove
+support for the &lt;tt class=&quot;docutils literal&quot;&gt;.json&lt;/tt&gt; descriptor at one point.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Added a few configuration options to change defaults for JSON
+serialization.  This includes pretty-printing and ordering of keys.
+By default JSON objects are now ordered by keys to solve issues with
+invalidating HTTP caches due to Python's new randomized hash seed.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;changes-to-the-process&quot;&gt;
+&lt;h2&gt;Changes to the Process&lt;/h2&gt;
+&lt;p&gt;Going into the future there will be a new process for releases.  The
+target is to have much more frequent releases instead of large ones.
+Werkzeug is now getting to the point where it's possible to do releases
+often without breaking people's code as the API gets more stable.  (This
+release being the notable exception due to the Python 3 support)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;a-thank-you-note&quot;&gt;
+&lt;h2&gt;A Thank You Note&lt;/h2&gt;
+&lt;p&gt;Lastly I want to thank the community for making this release possible.  A
+huge amount of the work for these releases has been done on a sprint
+online on a weekend in May.  Special thanks go to DasIch, Thomas Waldmann,
+untitaker, Ronny Pfannschmidt, mgax, puzzlet, ThiefMaster and everybody
+else who contributed.&lt;/p&gt;
+&lt;p&gt;In this release the number of commits skyrocketed.  While the total
+changelog might not look all that impressive, the underlying improvements
+and code cleanups are substantial.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Opening The Flask</title>
+    <id>http://lucumr.pocoo.org/2010/6/14/opening-the-flask</id>
+    <updated>2010-06-14T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2010/6/14/opening-the-flask" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Howdy everybody. This is the first part of a multi-part blog post about
+creating web frameworks based on &lt;a class=&quot;reference external&quot; href=&quot;http://werkzeug.pocoo.org/&quot;&gt;Werkzeug&lt;/a&gt; and other existing code. This is
+obviously based on my &lt;a class=&quot;reference external&quot; href=&quot;http://flask.pocoo.org/&quot;&gt;Flask&lt;/a&gt; microframework.
+So it probably makes sense to head over to the documentation first to
+look at some example code. But before we get started, let's discuss
+first about why you should create your own frameworks.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;why-create-your-own-framework&quot;&gt;
+&lt;h2&gt;Why create your own Framework&lt;/h2&gt;
+&lt;p&gt;It is quite unpopular these days to go with building your own framework;
+everybody quickly shouts &amp;quot;reinventing the wheel&amp;quot; and points you to one
+of the tons of existing web frameworks out there. But it is actually a
+really good idea to create a framework for an application and not go
+with a stock one. Why? Because you are a lot more flexible and your
+application might require something that does not exist yet. For an
+application I wrote in the past in the very early Django days the
+development process looked a lot like this:&lt;/p&gt;
+&lt;p&gt;Step 1: download django, Step 2: get started and feel happy, Step 3:
+encounter problems in the framework design and start modifiying the
+core, Step 4: phase more and more Django code out and end up with a
+completely new package that everybody hates.&lt;/p&gt;
+&lt;p&gt;Turns out: Django like every other framework out there is improving
+quickly, but often not in the areas you might be interested in. Then you
+start modifying it yourself and when Django improves sideways, you
+suddenly end up in the situation where it becomes nearly impossible to
+upgrade to a newer Django version or it's too painful. Obviously Django
+has greatly improved since then, but a few things continue to work
+differently than I want them to work. For one I personally don't like
+the template engine too much and also would love the ORM to ensure that
+objects with the same primary key are actually the same objects and
+queries sent less often. These are things that are very unlikely to
+change in Django and there are really good reasons why this will not
+change which are totally fine, but certainly not what I want.&lt;/p&gt;
+&lt;p&gt;Another reason to roll your own framework is that you know everything
+and you can fix it quickly yourself.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;end-result&quot;&gt;
+&lt;h2&gt;End Result&lt;/h2&gt;
+&lt;p&gt;This is what should work at the end of the day:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;yourflask&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;YourFlask&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;app&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;YourFlask&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+
+&lt;span class=&quot;nd&quot;&gt;@app.route&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;/&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;Hello World&amp;#39;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;vm&quot;&gt;__name__&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;__main__&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;app&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;run&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Looks a lot like a simplified Flask version, which is exactly what it
+should be. Not yet as capable, but easier to dive in and to understand
+the concepts.&lt;/p&gt;
+&lt;p&gt;In a nutshell: 1) create an application, 2) register functions on that
+application that listen on a specific path (or URL rule), 3) these
+functions return response objects or strings. We also pass the request
+object explicitly to the function for now because that's easier to
+understand and implement.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-code&quot;&gt;
+&lt;h2&gt;The Code&lt;/h2&gt;
+&lt;p&gt;The following code implements the full framework for this blog post.  As
+I said, it's a very simplified Flask but it is capable of producing
+simple web applications and to run the example from above:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;werkzeug&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Request&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;run_simple&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;werkzeug.exceptions&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;HTTPException&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;werkzeug.routing&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Map&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Rule&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;YourFlask&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;object&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;fm&quot;&gt;__init__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;url_map&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Map&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+        &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;views&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{}&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;route&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;**&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;options&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;decorator&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;options&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;endpoint&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;vm&quot;&gt;__name__&lt;/span&gt;
+            &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;views&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;vm&quot;&gt;__name__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;
+            &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;url_map&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;add&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Rule&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;**&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;options&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;decorator&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;run&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;**&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;options&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;run_simple&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;localhost&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5000&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;**&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;options&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;make_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;isinstance&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;basestring&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;mimetype&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;text/html&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rv&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;fm&quot;&gt;__call__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;request&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Request&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;adapter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;url_map&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bind_to_environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;endpoint&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;values&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;adapter&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;match&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;response&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;make_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;views&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;endpoint&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;](&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;**&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;values&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;HTTPException&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;response&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;So how exactly does it work and what does it do? The following list is
+the summary of the above code:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;We create a class called &lt;cite&gt;YourFlask&lt;/cite&gt; that implements a WSGI
+application and provides methods to register callback functions and
+binds them to a Werkzeug URL map.&lt;/li&gt;
+&lt;li&gt;The &lt;cite&gt;route()&lt;/cite&gt; method can be used as a decorator to register new view
+functions. It does this by accepting a string with the URL rule as
+first argument and accepts some more keyword arguments that are
+forwarded unchanged. The routing system uses an opaque string to
+identify functions. This is called the endpoint. In this example we
+will use the function name as endpoint (something Flask does as well
+for simple setups).&lt;/li&gt;
+&lt;li&gt;The &lt;cite&gt;run()&lt;/cite&gt; method just starts the internal development server that
+comes with Werkzeug. That's just a nice shortcut.&lt;/li&gt;
+&lt;li&gt;&lt;cite&gt;make_response()&lt;/cite&gt; is called with the return value from the view
+function. If it's a string, we create a response object. That's just a
+nice shortcut.&lt;/li&gt;
+&lt;li&gt;In the &lt;cite&gt;__call__()&lt;/cite&gt; method we implement the full WSGI application.
+First a request object is created from the WSGI environment and then
+the URL map is used to create an adapter. This adapter is basically
+bound to the WSGI environment and can be used to match the current
+URL. If a match is found the endpoint and values are returned (the
+values are variable parts in the rule as dictionary). In case nothing
+matched, a &lt;cite&gt;NotFound&lt;/cite&gt; exception is raised which incidentally is also
+an &lt;cite&gt;HTTPException&lt;/cite&gt;. If all works out we look up the view function and
+pass it the values and the request object.&lt;/li&gt;
+&lt;li&gt;The return value of the function is passed to our &lt;cite&gt;make_response()&lt;/cite&gt;
+method so that we can ensure it's a response object.&lt;/li&gt;
+&lt;li&gt;If an &lt;cite&gt;HTTPException&lt;/cite&gt; is raised we catch it and use it as response
+object. It's not exactly a response object but close enough to one
+that we can do the same with it.&lt;/li&gt;
+&lt;li&gt;Either way, the response is invoked as WSGI application and the
+application iterator is returned.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;where-wsgi-fits-in&quot;&gt;
+&lt;h2&gt;Where WSGI fits in&lt;/h2&gt;
+&lt;p&gt;So what we created is a WSGI application. How exactly does it work and
+where is the WSGI part? The majority of the pain is handled for us by
+Werkzeug. WSGI itself looks like this:&lt;/p&gt;
+&lt;ol class=&quot;arabic simple&quot;&gt;
+&lt;li&gt;There is a thing that can be called. It's passed a WSGI
+environment (which is basically a dict with incoming data) and a
+function that is used to start the response.&lt;/li&gt;
+&lt;li&gt;What the function returns is an iterable of data send back to the
+browser, it has to call the response starting function first.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;If you look close, we are doing that in our &lt;cite&gt;__call__()&lt;/cite&gt; method. Well,
+it's not really visible but it happens. When we invoke the response
+thingy, internally Werkzeug will call the response starting function and
+all for us. We also use the WSGI environment when we create the request
+object.&lt;/p&gt;
+&lt;p&gt;The request object itself gives us access to all the stuff that is
+incoming from the browser: where the request went, what values were
+transmitted, what browser is used, the cookies etc. We will focus on
+that with the next blog post.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;coming-up-next&quot;&gt;
+&lt;h2&gt;Coming up Next&lt;/h2&gt;
+&lt;p&gt;Now that all is working fine we should focus on these things next:&lt;/p&gt;
+&lt;ol class=&quot;arabic simple&quot;&gt;
+&lt;li&gt;explore the concept of thread / context local objects to avoid
+passing the request object (not saying it's necessarily a good idea
+but crucial for understanding web frameworks in general. Even if you
+think Django does not use them, it does. The i18n and database
+system is powered by thread local objects).&lt;/li&gt;
+&lt;li&gt;add support for a template engine and serving up static files&lt;/li&gt;
+&lt;li&gt;add more helper functions for URL building, rendering templates
+and aborting requests with errors.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Stay tuned :)&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+</feed>
+

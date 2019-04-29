@@ -1,0 +1,272 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>Computing in Perspective | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">Computing in Perspective</h1>
+
+  
+  <p class=date>written on Friday, November 26, 2010
+  
+
+  <p>One of my professors at my university likes to “visualize” numbers by
+comparing them to things people know.  That way you get a much better
+estimation, even without having an actual picture in your hand.</p>
+<p>I find this an especially interesting thought when it comes to comparing
+things of computing with things you have a rough idea of.  A while ago I
+saw a recording of an interview with <a class="reference external" href="http://en.wikipedia.org/wiki/Grace_Hopper">Grace Hopper</a> where she compared a
+nanosecond with a 30 centimeter strip of copper wire.  That would be the
+distance light can travel in one nanosecond.  But keep in mind that this
+was in 1990 when computers were a lot slower and generally less
+interesting compared to the machines we are running nowadays where the
+computing power of a small business from the early 90'ies is now embedded
+into your mobile phone.</p>
+<p>A computer from 30 years ago was already way faster than one could think,
+but it was definitively simpler.  Now we often think of computers as being
+these magical black boxes that just (sometimes) work.  It's very hard to
+still imagine the speed of these things.</p>
+<div class="section" id="a-modern-processor">
+<h2>A Modern Processor</h2>
+<p>One of the top notch CPUs money can buy for the consumer market is at the
+time of writing the Intel i7-940XM processor.  It's smallest feature is 45
+nanometers in size and has four processing cores equipped.  Each of these
+cores is ticking at the frequency of 2.13 GHz.  It's sitting on an LGA
+1366 socket which connects it with the mainboard.  The socket carries that
+name because of the 1,366 pins that act as connection between CPU and
+mainboard.  That number is unrelated but amazing by itself when you think
+abuot how small these things have to be as the size of the CPU is only
+4.4 × 4.3 cm.</p>
+<p>To get that particular part of the computer into perspective, we have to
+compare it with the physical limits of data transmission.  The speed of
+light in vacuum is 299,792,458 meters per second.  Inside a copper wire
+however signals only travel at around 3/4 of that, but let's just go with
+Grace Hopper's example and assume we're operating at the speed of light.
+If a processor is ticking at 2.13 GHz it means that a single tick takes
+around 0.39 nanoseconds.  In that time a signal can travel about 12
+centimeters.</p>
+<p>Imagine that in a bit more than a second light travels from earth to moon,
+a speed we cannot even imagine.  Yet our modern computers (and I must add
+that we slowed down frequencies already) tick at a rate where for
+something we can measure light only moves a distance of about 10
+centimeters.</p>
+<p>The same processor also consists of 731 million transistors.  You could
+take that one CPU, cut it into little pieces and give every person in
+Europe one of them.  Just that they are so incredible small that you would
+have a hard time doing so.</p>
+</div>
+<div class="section" id="your-average-computer-game">
+<h2>Your Average Computer Game</h2>
+<p>Computer games are one of the most amazing things when it comes to every
+day use of heavy number crunching.  A HD screen has a resolution of
+1920x1080 pixels.  This makes more than 2.1 million pixels that need to be
+filled about 60 times a second.  Most modern games are applying 3D
+rendering techniques that need more than one pass per pixel.  Even if each
+pixel would be shaded exactly once, you still need around 126 million
+calculations for each pixel.  And this is just the shading aspect.</p>
+<p>Besides that, a modern graphics device is even more impressive than your
+average CPU.  A modern graphics card is made of 3 billion transistors that
+can fill 30 billion pixels per second.  The data bus is powerful enough to
+shovel about 150 gigabytes through the wire.</p>
+<p>But not only graphics are impressive.  The other important aspect of
+computer games is often low latency network connectivity.  Video games
+often are played over networks with other players in the world.  Modern
+shooters allow 32 players and more to engage in cross-country sessions
+where the latency between the players is less than 50 milliseconds.
+Sophisticated algorithms are sending bullets, player movements, physics
+and tons of other information over the internet and synchronizing the
+information for each player involved.  While this of course does not
+always work well due to our physical limits and the fact that millions of
+people are sending data over these wires we are able to play together with
+barely any noticeable latency.</p>
+</div>
+<div class="section" id="big-o-and-runtimes">
+<h2>Big O and Runtimes</h2>
+<p>While this is not so much related to computing but algorithms, it also
+helped me a lot understanding dimensions in computing.  I think everybody
+at one point has a fairly basic understanding what the Big O notation is.
+Simplified it gives you an idea of the expected complexity of an algorithm
+in time or memory usage.  Some of the most common forms are <em>O(1)</em> for
+constant, <em>O(n)</em> for linear or <em>O(n²)</em> for quadratic complexity.</p>
+<p>The idea is that if <em>n</em> becomes very, very large (indefinite) the
+complexity greatly varies.  If getting an item from a collection would be
+<em>O(1)</em> you would get back any item from the collection in the same time,
+no matter if it's the first or the last.  One could think of it that way:
+If the complexity was <em>O(n²)</em> and you would get the first item in 1
+second, the 10th would take a minute and 40 seconds.  That's not entirely
+correct, but not totally wrong either.</p>
+<p>Constant runtime is easy to understand, so is linear runtime.  But if I
+give you an <em>O(log n)</em> — what's closer: constant or linear runtime?</p>
+<p>If you are like me and not very bright at mathematics and you don't have a
+good idea of the logarithmic scale besides it growing slowly, you could
+compare it to the “width of a number”.  This great comparison comes from
+the professor I mentioned before.  <em>log10(10)</em> is 1, <em>log10(100)</em> is 2,
+<em>log10(1000)</em> is 3 etc.  In fact you could use the logarithm to implement
+a function that returns the number of digits in an integer:</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">digits</span><span class="p">(</span><span class="n">num</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">floor</span><span class="p">(</span><span class="n">log10</span><span class="p">(</span><span class="n">num</span><span class="p">))</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+</pre></div>
+<p>If you keep in mind that numbers in computing are also very often limited
+in size you could think of the complexity of <em>O(log n)</em> as being nearly
+the same as <em>O(1)</em>.  For example if the memory consumption of something
+would be <em>O(log n)</em> and we are running on a 32bit system, chances are your
+maximum memory consumption would be <em>O(10)</em>.  10 because of the rounded up
+logarithm to the base 10 of 4 billion which is the largest unsigned
+integer that fits into 32 bit.  Because 10 is a constant it would mean we
+can shorten it and end up with <em>O(1)</em>.  So yes, much, much closer to
+constant complexity than linear one.</p>
+</div>
+<div class="section" id="sharing-comparisons">
+<h2>Sharing Comparisons</h2>
+<p>Unfortunately I am really bad at sharing these “comparison objects”.
+Mainly because what makes sense to me does not necessarily make sense to
+other people.  I can imagine a liter of water, a meter or centimeter quite
+well, but if you are American, chances are neither of these things have
+expressions you feel comfortable comparing too.  When it comes to monetary
+values I often compare things to local prices, GDP of Austria and other
+things that absolutely have no meaning to you.</p>
+<p>What would really be interesting is some kind of book, website or manual
+that collects some popular comparisons of various things.  I remember my
+lectures by said professor really well because some of the comparisons he
+came up with were really great and general enough that everybody had a
+basic understanding of the dimensions he was talking about.</p>
+</div>
+<div class="section" id="why-do-we-compare">
+<h2>Why do we Compare?</h2>
+<p>I think one of the most useful skills I personally ever acquired was the
+ability to judge and compare various things.  People love to confuse other
+people by throwing numbers around but numbers are quite meaningless unless
+you can compare them to something else you already know.  A million Euros
+/ Dollars can be nothing, but it could also mean a lot.  It depends on the
+scale of known things you are comparing it with.  It also is a kind of
+security measure.  If you know what's the common price for a hamburger is
+you can save yourself from paying too much for it when you go to a
+restaurant you don't know yet.  But besides getting a better feel for what
+to pay (or what data structure to use in what situation) it also gives you
+a good idea of the complexity of certain things in general.</p>
+<p><a class="reference external" href="http://research.google.com/people/jeff/index.html">Jeff Dean</a> added a
+slide to one of his presentations which <a class="reference external" href="http://axisofeval.blogspot.com/2010/11/numbers-everybody-should-know.html">did the rounds afterwards</a>.
+It shows the “numbers everybody should know”.  I guess there is no point
+in learning the exat numbers but some of these stem from a basic
+understanding of how computers and our world works:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="70%" />
+<col width="30%" />
+</colgroup>
+<tbody valign="top">
+<tr><td>L1 cache reference</td>
+<td>0.5 ns</td>
+</tr>
+<tr><td>Branch mispredict</td>
+<td>5 ns</td>
+</tr>
+<tr><td>L2 cache reference</td>
+<td>7 ns</td>
+</tr>
+<tr><td>Mutex lock/unlock</td>
+<td>25 ns</td>
+</tr>
+<tr><td>Main memory reference</td>
+<td>100 ns</td>
+</tr>
+<tr><td>Compress 1K bytes w/ cheap algorithm</td>
+<td>3,000 ns</td>
+</tr>
+<tr><td>Send 2K bytes over 1 Gbps network</td>
+<td>20,000 ns</td>
+</tr>
+<tr><td>Read 1 MB sequentially from memory</td>
+<td>250,000 ns</td>
+</tr>
+<tr><td>Round trip within same datacenter</td>
+<td>500,000 ns</td>
+</tr>
+<tr><td>Disk seek</td>
+<td>10,000,000 ns</td>
+</tr>
+<tr><td>Read 1 MB sequentially from disk</td>
+<td>20,000,000 ns</td>
+</tr>
+<tr><td>Send packet CA-&gt;Netherlands-&gt;CA</td>
+<td>150,000,000 ns</td>
+</tr>
+</tbody>
+</table>
+<p>Having a basic idea of dimensions in computing makes it possible to
+brainstorm, accept and reject ideas without having to consult Wikipedia
+every few seconds.  This makes you more efficient when trying to do
+something you didn't do so far.  It might not be that you are completely
+right the first time, but it speeds up your thought process a lot.</p>
+<p>At the same time one has to build up some certain confidence with these
+numbers to be efficient on discussing such things with other developers.
+Nothing feels more embarrassing than to suggest something completely out
+of proportions or to be anxious and not sharing an idea because one does
+not have the confidence to propose something.</p>
+<p>I come back to that every once in a while now with my recent adventures
+into the world of voxels and blocks for my Minecraft inspired engine where
+naive approaches for infinite or at least very large worlds will instantly
+hit all kinds of technology and physical problems.</p>
+</div>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/thoughts/">thoughts</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

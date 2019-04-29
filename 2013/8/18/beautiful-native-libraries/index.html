@@ -1,0 +1,751 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>Beautiful Native Libraries | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">Beautiful Native Libraries</h1>
+
+  
+  <p class=date>written on Sunday, August 18, 2013
+  
+
+  <p>I'm obsessed with nice APIs.  Not just APIs however, also in making the
+overall experience of using a library as good as possible.  For Python
+there are quite a few best practices around by now but it feels like there
+is not really a lot of information available about how to properly
+structure a native library.  What do I mean by native library?
+Essentially a dylib/DLL/so.</p>
+<p>Since I'm currently spending more time on C and C++ than Python at work I
+figured I might take the opportunity and collect my thoughts on how to
+write proper shared libraries that do not annoy your users.</p>
+<div class="section" id="shared-or-static">
+<h2>Shared or Static?</h2>
+<p>This post almost entirely assumes that you are building a DLL or shared
+library and not something you link statically.  While it sounds like a
+statically and dynamically linked library are essentially the same thing
+where the only difference is how you link against it, there is much more
+to it.</p>
+<p>With a dynamically linked library you have much better control over your
+symbols.  Dynamically linked libraries also work much better between
+different programming languages.  Nothing stops you from writing a library
+in C++ and then using it in Python.  In fact, that's exactly how I
+recommend doing unittests against such libraries.  More about that later.</p>
+</div>
+<div class="section" id="which-language">
+<h2>Which Language?</h2>
+<p>So you want to write a library that compiles into a DLL or something of
+that sort and it should be somewhat platform independent.  Which languages
+can you actually use there?  Right now you can pick between C and C++ and
+soon you might also be able to add Rust to that list.  Why not others?  C
+is easy: because that's the only language that actually defines a somewhat
+stable ABI.  Strictly speaking it's not the language that defines it, it's
+the operating system, but in one way or another, C is the language of
+choice for libraries and the C calling conventions is the lingua franca of
+shared libraries.</p>
+<p>“The greatest trick that C ever pulled was convince the world that it does
+not have a runtime”.  I'm not sure where I heard the quote first, but it's
+incredibly appropriate when talking about libraries.  Essentially C is so
+commonplace that everything can assume that some basic functionality is
+provided by the C standard library.  That's the one thing that everybody
+agreed on that exists.  For C++ the situation is more complicated.  C++
+needs a bunch of extra functionality that is not provided by the C
+standard library.  Primarily it needs support for exception handling.  C++
+however degrades otherwise nicely to C calling conventions so it's very
+easy to still write libraries in it, that completely hide the fact that
+there is C++ behind the scenes.</p>
+<p>For other languages that's not so easy however.  Why for instance is it
+not a good idea to write a library in Go?  The reason for this is that Go
+for needs quite a heavy runtime that does garbage collection and provides
+a scheduler for it's coroutines.  Rust is getting closer to not having any
+runtime requirements besides the C standard library which will make it
+possible to write libraries in it.</p>
+<p>Right now however, C++ is most likely the language you want to use.  Why
+not C?  The reason for this is that Microsoft's C compiler is notoriously
+bad at receiving language updates and you would otherwise be stuck with
+C89.  Obviously you could just use a different compiler on Windows but
+that causes a whole bunch of problems for the users of your library if
+they want to compile it themselves.  Requiring a tool chain that is not
+native to the operating system is an easy way to alienate your developer
+audience.</p>
+<p>I would however generally recommend to a very C like subset of C++: don't
+use exceptions, don't use RTTI, don't build crazy constructors.  The rest
+of the post assumes that C++ is indeed the language of choice.</p>
+</div>
+<div class="section" id="public-headers">
+<h2>Public Headers</h2>
+<p>The library you're building should ideally have exactly one public header
+file.  Internally go nuts and create as many headers as you want.  You
+want that one public header file to exist, even if you think your library
+is only ever going to be linked against something that is not C.  For
+instance Python's CFFI library can parse header files and build bindings
+out of that.  People of all languages know how headers work, they will
+have a look at them to build their own bindings.</p>
+<p>What rules are there to follow in headers?</p>
+<div class="section" id="header-guards">
+<h3>Header Guards</h3>
+<p>Each public header that other people use should have sufficiently unique
+header guards to make sure they can be included multiple times safely.
+Don't get too creative with the guards, but also don't be too generic with
+them.  It's no fun including a header that has a super generic include
+guard at the top (like <tt class="docutils literal">UTILS_H</tt> and nothing else).  You also want to
+make sure that there are <tt class="docutils literal">extern &quot;C&quot;</tt> markers for C++.</p>
+<p>This would be your minimal header:</p>
+<div class="highlight"><pre><span></span><span class="cp">#ifndef YOURLIB_H_INCLUDED</span>
+<span class="cp">#define YOURLIB_H_INCLUDED</span>
+<span class="cp">#ifdef __cplusplus</span>
+<span class="k">extern</span> <span class="s">&quot;C&quot;</span> <span class="p">{</span>
+<span class="cp">#endif</span>
+
+<span class="cm">/* code goes here */</span>
+
+<span class="cp">#ifdef __cplusplus</span>
+<span class="p">}</span>
+<span class="cp">#endif</span>
+<span class="cp">#endif</span>
+</pre></div>
+</div>
+<div class="section" id="export-markers">
+<h3>Export Markers</h3>
+<p>Because you yourself will probably include your header file as well you
+will need to make sure that there are macros defined that export your
+functions.  This is necessary on Windows and it's a really good idea on
+other platforms as well.  Essentially it can be used to change the
+visibility of symbols.  I will go into that later, for the time being just
+add something that looks like this:</p>
+<div class="highlight"><pre><span></span><span class="cp">#ifndef YL_API</span>
+<span class="cp">#  ifdef _WIN32</span>
+<span class="cp">#     if defined(YL_BUILD_SHARED) </span><span class="cm">/* build dll */</span><span class="cp"></span>
+<span class="cp">#         define YL_API __declspec(dllexport)</span>
+<span class="cp">#     elif !defined(YL_BUILD_STATIC) </span><span class="cm">/* use dll */</span><span class="cp"></span>
+<span class="cp">#         define YL_API __declspec(dllimport)</span>
+<span class="cp">#     else </span><span class="cm">/* static library */</span><span class="cp"></span>
+<span class="cp">#         define YL_API</span>
+<span class="cp">#     endif</span>
+<span class="cp">#  else</span>
+<span class="cp">#     if __GNUC__ &gt;= 4</span>
+<span class="cp">#         define YL_API __attribute__((visibility(&quot;default&quot;)))</span>
+<span class="cp">#     else</span>
+<span class="cp">#         define YL_API</span>
+<span class="cp">#     endif</span>
+<span class="cp">#  endif</span>
+<span class="cp">#endif</span>
+</pre></div>
+<p>On Windows it will set <tt class="docutils literal">YL_API</tt> (I used <tt class="docutils literal">YL</tt> as short version for
+“Your Library” here, pick a prefix that fits you) for DLLs appropriately
+depending on what flag is set.  Whoever includes the header without doing
+anything fancy before will automatically get <tt class="docutils literal">__declspec(dllimport)</tt> in
+its place.  This is a really good default behavior on Windows.  For other
+platforms nothing is set unless a somewhat recent GCC/clang version is
+used in which case the default visibility marker is added.  As you can see
+some macros can be defined to change which branch is taken.  For instance
+when you build the library you would tell the compiler to also defined
+<tt class="docutils literal">YL_BUILD_SHARED</tt>.</p>
+<p>On Windows the default behavior for DLLs has always been: all symbols are
+not exported default unless marked with <tt class="docutils literal">__declspec(dllexport)</tt>.  On
+other platforms unfortunately the behavior has always been to export
+everything.  There are multiple ways to fix that, one is the visibility
+control of GCC 4.  This works okay, but there are some extra things that
+need to be considered.</p>
+<p>The first is that the in-source visibility control is not the silver
+bullet.  For a start the marker will do nothing unless the library is
+compiled with <tt class="docutils literal"><span class="pre">-fvisibility=hidden</span></tt>.  More important than that however
+is that this will only affect your own library.  If you statically link
+anything against your library, that library might expose symbols you do
+not want to expose.  Imagine for instance you write a library that depends
+on another library you want to statically link in.  This library's symbols
+will also be exported from your library unless you prevent that.</p>
+<p>This works differently on different platforms.  On Linux you can pass
+<tt class="docutils literal"><span class="pre">--exclude-libs</span> ALL</tt> to <tt class="docutils literal">ld</tt> and the linker will remove those symbols
+automatically.  On OS X it's tricker because there is no such
+functionality in the linker.  The easiest solution is to have a common
+prefix for all functions.  For instance if all your functions start with
+<tt class="docutils literal">yl_</tt> it's easy to tell the linker to hide everything else.  You do this
+by creating a symbols file and then pointing the linker to it with
+<tt class="docutils literal"><span class="pre">-exported_symbols_list</span> symbols.txt</tt>.  The contents of this file can be
+the single line <tt class="docutils literal">_yl_*</tt>.  Windows we can ignore as DLLs need explicit
+export markers.</p>
+</div>
+</div>
+<div class="section" id="careful-with-includes-and-defines">
+<h2>Careful with Includes and Defines</h2>
+<p>One thing to be careful about is that your headers should not include
+too many things.  Generally I believe it's fine for a header to include
+things like <tt class="docutils literal">stdint.h</tt> to get some common integer types.  However what
+you should not do is being clever and defining types yourself.  For
+instance msgpack had the brilliant idea to define <tt class="docutils literal">int32_t</tt> and a few
+other types for Visual Studio 2008 because it lacks the <tt class="docutils literal">stdint.h</tt>
+header.  This is problematic as only one library can define those types
+then.  Instead the better solution is to ask the user to provide a
+replacement <tt class="docutils literal">stdint.h</tt> header for older Visual Studio versions.</p>
+<p>Especially do not ever include <tt class="docutils literal">windows.h</tt> in a library header.  That
+header pulls in so much stuff that Microsoft added extra defines to make
+it leaner (<tt class="docutils literal">WINDOWS_LEAN_AND_MEAN</tt>, <tt class="docutils literal">WINDOWS_EXTRA_LEAN</tt> and
+<tt class="docutils literal">NOMINMAX</tt>).  If you need <tt class="docutils literal">windows.h</tt> included, have a private header
+file that's only included for your <tt class="docutils literal">.cpp</tt> files.</p>
+</div>
+<div class="section" id="stable-abi">
+<h2>Stable ABI</h2>
+<p>Do not put any structs into public headers unless you are 100% sure that
+you will never change them.  If you do want to expose structs and you do
+want to add extra members later, make sure that the user does not have to
+allocate that header.  If the user does have to allocate that header, add
+a version or size information as first member into the struct.</p>
+<p>Microsoft generally puts the size of structs into the structs to allow
+adding members later, but this leads to APIs that are just not fun to use.
+If you can try to avoid having too many structs in the headers, if you
+can't at least try to come up with alternative methods to make the API
+suck less.</p>
+<p>With structs you also run into the issue that alignments might differ
+between different compilers.  Unfortunately there are cases where you are
+dealing with a project that forces the alignment to be different for the
+whole project and that will obviously also affect the structs in your
+header file.  The fewer structs the better :-)</p>
+<p>Something that should go without saying: do not make macros part of your
+API.  A macro is not a symbol and users of languages not based on C will
+hate you for having macros there.</p>
+<p>One more note on the ABI stability: it's a very good idea to include
+the version of the library both in the header as well as compiled into
+the binary.  That way you can easily verify that the header matches the
+binary which can save you lots of headaches.</p>
+<p>Something like this in the header:</p>
+<div class="highlight"><pre><span></span><span class="cp">#define YL_VERSION_MAJOR 1</span>
+<span class="cp">#define YL_VERSION_MINOR 0</span>
+<span class="cp">#define YL_VERSION ((YL_VERSION_MAJOR &lt;&lt; 16) | YL_VERSION_MINOR)</span>
+
+<span class="kt">unsigned</span> <span class="kt">int</span> <span class="nf">yl_get_version</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+<span class="kt">int</span> <span class="nf">yl_is_compatible_dll</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+</pre></div>
+<p>And this in the implementation file:</p>
+<div class="highlight"><pre><span></span><span class="kt">unsigned</span> <span class="kt">int</span> <span class="nf">yl_get_version</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">return</span> <span class="n">YL_VERSION</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span> <span class="nf">yl_is_compatible_dll</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">major</span> <span class="o">=</span> <span class="n">yl_get_version</span><span class="p">()</span> <span class="o">&gt;&gt;</span> <span class="mi">16</span><span class="p">;</span>
+    <span class="k">return</span> <span class="n">major</span> <span class="o">==</span> <span class="n">YL_VERSION_MAJOR</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<div class="section" id="exporting-a-c-api">
+<h2>Exporting a C API</h2>
+<p>When exposing a C++ API to C there is not much that needs to be
+considered.  Generally for each internal class you have, you would have an
+external opaque struct without any fields.  Then provide functions that
+call into your internal functions.  Picture a class like this:</p>
+<div class="highlight"><pre><span></span><span class="k">namespace</span> <span class="n">yourlibrary</span> <span class="p">{</span>
+    <span class="k">class</span> <span class="nc">Task</span> <span class="p">{</span>
+    <span class="k">public</span><span class="o">:</span>
+        <span class="n">Task</span><span class="p">();</span>
+        <span class="o">~</span><span class="n">Task</span><span class="p">();</span>
+
+        <span class="kt">bool</span> <span class="nf">is_pending</span><span class="p">()</span> <span class="k">const</span><span class="p">;</span>
+        <span class="kt">void</span> <span class="nf">tick</span><span class="p">();</span>
+        <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="nf">result_string</span><span class="p">()</span> <span class="k">const</span><span class="p">;</span>
+    <span class="p">};</span>
+<span class="p">}</span>
+</pre></div>
+<p>The internal C++ API is quite obvious, but how do you expose that via C?
+Because the external ABI now no longer knows how large the structs are you
+will need to allocate memory for the external caller or give it a method
+to figure out how much memory to allocate.  I generally prefer to allocate
+for the external user and provide a free function as well.  For how to
+make the memory allocation system still flexible, have a look at the next
+part.</p>
+<p>For now this is the external header (this has to be in <tt class="docutils literal">extern &quot;C&quot;</tt>
+braces):</p>
+<div class="highlight"><pre><span></span><span class="k">struct</span> <span class="n">yl_task_s</span><span class="p">;</span>
+<span class="k">typedef</span> <span class="k">struct</span> <span class="n">yl_task_s</span> <span class="n">yl_task_t</span><span class="p">;</span>
+
+<span class="n">YL_API</span> <span class="n">yl_task_t</span> <span class="o">*</span><span class="nf">yl_task_new</span><span class="p">();</span>
+<span class="n">YL_API</span> <span class="kt">void</span> <span class="nf">yl_task_free</span><span class="p">(</span><span class="n">yl_task_t</span> <span class="o">*</span><span class="n">task</span><span class="p">);</span>
+<span class="n">YL_API</span> <span class="kt">int</span> <span class="nf">yl_task_is_pending</span><span class="p">(</span><span class="k">const</span> <span class="n">yl_task_t</span> <span class="o">*</span><span class="n">task</span><span class="p">);</span>
+<span class="n">YL_API</span> <span class="kt">void</span> <span class="nf">yl_task_tick</span><span class="p">(</span><span class="n">yl_task_t</span> <span class="o">*</span><span class="n">task</span><span class="p">);</span>
+<span class="n">YL_API</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="nf">yl_task_get_result_string</span><span class="p">(</span><span class="k">const</span> <span class="n">yl_task_t</span> <span class="o">*</span><span class="n">task</span><span class="p">);</span>
+</pre></div>
+<p>And this is how the shim layer would look like in the implementation:</p>
+<div class="highlight"><pre><span></span><span class="cp">#define AS_TYPE(Type, Obj) reinterpret_cast&lt;Type *&gt;(Obj)</span>
+<span class="cp">#define AS_CTYPE(Type, Obj) reinterpret_cast&lt;const Type *&gt;(Obj)</span>
+
+<span class="n">yl_task_t</span> <span class="o">*</span><span class="nf">yl_task_new</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="k">return</span> <span class="n">AS_TYPE</span><span class="p">(</span><span class="n">yl_task_t</span><span class="p">,</span> <span class="k">new</span> <span class="n">yourlibrary</span><span class="o">::</span><span class="n">Task</span><span class="p">());</span>
+<span class="p">}</span>
+
+<span class="kt">void</span> <span class="nf">yl_task_free</span><span class="p">(</span><span class="n">yl_task_t</span> <span class="o">*</span><span class="n">task</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">task</span><span class="p">)</span>
+        <span class="k">return</span><span class="p">;</span>
+    <span class="k">delete</span> <span class="n">AS_TYPE</span><span class="p">(</span><span class="n">yourlibrary</span><span class="o">::</span><span class="n">Task</span><span class="p">,</span> <span class="n">task</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">int</span> <span class="nf">yl_task_is_pending</span><span class="p">(</span><span class="k">const</span> <span class="n">yl_task_t</span> <span class="o">*</span><span class="n">task</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">return</span> <span class="n">AS_CTYPE</span><span class="p">(</span><span class="n">yourlibrary</span><span class="o">::</span><span class="n">Task</span><span class="p">,</span> <span class="n">task</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">is_pending</span><span class="p">()</span> <span class="o">?</span> <span class="mi">1</span> <span class="o">:</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">void</span> <span class="nf">yl_task_tick</span><span class="p">(</span><span class="n">yl_task_t</span> <span class="o">*</span><span class="n">task</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">AS_TYPE</span><span class="p">(</span><span class="n">yourlibrary</span><span class="o">::</span><span class="n">Task</span><span class="p">,</span> <span class="n">task</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">tick</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="nf">yl_task_get_result_string</span><span class="p">(</span><span class="k">const</span> <span class="n">yl_task_t</span> <span class="o">*</span><span class="n">task</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">return</span> <span class="n">AS_CTYPE</span><span class="p">(</span><span class="n">yourlibrary</span><span class="o">::</span><span class="n">Task</span><span class="p">,</span> <span class="n">task</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">result_string</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+<p>Notice how the constructor and destructor is fully wrapped.  Now there is
+one problem with standard C++: it raises exceptions.  Because constructors
+have no return value to signal to the outside that something went wrong it
+will raise exceptions if the allocation fails.  That's however not the
+only problem.  How do we customize how the library allocates memory now?
+C++ is pretty ugly in that regard.  But it's largely fixable.</p>
+<p>Before we go on: please under no circumstances, make a library, that
+pollutes the namespace with generic names.  Always put a common prefix
+before all your symbols (like <tt class="docutils literal">yl_</tt>) to lower the risk of namespace
+clashes.</p>
+</div>
+<div class="section" id="context-objects">
+<h2>Context Objects</h2>
+<p>Global state is terrible, so what's the solution?  Generally the solution
+is to have what I would call “context” objects that hold the state
+instead.  These objects would have all the important stuff on that you
+would otherwise put into a global variable.  That way the user of your
+library can have multiple of those.  Then make each API function take that
+context as first parameter.</p>
+<p>This is especially useful if your library is not threadsafe.  That way you
+can have one per thread at least, which might already be enough to get
+some parallelism out of your code.</p>
+<p>Ideally each of those context objects could also use a different
+allocator, but given the complexities of doing that in C++ I would not be
+super disappointed if you did not make that work.</p>
+</div>
+<div class="section" id="memory-allocation-customization">
+<h2>Memory Allocation Customization</h2>
+<p>As mentioned before, constructors can fail and we want to customize memory
+allocations, so how do we do this?  In C++ there are two systems
+responsible for memory allocations: the allocation operators <tt class="docutils literal">operator
+new</tt> and <tt class="docutils literal">operator new[]</tt> as well as the allocators for containers.  If
+you want to customize the allocator you will need to deal with both.
+First you need a way to let others override the allocator functions.  The
+simplest is to provide something like this in the public header:</p>
+<div class="highlight"><pre><span></span><span class="n">YL_API</span> <span class="kt">void</span> <span class="nf">yl_set_allocators</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="p">(</span><span class="o">*</span><span class="n">f_malloc</span><span class="p">)(</span><span class="kt">size_t</span><span class="p">),</span>
+                              <span class="kt">void</span> <span class="o">*</span><span class="p">(</span><span class="o">*</span><span class="n">f_realloc</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="p">,</span> <span class="kt">size_t</span><span class="p">),</span>
+                              <span class="kt">void</span> <span class="p">(</span><span class="o">*</span><span class="n">f_free</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="p">));</span>
+<span class="n">YL_API</span> <span class="kt">void</span> <span class="o">*</span><span class="nf">yl_malloc</span><span class="p">(</span><span class="kt">size_t</span> <span class="n">size</span><span class="p">);</span>
+<span class="n">YL_API</span> <span class="kt">void</span> <span class="o">*</span><span class="nf">yl_realloc</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">size</span><span class="p">);</span>
+<span class="n">YL_API</span> <span class="kt">void</span> <span class="o">*</span><span class="nf">yl_calloc</span><span class="p">(</span><span class="kt">size_t</span> <span class="n">count</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">size</span><span class="p">);</span>
+<span class="n">YL_API</span> <span class="kt">void</span> <span class="nf">yl_free</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">ptr</span><span class="p">);</span>
+<span class="n">YL_API</span> <span class="kt">char</span> <span class="o">*</span><span class="nf">yl_strdup</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">str</span><span class="p">);</span>
+</pre></div>
+<p>And then in your internal header you can add a bunch of inline functions
+that redirect to the function pointers set to an internal struct.  Because
+we do not let users provide <tt class="docutils literal">calloc</tt> and <tt class="docutils literal">strdup</tt> you probably also
+want to reimplement those functions:</p>
+<div class="highlight"><pre><span></span><span class="k">struct</span> <span class="n">yl_allocators_s</span> <span class="p">{</span>
+    <span class="kt">void</span> <span class="o">*</span><span class="p">(</span><span class="o">*</span><span class="n">f_malloc</span><span class="p">)(</span><span class="kt">size_t</span><span class="p">);</span>
+    <span class="kt">void</span> <span class="o">*</span><span class="p">(</span><span class="o">*</span><span class="n">f_realloc</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="p">,</span> <span class="kt">size_t</span><span class="p">);</span>
+    <span class="kt">void</span> <span class="p">(</span><span class="o">*</span><span class="n">f_free</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="p">);</span>
+<span class="p">};</span>
+<span class="k">extern</span> <span class="k">struct</span> <span class="n">yl_allocators_s</span> <span class="n">_yl_allocators</span><span class="p">;</span>
+
+<span class="kr">inline</span> <span class="kt">void</span> <span class="o">*</span><span class="nf">yl_malloc</span><span class="p">(</span><span class="kt">size_t</span> <span class="n">size</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">return</span> <span class="n">_yl_allocators</span><span class="p">.</span><span class="n">f_malloc</span><span class="p">(</span><span class="n">size</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kr">inline</span> <span class="kt">void</span> <span class="o">*</span><span class="nf">yl_realloc</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">size</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">return</span> <span class="n">_yl_allocators</span><span class="p">.</span><span class="n">f_realloc</span><span class="p">(</span><span class="n">ptr</span><span class="p">,</span> <span class="n">size</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kr">inline</span> <span class="kt">void</span> <span class="nf">yl_free</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">ptr</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">_yl_allocators</span><span class="p">.</span><span class="n">f_free</span><span class="p">(</span><span class="n">ptr</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kr">inline</span> <span class="kt">void</span> <span class="o">*</span><span class="nf">yl_calloc</span><span class="p">(</span><span class="kt">size_t</span> <span class="n">count</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">size</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="kt">void</span> <span class="o">*</span><span class="n">ptr</span> <span class="o">=</span> <span class="n">_yl_allocators</span><span class="p">.</span><span class="n">f_malloc</span><span class="p">(</span><span class="n">count</span> <span class="o">*</span> <span class="n">size</span><span class="p">);</span>
+    <span class="n">memset</span><span class="p">(</span><span class="n">ptr</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">count</span> <span class="o">*</span> <span class="n">size</span><span class="p">);</span>
+    <span class="k">return</span> <span class="n">ptr</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kr">inline</span> <span class="kt">char</span> <span class="o">*</span><span class="nf">yl_strdup</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">str</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="kt">size_t</span> <span class="n">length</span> <span class="o">=</span> <span class="n">strlen</span><span class="p">(</span><span class="n">str</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="kt">char</span> <span class="o">*</span><span class="n">rv</span> <span class="o">=</span> <span class="p">(</span><span class="kt">char</span> <span class="o">*</span><span class="p">)</span><span class="n">yl_malloc</span><span class="p">(</span><span class="n">length</span><span class="p">);</span>
+    <span class="n">memcpy</span><span class="p">(</span><span class="n">rv</span><span class="p">,</span> <span class="n">str</span><span class="p">,</span> <span class="n">length</span><span class="p">);</span>
+    <span class="k">return</span> <span class="n">rv</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+<p>For the setting of the allocators themselves you probably want to put that
+into a separate source file:</p>
+<div class="highlight"><pre><span></span><span class="k">struct</span> <span class="n">yl_allocators_s</span> <span class="n">_yl_allocators</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">malloc</span><span class="p">,</span>
+    <span class="n">realloc</span><span class="p">,</span>
+    <span class="n">free</span>
+<span class="p">};</span>
+
+<span class="kt">void</span> <span class="nf">yl_set_allocators</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="p">(</span><span class="o">*</span><span class="n">f_malloc</span><span class="p">)(</span><span class="kt">size_t</span><span class="p">),</span>
+                       <span class="kt">void</span> <span class="o">*</span><span class="p">(</span><span class="o">*</span><span class="n">f_realloc</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="p">,</span> <span class="kt">size_t</span><span class="p">),</span>
+                       <span class="kt">void</span> <span class="p">(</span><span class="o">*</span><span class="n">f_free</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="p">))</span>
+<span class="p">{</span>
+    <span class="n">_yl_allocators</span><span class="p">.</span><span class="n">f_malloc</span> <span class="o">=</span> <span class="n">f_malloc</span><span class="p">;</span>
+    <span class="n">_yl_allocators</span><span class="p">.</span><span class="n">f_realloc</span> <span class="o">=</span> <span class="n">f_realloc</span><span class="p">;</span>
+    <span class="n">_yl_allocators</span><span class="p">.</span><span class="n">f_free</span> <span class="o">=</span> <span class="n">f_free</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<div class="section" id="memory-allocators-and-c">
+<h2>Memory Allocators and C++</h2>
+<p>Now that we have those functions set, how do we make C++ use them?  This
+part is tricky and annoying.  To get your custom classes allocated through
+your <tt class="docutils literal">yl_malloc</tt> you need to implement the allocation operators in all
+your classes.  Because that's quite a repetitive process I recommend
+writing a macro for it that can be placed in the private section of the
+class.  I chose to pick by convention that it has to go into private, even
+though the function it implements are public.  Primarily I did that so
+that it lives close to where the data is defined, which in my case is
+usually private.  You will need to make sure you don't forget adding that
+macro to all your classes private sections:</p>
+<div class="highlight"><pre><span></span><span class="cp">#define YL_IMPLEMENTS_ALLOCATORS \</span>
+<span class="cp">public: \</span>
+<span class="cp">    void *operator new(size_t size) { return yl_malloc(size); } \</span>
+<span class="cp">    void operator delete(void *ptr) { yl_free(ptr); } \</span>
+<span class="cp">    void *operator new[](size_t size) { return yl_malloc(size); } \</span>
+<span class="cp">    void operator delete[](void *ptr) { yl_free(ptr); } \</span>
+<span class="cp">    void *operator new(size_t, void *ptr) { return ptr; } \</span>
+<span class="cp">    void operator delete(void *, void *) {} \</span>
+<span class="cp">    void *operator new[](size_t, void *ptr) { return ptr; } \</span>
+<span class="cp">    void operator delete[](void *, void *) {} \</span>
+<span class="cp">private:</span>
+</pre></div>
+<p>Here is how an example usage would look like:</p>
+<div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Task</span> <span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+    <span class="n">Task</span><span class="p">();</span>
+    <span class="o">~</span><span class="n">Task</span><span class="p">();</span>
+
+<span class="k">private</span><span class="o">:</span>
+    <span class="n">YL_IMPLEMENTS_ALLOCATORS</span><span class="p">;</span>
+    <span class="c1">// ...</span>
+<span class="p">};</span>
+</pre></div>
+<p>Now with that all <em>your</em> classes will be allocated through your allocator
+functions.  But what if you want to use STL containers?  Those containers
+will not be allocated through your functions yet.  To fix that particular
+issue you need to write an STL proxy allocator.  That's an enormously
+annoying process because of how complex the interface is, for essentially
+doing nothing.</p>
+<div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&lt;limits&gt;</span><span class="cp"></span>
+
+<span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="o">&gt;</span>
+<span class="k">struct</span> <span class="n">proxy_allocator</span> <span class="p">{</span>
+    <span class="k">typedef</span> <span class="kt">size_t</span> <span class="n">size_type</span><span class="p">;</span>
+    <span class="k">typedef</span> <span class="kt">ptrdiff_t</span> <span class="n">difference_type</span><span class="p">;</span>
+    <span class="k">typedef</span> <span class="n">T</span> <span class="o">*</span><span class="n">pointer</span><span class="p">;</span>
+    <span class="k">typedef</span> <span class="k">const</span> <span class="n">T</span> <span class="o">*</span><span class="n">const_pointer</span><span class="p">;</span>
+    <span class="k">typedef</span> <span class="n">T</span><span class="o">&amp;</span> <span class="n">reference</span><span class="p">;</span>
+    <span class="k">typedef</span> <span class="k">const</span> <span class="n">T</span> <span class="o">&amp;</span><span class="n">const_reference</span><span class="p">;</span>
+    <span class="k">typedef</span> <span class="n">T</span> <span class="n">value_type</span><span class="p">;</span>
+
+    <span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">U</span><span class="o">&gt;</span>
+    <span class="k">struct</span> <span class="n">rebind</span> <span class="p">{</span>
+        <span class="k">typedef</span> <span class="n">proxy_allocator</span><span class="o">&lt;</span><span class="n">U</span><span class="o">&gt;</span> <span class="n">other</span><span class="p">;</span>
+    <span class="p">};</span>
+
+    <span class="n">proxy_allocator</span><span class="p">()</span> <span class="k">throw</span><span class="p">()</span> <span class="p">{}</span>
+    <span class="n">proxy_allocator</span><span class="p">(</span><span class="k">const</span> <span class="n">proxy_allocator</span> <span class="o">&amp;</span><span class="p">)</span> <span class="k">throw</span><span class="p">()</span> <span class="p">{}</span>
+    <span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">U</span><span class="o">&gt;</span>
+    <span class="n">proxy_allocator</span><span class="p">(</span><span class="k">const</span> <span class="n">proxy_allocator</span><span class="o">&lt;</span><span class="n">U</span><span class="o">&gt;</span> <span class="o">&amp;</span><span class="p">)</span> <span class="k">throw</span><span class="p">()</span> <span class="p">{}</span>
+    <span class="o">~</span><span class="n">proxy_allocator</span><span class="p">()</span> <span class="k">throw</span><span class="p">()</span> <span class="p">{}</span>
+
+    <span class="n">pointer</span> <span class="n">address</span><span class="p">(</span><span class="n">reference</span> <span class="n">x</span><span class="p">)</span> <span class="k">const</span> <span class="p">{</span> <span class="k">return</span> <span class="o">&amp;</span><span class="n">x</span><span class="p">;</span> <span class="p">}</span>
+    <span class="n">const_pointer</span> <span class="n">address</span><span class="p">(</span><span class="n">const_reference</span> <span class="n">x</span><span class="p">)</span> <span class="k">const</span> <span class="p">{</span> <span class="k">return</span> <span class="o">&amp;</span><span class="n">x</span><span class="p">;</span> <span class="p">}</span>
+
+    <span class="n">pointer</span> <span class="n">allocate</span><span class="p">(</span><span class="n">size_type</span> <span class="n">s</span><span class="p">,</span> <span class="kt">void</span> <span class="k">const</span> <span class="o">*</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="n">s</span> <span class="o">?</span> <span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="n">pointer</span><span class="o">&gt;</span><span class="p">(</span><span class="n">yl_malloc</span><span class="p">(</span><span class="n">s</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">T</span><span class="p">)))</span> <span class="o">:</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="kt">void</span> <span class="n">deallocate</span><span class="p">(</span><span class="n">pointer</span> <span class="n">p</span><span class="p">,</span> <span class="n">size_type</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">yl_free</span><span class="p">(</span><span class="n">p</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="n">size_type</span> <span class="n">max_size</span><span class="p">()</span> <span class="k">const</span> <span class="k">throw</span><span class="p">()</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">numeric_limits</span><span class="o">&lt;</span><span class="kt">size_t</span><span class="o">&gt;::</span><span class="n">max</span><span class="p">()</span> <span class="o">/</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">T</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="kt">void</span> <span class="n">construct</span><span class="p">(</span><span class="n">pointer</span> <span class="n">p</span><span class="p">,</span> <span class="k">const</span> <span class="n">T</span><span class="o">&amp;</span> <span class="n">val</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">new</span> <span class="p">(</span><span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="kt">void</span> <span class="o">*&gt;</span><span class="p">(</span><span class="n">p</span><span class="p">))</span> <span class="n">T</span><span class="p">(</span><span class="n">val</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="kt">void</span> <span class="n">destroy</span><span class="p">(</span><span class="n">pointer</span> <span class="n">p</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">p</span><span class="o">-&gt;~</span><span class="n">T</span><span class="p">();</span>
+    <span class="p">}</span>
+
+    <span class="kt">bool</span> <span class="k">operator</span><span class="o">==</span><span class="p">(</span><span class="k">const</span> <span class="n">proxy_allocator</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="o">&amp;</span><span class="n">other</span><span class="p">)</span> <span class="k">const</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="nb">true</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="kt">bool</span> <span class="k">operator</span><span class="o">!=</span><span class="p">(</span><span class="k">const</span> <span class="n">proxy_allocator</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="o">&amp;</span><span class="n">other</span><span class="p">)</span> <span class="k">const</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">};</span>
+</pre></div>
+<p>So before we go on, how does one use this abomination?  Like this:</p>
+<div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&lt;deque&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;string&gt;</span><span class="cp"></span>
+
+<span class="k">typedef</span> <span class="n">std</span><span class="o">::</span><span class="n">deque</span><span class="o">&lt;</span><span class="n">Task</span> <span class="o">*</span><span class="p">,</span> <span class="n">proxy_allocator</span><span class="o">&lt;</span><span class="n">Task</span> <span class="o">*&gt;</span> <span class="o">&gt;</span> <span class="n">TaskQueue</span><span class="p">;</span>
+<span class="k">typedef</span> <span class="n">std</span><span class="o">::</span><span class="n">basic_string</span><span class="o">&lt;</span><span class="kt">char</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="n">char_traits</span><span class="o">&lt;</span><span class="kt">char</span><span class="o">&gt;</span><span class="p">,</span>
+                          <span class="n">proxy_allocator</span><span class="o">&lt;</span><span class="kt">char</span><span class="o">&gt;</span> <span class="o">&gt;</span> <span class="n">String</span><span class="p">;</span>
+</pre></div>
+<p>I would recommend making a header somewhere that defines all the
+containers you want to use and then force yourself not to use anything
+else from the STL without typedefing it to use the right allocator.
+Careful: do not <tt class="docutils literal">new TaskQueue()</tt> those things as you would invoke the
+global new operator.  Place them instead as members in your own structs so
+that the allocation happens as part of your object which has a custom
+allocator.  Alternatively just put them on the stack.</p>
+</div>
+<div class="section" id="memory-allocation-failures">
+<h2>Memory Allocation Failures</h2>
+<p>In my mind the best way to deal with memory allocation failures is to not
+deal with them.  Just don't cause any allocation to fail.  For a library
+that's easy to accomplish, just be aware of how much memory you will
+allocate in the worst case scenario and if you are unbounded, provide the
+user of the library with a way to get an idea of how bad things are.  The
+reason for this is that nobody deals with allocation failures either.</p>
+<p>For a start the STL entirely depends on <tt class="docutils literal"><span class="pre">std::bad_alloc</span></tt> being thrown
+from operator new (which we're not doing above, hehe) and will just bubble
+up the error for you to deal with it.  When you compile your library
+without exception handling then the library will just terminate the
+process.  That's pretty terrible, but that's what's going to happen
+anyways if you're not careful.  I have seen more code that ignores the
+return value of malloc than code that deals with it properly.</p>
+<p>Aside from that: on some systems malloc will totally lie to you about how
+much memory is available anyways.  Linux will gladly give you pointers to
+memory it can't back up with real physical memory.  This fiat memory
+behavior is quite useful but also will mean that you generally already
+have to assume that allocation failure might not happen.  So instead of
+reporting allocation errors, if you use C++ and you also want to stick to
+the STL, then give up on that and just don't run out of memory.</p>
+<p>In computer games the general concept there is to give subsystems their
+own allocator and just make sure they never allocate more than what they
+are given.  EA seems to recommend the allocator to handle allocation
+failures.  For instance when it fails to load more memory it would check
+if it can free up some resources that are not needed (like caches) instead
+of letting the caller know there is a memory failure.  This works even
+with the limited design that the C++ standard gives with allocators.</p>
+</div>
+<div class="section" id="building">
+<h2>Building</h2>
+<p>Now that you have written the code, how do you build your library without
+making your users unhappy?  If you're like me you come from a Unix
+background where makefiles are what builds software.  However that's not
+what everybody wants.  Autotools/autoconf are terrible, terrible pieces of
+software and if you give that to a windows guy they will call you all
+kinds of names.  Instead make sure there are Visual Studio solutions
+sitting around.</p>
+<p>What if you don't want to deal with Visual Studio because it's not your
+toolchain of choice?  What if you want to keep solutions and makefiles in
+sync?  The answer to that question is <a class="reference external" href="http://industriousone.com/premake">premake</a> or <a class="reference external" href="http://www.cmake.org/">cmake</a>.  Which of the two you use depends largely on
+you.  Both can generate Makefiles, XCode or Visual Studio solutions out of
+a simple definition script.</p>
+<p>I used to be a huge fan of cmake but I now switched to premake.  The
+reason for this is that cmake has some stuff hardcoded which I need to
+customize (for instance building a Visual Studio solution for Xbox 360 is
+something you cannot do with stock cmake).  Premake has many of the same
+problems as cmake but it's written almost entirely in lua and can be
+easily customized.  Premake is essentially one executable that includes a
+lua interpreter and a bunch of lua scripts.  It's easy to recompile and if
+you don't want to, your premake file can override everything if you just
+know how.</p>
+</div>
+<div class="section" id="testing">
+<h2>Testing</h2>
+<p>Lastly: how do you test your library?  Now obviously there are tons of
+testing tools written in C and C++ you can use, but I think the best tools
+are actually somewhere else.  Shared libraries are not just for C and C++
+to enjoy, you can use them in a variety of languages.  What better way is
+there to test your API by using it from a language that is not C++?</p>
+<p>In my case I am using Python to test my libraries.  More to the point: I'm
+using <a class="reference external" href="http://pytest.org/">py.test</a> and <a class="reference external" href="http://cffi.readthedocs.org/">CFFI</a> to test my library.  This has a couple
+of big advantages over directly doing it in C/C++.</p>
+<p>The biggest advantage is the increased iteration speed.  I do not have to
+compile my tests at all, they just run.  Not only does the compilation
+step fall away, I can also take advantage of Python's dynamic typing and
+py.test's good assert statement.  I write myself helpers to print out
+information and to convert data between my library and Python and I get
+all the benefit of good error reporting.</p>
+<p>The second advantage is good isolation.  <a class="reference external" href="https://pypi.python.org/pypi/pytest-xdist">pytest-xdist</a> is a plugin for py.test
+that adds the <tt class="docutils literal"><span class="pre">--boxed</span></tt> flag to py.test which runs each test in a
+separate process.  That's amazingly useful if you have tests that might
+crash due to a segfault.  If you enable coredumps on your system you can
+then afterwards load up the segfault in gdb and figure out what's wrong.
+This also works really well because you don't need to deal with memory
+leaks that happen because an assertion failed and the code skips the
+cleanup.  The OS will clean up for each test separately.  Unfortunately
+that's implemented through the <tt class="docutils literal">fork()</tt> system call so it does not work
+well on windows right now.</p>
+<p>So how do you use your library with CFFI?  You will need to do two things:
+you need to make sure your public header file does not include any other
+headers.  If you can't do that, just add a define that disables the
+includes (like <tt class="docutils literal">YL_NOINCLUDE</tt>).</p>
+<p>This is all that's needed to make CFFI work:</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">from</span> <span class="nn">cffi</span> <span class="kn">import</span> <span class="n">FFI</span>
+
+<span class="n">here</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+<span class="n">header</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">here</span><span class="p">,</span> <span class="s1">&#39;include&#39;</span><span class="p">,</span> <span class="s1">&#39;yourlibrary.h&#39;</span><span class="p">)</span>
+
+<span class="n">ffi</span><span class="o">.</span><span class="n">cdef</span><span class="p">(</span><span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">([</span>
+    <span class="s1">&#39;cc&#39;</span><span class="p">,</span> <span class="s1">&#39;-E&#39;</span><span class="p">,</span> <span class="s1">&#39;-DYL_API=&#39;</span><span class="p">,</span> <span class="s1">&#39;-DYL_NOINCLUDE&#39;</span><span class="p">,</span>
+    <span class="n">header</span><span class="p">],</span> <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">)</span><span class="o">.</span><span class="n">communicate</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span>
+<span class="n">lib</span> <span class="o">=</span> <span class="n">ffi</span><span class="o">.</span><span class="n">dlopen</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">here</span><span class="p">,</span> <span class="s1">&#39;build&#39;</span><span class="p">,</span> <span class="s1">&#39;libyourlibrary.dylib&#39;</span><span class="p">))</span>
+</pre></div>
+<p>Place it in a file called <tt class="docutils literal">testhelpers.py</tt> next to your tests.</p>
+<p>Now obviously that is the simple version that only works on OS X but it's
+simple to extend for different operating systems.  In essence this
+invokes the C preprocessor and adds some extra defines, then feeds the
+return value of that to the CFFI parser.  Afterwards you have a beautiful
+wrapped library to work with.</p>
+<p>Here an example of how such a test could look like.  Just place it in a
+file called <tt class="docutils literal">test_something.py</tt> and let <tt class="docutils literal">py.test</tt> execute it:</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">testhelpers</span> <span class="kn">import</span> <span class="n">ffi</span><span class="p">,</span> <span class="n">lib</span>
+
+<span class="k">def</span> <span class="nf">test_basic_functionality</span><span class="p">():</span>
+    <span class="n">task</span> <span class="o">=</span> <span class="n">lib</span><span class="o">.</span><span class="n">yl_task_new</span><span class="p">()</span>
+    <span class="k">while</span> <span class="n">lib</span><span class="o">.</span><span class="n">yl_task_is_pending</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+        <span class="n">lib</span><span class="o">.</span><span class="n">yl_task_process</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.001</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">lib</span><span class="o">.</span><span class="n">yl_task_get_result_string</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">ffi</span><span class="o">.</span><span class="n">string</span><span class="p">(</span><span class="n">result</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span>
+    <span class="n">lib</span><span class="o">.</span><span class="n">yl_task_free</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+</pre></div>
+<p>py.test has other advantages too.  For instance it supports fixtures which
+allow you to set up common resources that can be reused between tests.
+This is super useful for instance, if using your library requires creating
+some sort of context object, setting up common configuration on it, and
+later destroying it.</p>
+<p>To do that, just create a <tt class="docutils literal">conftest.py</tt> file with the following content:</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">pytest</span>
+<span class="kn">from</span> <span class="nn">testhelpers</span> <span class="kn">import</span> <span class="n">lib</span><span class="p">,</span> <span class="n">ffi</span>
+
+<span class="nd">@pytest.fixture</span><span class="p">(</span><span class="n">scope</span><span class="o">=</span><span class="s1">&#39;function&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">context</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+    <span class="n">ctx</span> <span class="o">=</span> <span class="n">lib</span><span class="o">.</span><span class="n">yl_context_new</span><span class="p">()</span>
+    <span class="n">lib</span><span class="o">.</span><span class="n">yl_context_set_api_key</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="s2">&quot;my api key&quot;</span><span class="p">)</span>
+    <span class="n">lib</span><span class="o">.</span><span class="n">yl_context_set_debug_mode</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">cleanup</span><span class="p">():</span>
+        <span class="n">lib</span><span class="o">.</span><span class="n">yl_context_free</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span>
+    <span class="n">request</span><span class="o">.</span><span class="n">addfinalizer</span><span class="p">(</span><span class="n">cleanup</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ctx</span>
+</pre></div>
+<p>To use this now, all you need to do is to add a parameter called
+<tt class="docutils literal">context</tt> to your test function:</p>
+<div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">testhelpers</span> <span class="kn">import</span> <span class="n">ffi</span><span class="p">,</span> <span class="n">lib</span>
+
+<span class="k">def</span> <span class="nf">test_basic_functionality</span><span class="p">(</span><span class="n">context</span><span class="p">):</span>
+    <span class="n">task</span> <span class="o">=</span> <span class="n">lib</span><span class="o">.</span><span class="n">yl_task_new</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+<div class="section" id="summary">
+<h2>Summary</h2>
+<p>Since this is longer than usual, here a quick summary of the most
+important things to keep in mind when building a native shared library:</p>
+<ul class="simple">
+<li>Write it in C or C++, don't get crazy with building it in a language
+that pulls in a whole runtime that takes up CPU and memory.</li>
+<li>No global state if you can avoid it!</li>
+<li>Do not define common types in your public headers</li>
+<li>Do not include crazy headers like <tt class="docutils literal">windows.h</tt> in your public
+headers.</li>
+<li>Be light on includes in your headers altogether.  Consider adding a
+way to disable all includes through a define.</li>
+<li>take good care about your namespace.  Don't expose symbols you do not
+want to be exposed.</li>
+<li>Create a macro like <tt class="docutils literal">YL_API</tt> that prefixes each symbol you want to
+expose.</li>
+<li>Try to build a stable ABI</li>
+<li>Don't go crazy with structs</li>
+<li>let people customize the memory allocators.  If you can't do it per
+“context” object, at least do it per library.</li>
+<li>Be careful when using the STL, always only through a typedef that adds
+your allocator.</li>
+<li>Don't force your users to use your favourite build tool, always make
+sure that the user of a library finds a Visual Studio solution and
+makefile in place.</li>
+</ul>
+<p>That's it!  Happy library building!</p>
+</div>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/c/">c</a>, 
+      <a href="/tags/python/">python</a> and 
+      <a href="/tags/thoughts/">thoughts</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

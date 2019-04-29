@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Armin Ronacher's Thoughts and Writings</title>
+  <id>http://lucumr.pocoo.org/feed.atom</id>
+  <updated>2013-06-13T00:00:00Z</updated>
+  <link href="http://lucumr.pocoo.org/" />
+  <link href="http://lucumr.pocoo.org/feed.atom" rel="self" />
+  <subtitle type="text">Armin Ronacher's personal blog about programming, games and random thoughts that come to his mind.</subtitle>
+  <generator>Werkzeug</generator>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">New Werkzeug and Flask Releases</title>
+    <id>http://lucumr.pocoo.org/2013/6/13/werkzeug-and-flask-releases</id>
+    <updated>2013-06-13T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2013/6/13/werkzeug-and-flask-releases" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;I'm very happy to announce that after a long break there are finally new
+releases for &lt;a class=&quot;reference external&quot; href=&quot;http://werkzeug.pocoo.org/&quot;&gt;Werkzeug&lt;/a&gt; and &lt;a class=&quot;reference external&quot; href=&quot;http://flask.pocoo.org/&quot;&gt;Flask&lt;/a&gt;.  These releases took their fair amount of
+time and I will ensure the process is quicker next time around.  There is
+however a good reason it took this long: they come with support for Python
+3 and we had to do some API changes in the process.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;what-s-going-to-break-for-you&quot;&gt;
+&lt;h2&gt;What's going to break for you&lt;/h2&gt;
+&lt;p&gt;Let's start with the unfortunate things first: we probably (slightly)
+broke your code in Werkzeug.  This was necessary because some
+functionality just does not map well to the updated &lt;a class=&quot;reference external&quot; href=&quot;http://www.python.org/dev/peps/pep-3333/&quot;&gt;PEP 3333&lt;/a&gt; specification.  This
+backwards incompatible breakage is mostly limited to the &lt;tt class=&quot;docutils literal&quot;&gt;werkzeug.urls&lt;/tt&gt;
+module as well as the &lt;tt class=&quot;docutils literal&quot;&gt;Headers&lt;/tt&gt; and &lt;tt class=&quot;docutils literal&quot;&gt;EnvironHeaders&lt;/tt&gt; data structures.
+You will notice that headers are now coming back in unicode at all times,
+decoded from latin1 and the URLs module now transparently unifies URI and
+IRI representation of URLs.&lt;/p&gt;
+&lt;p&gt;The &lt;tt class=&quot;docutils literal&quot;&gt;Headers&lt;/tt&gt; object also lost the ability to modify WSGI headers
+in-place through the old &lt;tt class=&quot;docutils literal&quot;&gt;linked&lt;/tt&gt; classmethod.  This was necessary as we
+could not replace the logic for PEP 3333 with acceptable performance and
+not producing a too complex implementation.&lt;/p&gt;
+&lt;p&gt;Flask itself should not break that much, but what do you know.  We cleaned
+up some internal implementations.  Primarily you will notice that the
+&lt;tt class=&quot;docutils literal&quot;&gt;|tojson&lt;/tt&gt; filter in Flask now uses different JSON serialization and HTML
+safety rules.  If you have some tests that rely on that old behavior you
+will need to adjust.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;goodbye-python-2-5&quot;&gt;
+&lt;h2&gt;Goodbye Python 2.5&lt;/h2&gt;
+&lt;p&gt;Bad news for you if you're on 2.5: support for your Python version is
+gone.  That was necessary to make the Python 3 port go forward.  Python
+2.5 by now is nearly 7 years old, it's time to move on.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;hello-python-3&quot;&gt;
+&lt;h2&gt;Hello Python 3&lt;/h2&gt;
+&lt;p&gt;On the flip-side support for Python 3 is in.  To be more exact: Python 3.3
+and higher.  For Werkzeug applications porting to Python 3 might be not as
+trivial but Flask applications should actually work mostly out of the box
+assuming their extensions are ported.  For instance all of the Flask
+examples work out of the box on 2.x and 3.x and with the exception of
+unit tests no modifications were necessary to their code.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;notable-changes&quot;&gt;
+&lt;h2&gt;Notable Changes&lt;/h2&gt;
+&lt;p&gt;Other than that, here are some changes that you will hopefully enjoy:&lt;/p&gt;
+&lt;p&gt;Werkzeug:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Werkzeug now pastes traceback into private github gists.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Some smaller improvements to make the HTTP exception classes in
+Werkzeug more useful.  They can now carry some payload and aborting
+with exceptions is streamlined.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Werkzeug's URL module now gained vastly improved IRI support and
+can properly parse and join URLs.  This support is currently
+intentionally in violation with the RFC to cover real-world cases
+better and to support parsing of unknown schemes.&lt;/p&gt;
+&lt;p&gt;This makes it possible for you to parse things like
+&lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;sqlite:///foo.db&lt;/span&gt;&lt;/tt&gt; without being surprised by the behavior.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Werkzeug gained a lot of utility functions to support bridging the
+differences between PEP 333/PEP 3333 and WSGI on 2.x and 3.x.  This
+includes access to the streams and URLs.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Werkzeug's internal form parsing got vastly improved which now makes
+it possible to access the stream in all cases.  It also no longer
+relies on content length which makes it possible to finally deal with
+chunked request bodies assuming the WSGI server provides support for
+it.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Introduced &lt;tt class=&quot;docutils literal&quot;&gt;get_data&lt;/tt&gt; methods as future proof replacement for the
+old &lt;tt class=&quot;docutils literal&quot;&gt;.data&lt;/tt&gt; descriptor on requests and responses.  This allows
+greater flexibility on dealing with form data.  In the future we will
+remove support for &lt;tt class=&quot;docutils literal&quot;&gt;.data&lt;/tt&gt; at which point attribute access on the
+request and response objects is largely side-effect free.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Flask:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Flask gained a &lt;tt class=&quot;docutils literal&quot;&gt;json&lt;/tt&gt; module which unifies JSON support for 2.x and
+3.x and extends it with useful helpers.  It provides safe methods to
+dump JSON for script blocks in HTML and also automatically serializes
+some common types like UUIDs and &lt;tt class=&quot;docutils literal&quot;&gt;datetime&lt;/tt&gt; objects.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Further work has been done to make the application context more
+prominent.  Templates can now be rendered from the application context
+only and &lt;tt class=&quot;docutils literal&quot;&gt;flask.g&lt;/tt&gt; is now bound to the application context as well.&lt;/p&gt;
+&lt;p&gt;This change might seem tiny but actually simplifies working with Flask
+from outside web environments.  You can now easier maintain database
+connections that are not bound to a HTTP request's lifetime.&lt;/p&gt;
+&lt;p&gt;The documentation also has started to shift to this new mode of
+working.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Flask's internal error handling has been improved to make responding
+to error cases more consistent.  This also has the added benefit of
+making the “commit on success, rollback on error” finally fully
+reliable.  Previously the test client would suppress the error
+information in some cases.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Introduced a &lt;tt class=&quot;docutils literal&quot;&gt;get_json&lt;/tt&gt; method on the request to go in line with
+Werkzeug's new &lt;tt class=&quot;docutils literal&quot;&gt;get_data&lt;/tt&gt; method.  The plan here is to remove
+support for the &lt;tt class=&quot;docutils literal&quot;&gt;.json&lt;/tt&gt; descriptor at one point.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Added a few configuration options to change defaults for JSON
+serialization.  This includes pretty-printing and ordering of keys.
+By default JSON objects are now ordered by keys to solve issues with
+invalidating HTTP caches due to Python's new randomized hash seed.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;changes-to-the-process&quot;&gt;
+&lt;h2&gt;Changes to the Process&lt;/h2&gt;
+&lt;p&gt;Going into the future there will be a new process for releases.  The
+target is to have much more frequent releases instead of large ones.
+Werkzeug is now getting to the point where it's possible to do releases
+often without breaking people's code as the API gets more stable.  (This
+release being the notable exception due to the Python 3 support)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;a-thank-you-note&quot;&gt;
+&lt;h2&gt;A Thank You Note&lt;/h2&gt;
+&lt;p&gt;Lastly I want to thank the community for making this release possible.  A
+huge amount of the work for these releases has been done on a sprint
+online on a weekend in May.  Special thanks go to DasIch, Thomas Waldmann,
+untitaker, Ronny Pfannschmidt, mgax, puzzlet, ThiefMaster and everybody
+else who contributed.&lt;/p&gt;
+&lt;p&gt;In this release the number of commits skyrocketed.  While the total
+changelog might not look all that impressive, the underlying improvements
+and code cleanups are substantial.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Pro/Cons about Werkzeug, WebOb and Django</title>
+    <id>http://lucumr.pocoo.org/2009/8/5/pro-cons-about-werkzeug-webob-and-django</id>
+    <updated>2009-08-05T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2009/8/5/pro-cons-about-werkzeug-webob-and-django" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Yesterday I had a discussion with &lt;a class=&quot;reference external&quot; href=&quot;http://twitter.com/benbangert&quot;&gt;Ben Bangert&lt;/a&gt; from the Pylons team, &lt;a class=&quot;reference external&quot; href=&quot;http://twitter.com/pjenvey&quot;&gt;Philip Jenvey&lt;/a&gt; and zepolen from the pylons IRC channel.
+The topic of the discussion was why we have Request and Response objects
+in &lt;a class=&quot;reference external&quot; href=&quot;http://werkzeug.pocoo.org/&quot;&gt;Werkzeug&lt;/a&gt;, &lt;a class=&quot;reference external&quot; href=&quot;http://pythonpaste.org/webob/&quot;&gt;WebOb&lt;/a&gt; and &lt;a class=&quot;reference external&quot; href=&quot;http://djangoproject.com/&quot;&gt;Django&lt;/a&gt; and what we could to to improve the
+situation a bit.&lt;/p&gt;
+&lt;p&gt;We decided on writing down what we like or dislike on these three
+systems in order to find out in which direction to go, so this is my
+attempt. Please keep in mind that this are my opinions only!&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;id1&quot;&gt;
+&lt;h2&gt;WebOb&lt;/h2&gt;
+&lt;p&gt;Let's start with WebOb which is the smallest of the three libraries in
+question. WebOb really just sticks to the basics and provides request
+and response objects and some data structures required.&lt;/p&gt;
+&lt;p&gt;The philosophy of WebOb is to stay as compatible to paste as possible
+and that modifications on the request object appear in the WSGI
+environment. That basically means that when you do anything on the
+request object and you create another one later from the same
+environment you will see your modifications again.&lt;/p&gt;
+&lt;p&gt;This is without doubt something that neither Werkzeug or Django do. Both
+Werkzeug and Django consider the incoming request something you should
+not modify, after all it came from the client. If you need to create a
+request or WSGI environment in Werkzeug you get a separate utility for,
+that is designed for exactly that purpose.&lt;/p&gt;
+&lt;p&gt;While I have to admit that the idea of a reflecting request object is
+tempting, I don't think it's a good idea. Using the WSGI environment as
+a communication channel seems wrong to me. The main problem with it is
+that WebOb cannot achieve what it's doing with standard environment
+keys. There are currently five WebOb keys in the environment for
+“caching” purposes and for compatibility with paste it also understands
+a couple of paste environment keys.&lt;/p&gt;
+&lt;p&gt;The idea is that other applications can get a request again at a
+completely different point, but I'm not sure if WSGI is the correct
+solution for that particular problem. Reusable applications based on the
+complex WSGI middleware system seems to be the wrong layer to me.&lt;/p&gt;
+&lt;p&gt;Some other parts where I don't agree with the WebOb concepts:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;The parsing of the data is implemented either in private functions
+or directly in the request object. I strongly prefer giving the user
+the choice to access the parser separately. Sometimes you really just
+need a cookie parsed, why create a full request object then?&lt;/li&gt;
+&lt;li&gt;WebOb uses &lt;cite&gt;request.GET&lt;/cite&gt; and &lt;cite&gt;request.POST&lt;/cite&gt; for URL parameters and
+form data. Because you can have URL parameters in non-GET requests as
+well this is misleading, for POST data it's wrong as well because form
+data is available in more than just POST requests. Accessing
+&lt;cite&gt;request.POST&lt;/cite&gt; to get form data in a PUT request seems wrong.&lt;/li&gt;
+&lt;li&gt;WebOb still uses &lt;cite&gt;cgi.FieldStorage&lt;/cite&gt; and not only internally but also
+it puts those objects into the &lt;cite&gt;POST&lt;/cite&gt; dict. This is not the best idea
+for multiple reasons. First of all users are encouraged to trust their
+submitted data and blindly expect a field storage object if they have
+a upload field in their form. One could easily cause trouble by
+sending forged requests to the application. If logging is set up the
+administrator is sent tons of error mails instantly. I strongly prefer
+storing uploaded files in a separate dictionary like Django and
+Werkzeug do. The other problem with using &lt;cite&gt;FieldStorage&lt;/cite&gt; as parser is
+that it's not WSGI compliant by requiring a size argument on the
+readline function and that it has a weird API. You can't easily tell
+it to not accept more than n bytes in memory and to switch between in
+memory uploading and a temporary file based on the length of the
+transmitted data. Also &lt;cite&gt;cgi.FieldStorage&lt;/cite&gt; supports nested files which
+no browser supports and which could cause internal server errors as
+well because very few developers know that a) nested uploads exist and
+b) that the field storage object behaves differently if a nested
+uploaded file is transmitted.&lt;/li&gt;
+&lt;li&gt;Also WebOb barks on invalid cookies and throws away all of them if
+one is broken. This is especially annoying if you're dealing with
+cookies outside of your control that use invalid characters (stuff
+such as advertisement cookies)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Now to the parts where WebOb wins over Django and Werkzeug:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;Unlike Django and Werkzeug WebOb provides not only a unicode API but
+also a bytestring based API. This could help existing applications
+that are not unicode ready yet. Downside is that with the current
+plans of Graham for WSGI on Python 3 there do not seem to be ways to
+support it on Python 3.&lt;/li&gt;
+&lt;li&gt;WebOb supports the HTTP range feature.&lt;/li&gt;
+&lt;li&gt;The charset can be switched on the fly in WebOb, in Werkzeug you set
+the charset for your request/response object and from that point
+nowards it's used no matter what. In Django the charset is application
+wide.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;An interesting thing is that WebOb uses &lt;cite&gt;datetime&lt;/cite&gt; objects with timezone
+informations. The tzinfo attribute is set to a tzinfo object with an UTC
+offset of zero. That's different to Werkzeug and Django which use
+offset-naive &lt;cite&gt;datetime&lt;/cite&gt; objects. Because Python treats them differently
+and does not support operations that mix those. Unfortunately the
+&lt;cite&gt;datetime&lt;/cite&gt; module makes it hard to decide what to do. Personally I
+decided to use &lt;cite&gt;datetime&lt;/cite&gt; objects that have no tzinfo set and only dates
+in UTC.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;id2&quot;&gt;
+&lt;h2&gt;Werkzeug&lt;/h2&gt;
+&lt;p&gt;In terms of code base size Werkzeug's next. The problem with Werkzeug
+certainly is that it does not really know what belongs into it and what
+not. That situation will slightly improve with the next version of it
+when some deprecated interfaces go away and when the debugger is moved
+into a new library together with all sorts of debugging tools such as
+profilers, leak finders and more (enter &lt;a class=&quot;reference external&quot; href=&quot;http://dev.pocoo.org/projects/flickzeug/&quot;&gt;flickzeug&lt;/a&gt;).&lt;/p&gt;
+&lt;p&gt;Werkzeug is based on the principle that things should have a nice API
+but at the same time allow you to use the underlying functions. For
+example you can easily access &lt;cite&gt;request.form&lt;/cite&gt; to get a dict of uploaded
+form data, but at the same time you can call &lt;cite&gt;werkzeug.parse_form_data&lt;/cite&gt;
+to parse the stuff into a multidict. You can even go a layer down and
+tell Werkzeug to not use the multidict and provide a custom container or
+a standard dict, list, whatever.&lt;/p&gt;
+&lt;p&gt;Also Werkzeug has a slightly different goal than WebOb. WebOb focuses on
+the request and response object only, Werkzeug provides all kind of
+useful helpers for web applications. The idea is that if there is a
+function you can use, you are more likely to use it than that you
+reimplement it. For example many applications take the uploaded file
+name and just create a file with the same name. This however turns out
+to be a security problem so Werkzeug gives you a function
+(&lt;cite&gt;werkzeug.secure_filename&lt;/cite&gt;) you can use to get a secure version of the
+filename that also is limited to ASCII characters.&lt;/p&gt;
+&lt;p&gt;So obviously there is a lot of stuff in Werkzeug you probably would not
+expect there.&lt;/p&gt;
+&lt;p&gt;So here some of the things I like especially about Werkzeug:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;The request/response objects. They are designed to be lightweight
+and can be extended using mixins. Werkzeug also provides full-featured
+request objects that implement all shipped mixins. Also the
+request/response objects are not doing any parsing or dumping, that is
+all available through separate functions as well which makes the code
+readable and easy to extend.&lt;/li&gt;
+&lt;li&gt;It fixes many problems with the standard library or reimplements
+broken features. It does not depend on the &lt;cite&gt;cgi.FieldStorage&lt;/cite&gt; since
+0.5, allows you to limit the uploaded data before it's consumed. That
+way an attacker cannot exhaust server resources.&lt;/li&gt;
+&lt;li&gt;The data structures provide handy helpers such as raising key errors
+that are also bad request exceptions so that if you're not catching
+them, you are at least not generating internal server errors as long
+as the base &lt;cite&gt;HTTPException&lt;/cite&gt; is catched.&lt;/li&gt;
+&lt;li&gt;Werkzeug uses a non-data descriptor for the properties on the
+request and response objects. The first time you access the property
+code is executed and that is stuffed into the dict. After that there
+is no runtime penalty when accessing the attributes.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;And of course here the list of things that are not that nice:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;It's too large for a library that only wants to implement request
+and response objects.&lt;/li&gt;
+&lt;li&gt;There is no support for if-range and friends.&lt;/li&gt;
+&lt;li&gt;The response stream is useless because each &lt;cite&gt;write()&lt;/cite&gt; ends up as a
+separate “item” in the application iterator. Because each item is
+followed by a flush it makes the response stream essentially useless.&lt;/li&gt;
+&lt;li&gt;The &lt;cite&gt;MultiDict&lt;/cite&gt; is unordered which means that some information is
+lost.&lt;/li&gt;
+&lt;li&gt;The response object modifies itself on &lt;cite&gt;__call__&lt;/cite&gt;. This allows some
+neat things like automatically fixing the location header, but in
+general that should happen temporarily when called as WSGI application
+instead of modifying the object.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;id3&quot;&gt;
+&lt;h2&gt;Django&lt;/h2&gt;
+&lt;p&gt;Now Django isn't exactly a reusable library for WSGI applications but it
+does have a request and response object with an API, so here my thoughts
+on it:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;URL arguments are called &lt;cite&gt;request.GET&lt;/cite&gt; like in WebOb, but files and
+form data was split up into &lt;cite&gt;request.POST&lt;/cite&gt; and &lt;cite&gt;request.FILES&lt;/cite&gt;.&lt;/li&gt;
+&lt;li&gt;The request object is unicode only and the encoding can be set
+dynamically.&lt;/li&gt;
+&lt;li&gt;Problem is, they don't work with non-Django WSGI applications.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;chances-on-a-common-request-object&quot;&gt;
+&lt;h2&gt;Chances on a common Request Object?&lt;/h2&gt;
+&lt;p&gt;WebOb and Werkzeug will stick around, and the chances that Django starts
+depending on external libraries for the Request object are very, very
+low. However it could be possible to share the implementation of the
+HTTP parsers etc.&lt;/p&gt;
+&lt;p&gt;To be humble, I would not want to break Werkzeug into two libraries for
+utlities and request/response objects and parsers because of the current
+packaging situation. A lot of small stuff I work on works perfectly fine
+with nothing but what Werkzeug provides which is pretty handy. So yes,
+it's selfish to not break it up, but that's how I feel about the
+situation currently.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+</feed>
+

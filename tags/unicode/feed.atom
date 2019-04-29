@@ -1,0 +1,1136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Armin Ronacher's Thoughts and Writings</title>
+  <id>http://lucumr.pocoo.org/feed.atom</id>
+  <updated>2014-05-12T00:00:00Z</updated>
+  <link href="http://lucumr.pocoo.org/" />
+  <link href="http://lucumr.pocoo.org/feed.atom" rel="self" />
+  <subtitle type="text">Armin Ronacher's personal blog about programming, games and random thoughts that come to his mind.</subtitle>
+  <generator>Werkzeug</generator>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Everything you did not want to know about Unicode in Python 3</title>
+    <id>http://lucumr.pocoo.org/2014/5/12/everything-about-unicode</id>
+    <updated>2014-05-12T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2014/5/12/everything-about-unicode" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Readers of this blog on my twitter feed know me as a person that likes to
+rant about Unicode in Python 3 a lot.  This time will be no different.
+I'm going to tell you more about how painful &amp;quot;doing Unicode right&amp;quot; is and
+why.  &amp;quot;Can you not just shut up Armin?&amp;quot;.  I spent two weeks fighting with
+Python 3 again and I need to vent my frustration somewhere.  On top of
+that there is still useful information in those rants because it teaches
+you how to deal with Python 3.  Just don't read it if you get annoyed by
+me easily.&lt;/p&gt;
+&lt;p&gt;There is one thing different about this rant this time.  It won't be
+related to WSGI or HTTP or any of that other stuff at all.  Usually I'm
+told that I should stop complaining about the Python 3 Unicode system
+because I wrote code nobody else writes (HTTP libraries and things of that
+sort) I decided to write something else this time: a command line
+application.  And not just the app, I wrote a handy little library called
+&lt;a class=&quot;reference external&quot; href=&quot;http://click.pocoo.org/&quot;&gt;click&lt;/a&gt; to make this easier.&lt;/p&gt;
+&lt;p&gt;Note that I'm doing what about every newby Python programmer does: writing
+a command line application.  The &amp;quot;Hello World&amp;quot; of Python programs.  But
+unlike the newcomer to Python I wanted to make sure the application is as
+stable and Unicode supporting as possible for both Python 2 and Python 3
+and make it possible to unittest it.  So this is my report on how that
+went.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;what-we-want-to-do&quot;&gt;
+&lt;h2&gt;What we want to do&lt;/h2&gt;
+&lt;p&gt;In Python 3 we're doing Unicode right as developers.  Apparently.  I
+suppose what means is that all text data is Unicode and all non text data
+is bytes.  In this wonderful world of everything being black and white,
+the &amp;quot;Hello World&amp;quot; example is pretty straightforward.  So let's write some
+helpful shell utilties.&lt;/p&gt;
+&lt;p&gt;Let's say we want to implement a simple &lt;tt class=&quot;docutils literal&quot;&gt;cat&lt;/tt&gt;  In other terms, these are
+the applications we want to write in Python 2 terms:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;sys&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;shutil&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;argv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:]:&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stdin&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;-&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;rb&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;IOError&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stderr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;cat.py: &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;: &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;continue&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;with&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;shutil&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;copyfileobj&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stdout&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Obviously neither commands are particularly great as they do not handle
+any command line options or anything but at least they roughly work.  So
+that's what we start out with.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;unicode-in-unix&quot;&gt;
+&lt;h2&gt;Unicode in Unix&lt;/h2&gt;
+&lt;p&gt;In Python 2 the above code is dead simple because you implicitly work with
+bytes everywhere.  The command line arguments are bytes, the filenames are
+bytes (ignore Windows users for a moment) and the file contents are bytes
+too.  Purists will point out that this is incorrect and really that's
+where the problem is coming from, but if you start thinking about it more,
+you will realize that this is an unfixable problem.&lt;/p&gt;
+&lt;p&gt;UNIX is bytes, has been defined that way and will always be that way.  To
+understand why you need to see the different contexts in which data is
+being passed through:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;the terminal&lt;/li&gt;
+&lt;li&gt;command line arguments&lt;/li&gt;
+&lt;li&gt;the operating system io layer&lt;/li&gt;
+&lt;li&gt;the filesystem driver&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;That btw, is not the only thing this data might be going through but let's
+go with this for the moment.  In how many of the situations do we know an
+encoding?  The answer is: in none of them.  The closest we have to
+understanding an encoding is that the terminal exports locale information.
+This information can be used to show translations but also to understand
+what encoding text information has.&lt;/p&gt;
+&lt;p&gt;For instance an &lt;tt class=&quot;docutils literal&quot;&gt;LC_CTYPE&lt;/tt&gt; of &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;en_US.utf-8&lt;/span&gt;&lt;/tt&gt; tells an application that
+the system is running US English and that most text data is &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;utf-8&lt;/span&gt;&lt;/tt&gt;.  In
+practice there are more variables but let's assume that this is the only
+one we need to look at.  Note that &lt;tt class=&quot;docutils literal&quot;&gt;LC_CTYPE&lt;/tt&gt; does not say that all data
+now is &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;utf-8&lt;/span&gt;&lt;/tt&gt;.  It instead informs the application how text characters
+should be classified and what case conversion rules should be applied.&lt;/p&gt;
+&lt;p&gt;This is important because of the &lt;tt class=&quot;docutils literal&quot;&gt;C&lt;/tt&gt; locale.  The &lt;tt class=&quot;docutils literal&quot;&gt;C&lt;/tt&gt; locale is the
+only locale that POSIX actually specifies and it says: encoding is ASCII
+and all responses from command line tools in regards to languages are like
+they are defined in the POSIX spec.&lt;/p&gt;
+&lt;p&gt;In the above case of our &lt;tt class=&quot;docutils literal&quot;&gt;cat&lt;/tt&gt; tool there is no other way
+to treat this data as if it was bytes.  The reason for this is, that there
+is no indication on the shell what the data is.  For instance if you
+invoke &lt;tt class=&quot;docutils literal&quot;&gt;cat hello.txt&lt;/tt&gt; the terminal will pass &lt;tt class=&quot;docutils literal&quot;&gt;hello.txt&lt;/tt&gt; encoded in
+the encoding of the terminal to your application.&lt;/p&gt;
+&lt;p&gt;But now imagine the other case: &lt;tt class=&quot;docutils literal&quot;&gt;echo *&lt;/tt&gt;.  The shell will now pass all
+the filenames of the current directory to your application.  Which
+encoding are they in?  In whatever encoding the filenames are in.  There
+is no filename encoding!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;unicode-madness&quot;&gt;
+&lt;h2&gt;Unicode Madness?&lt;/h2&gt;
+&lt;p&gt;Now a Windows person will probably look at this and say: what the hell are
+the UNIX people doing.  But it's not that dire or not dire at all.  The
+reason this all works is because some clever people designed the system to
+be backwards compatible.  Unlike Windows where all APIs are defined twice,
+on POSIX the best way to deal with all of this is to assume it's a byte
+mess that for display purposes is decoded with an encoding hint.&lt;/p&gt;
+&lt;p&gt;For instance let's take the case of the &lt;cite&gt;cat&lt;/cite&gt; command above.  As you might
+have noticed there is an error message for files it cannot open because
+they either don't exist or because they are protected or whatever else.
+In the simple case above let's assume the file is encoded in latin1
+garbage because it came from some external drive from 1995.  The terminal
+will get our standard output and will try to decode it as utf-8 because
+that's what it thinks it's working with.  Because that string is latin1
+and not the right encoding it will now not decode properly.  But fear not,
+nothing is crashing, because your terminal will just ignore the things it
+cannot deal with.  It's clever like this.&lt;/p&gt;
+&lt;p&gt;How does it look like for GUIs?  They have two versions of each.  When a
+GUI like Nautilus lists all files it makes a symbol for each file.  It
+associates the internal bytes of that filename with the icon for double
+clicking and secondly it attempts to make a filename it can show for
+display purposes which might be decoded from something.  For instance it
+will attempt decoding from utf-8 with replacing decoding errors with
+question marks.  Your filename might not be entirely readable but you can
+still open the file.  Success!&lt;/p&gt;
+&lt;p&gt;Unicode on UNIX is only madness if you force it on everything.  But that's
+not how Unicode on UNIX works.  UNIX does not have a distinction between
+unicode and byte APIs.  They are one and the same which makes them easy to
+deal with.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-c-locale&quot;&gt;
+&lt;h2&gt;The C Locale&lt;/h2&gt;
+&lt;p&gt;Nowhere does this show up as much as with the &lt;tt class=&quot;docutils literal&quot;&gt;C&lt;/tt&gt; locale.  The &lt;tt class=&quot;docutils literal&quot;&gt;C&lt;/tt&gt;
+locale is the escape hatch of the POSIX specification to enforce everybody
+to behave the same.  A POSIX compliant operating system needs to support
+setting &lt;tt class=&quot;docutils literal&quot;&gt;LC_CTYPE&lt;/tt&gt; to &lt;tt class=&quot;docutils literal&quot;&gt;C&lt;/tt&gt; and to force everything to be ASCII.&lt;/p&gt;
+&lt;p&gt;This locale is traditionally picked in a bunch of different situations.
+Primarily you will find this locale for any program launched from cron,
+your init system, subprocesses with an empty environment etc.  The &lt;tt class=&quot;docutils literal&quot;&gt;C&lt;/tt&gt;
+locale restores a sane &lt;tt class=&quot;docutils literal&quot;&gt;ASCII&lt;/tt&gt; land on environments where you otherwise
+could not trust anything.&lt;/p&gt;
+&lt;p&gt;But the word ASCII implies that this is an 7bit encoding.  This is not a
+problem because your operating system is dealin in bytes!  Any 8 bit byte
+based content can pass through just fine, but you are following the
+contract with the operating system that any character processing will be
+limited to the first 7 bit.  Also any message your tool generates out of
+it's own translations will be ASCII and the language will be English.&lt;/p&gt;
+&lt;p&gt;Note that the POSIX spec does not say your application should die in
+flames.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;python-3-dies-in-flames&quot;&gt;
+&lt;h2&gt;Python 3 Dies in Flames&lt;/h2&gt;
+&lt;p&gt;Python 3 takes a very difference stance on Unicode than UNIX does.  Python
+3 says: everything is Unicode (&lt;em&gt;by default, except in certain situations,
+and except if we send you crazy reencoded data, and even then it's
+sometimes still unicode, albeit wrong unicode&lt;/em&gt;).  Filenames are Unicode,
+Terminals are Unicode, stdin and out are Unicode, there is so much
+Unicode!  And because UNIX is not Unicode, Python 3 now has the stance
+that it's right and UNIX is wrong, and people should really change the
+POSIX specification to add a &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;C.UTF-8&lt;/span&gt;&lt;/tt&gt; encoding which is Unicode.  And
+then filenames are Unicode, and terminals are Unicode and never ever will
+you see bytes again although obviously everything still is bytes and will
+fail.&lt;/p&gt;
+&lt;p&gt;And it's not just me saying this.  These are bugs in Python related to
+this braindead idea of doing Unicode:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://bugs.python.org/issue13643#msg149941&quot;&gt;ASCII is a bad filesystem default encoding&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://bugs.python.org/issue19977&quot;&gt;Use surrogateescape as default error handler&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://bugs.python.org/issue19846&quot;&gt;Python 3 raises Unicode errors in the C locale&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://bugs.python.org/issue21398&quot;&gt;LC_CTYPE=C:  pydoc leaves terminal in an unusable state&lt;/a&gt; (this is relevant to Click
+because the pager support is provided by the stdlib pydoc module)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;But then if you Google around you will find so much more.  Just check how
+many people failed to install their pip packages because the changelog had
+umlauts in it.  Or because their home folder has an accent in it.  Or
+because their SSH session negotates ASCII, or because they are connecting
+from Putty.  The list goes on and one.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;python-3-cat&quot;&gt;
+&lt;h2&gt;Python 3 Cat&lt;/h2&gt;
+&lt;p&gt;Now let's start fixing cat for Python 3.  How do we do this?  Well first
+of all we now established that we need to deal with bytes because someone
+might echo something which is not in the encoding the shell says.  So at
+the very least the file contents need to be bytes.  But then we also need
+to open the standard output to support bytes which it does not do by
+default.  We also need to deal with the case separately where the Unicode
+APIs crap out on us because the encoding is &lt;tt class=&quot;docutils literal&quot;&gt;C&lt;/tt&gt;.  So here it is, feature
+compatible &lt;tt class=&quot;docutils literal&quot;&gt;cat&lt;/tt&gt; for Python 3:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;sys&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;shutil&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;_is_binary_reader&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stream&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;default&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;kc&quot;&gt;False&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;isinstance&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stream&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;read&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;bytes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;Exception&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;default&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;_is_binary_writer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stream&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;default&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;kc&quot;&gt;False&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;stream&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;write&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;Exception&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;stream&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;write&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;False&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;Exception&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;default&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;True&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;get_binary_stdin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# sys.stdin might or might not be binary in some extra cases.  By&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# default it&amp;#39;s obviously non binary which is the core of the&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# problem but the docs recomend changing it to binary for such&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# cases so we need to deal with it.  Also someone might put&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# StringIO there for testing.&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;is_binary&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_is_binary_reader&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stdin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;False&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;is_binary&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stdin&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;buf&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;getattr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stdin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;buffer&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buf&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;None&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_is_binary_reader&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;True&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buf&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;raise&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;RuntimeError&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Did not manage to get binary stdin&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;get_binary_stdout&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_is_binary_writer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stdout&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;False&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stdout&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;buf&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;getattr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stdout&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;buffer&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buf&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;None&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_is_binary_writer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;True&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buf&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;raise&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;RuntimeError&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Did not manage to get binary stdout&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;filename_to_ui&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# The bytes branch is unecessary for *this* script but otherwise&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# necessary as python 3 still supports addressing files by bytes&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# through separate APIs.&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;isinstance&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;bytes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;value&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;getfilesystemencoding&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;replace&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;value&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;utf-8&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;surrogateescape&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; \
+            &lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;utf-8&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;replace&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;binary_stdout&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;get_binary_stdout&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;argv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:]:&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;-&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;rb&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;IOError&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;nb&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;cat.py: &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;: &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;filename_to_ui&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stderr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;continue&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;get_binary_stdin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;with&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;shutil&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;copyfileobj&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;binary_stdout&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;And this is not the worst version.  Not because I want to make things
+extra complicated but because it is complicated now.  For instance what's
+not done in this example is to forcefully flush the text stdout before
+fetching the binary one.  In this example it's not necessary because print
+calls here go to stderr instead of stdout, but if you would want to print
+to stdout instead, you would have to flush.  Why?  Because stdout is a
+buffer on top of another buffer and if you don't flush it forefully you
+might get output in wrong order.&lt;/p&gt;
+&lt;p&gt;And it's not just me.  For instance see &lt;a class=&quot;reference external&quot; href=&quot;https://github.com/twisted/twisted/blob/log-booyah-6750-4/twisted/python/compat.py&quot;&gt;twisted's compat module&lt;/a&gt;
+for the same mess in slightly different color.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;dancing-the-encoding-dance&quot;&gt;
+&lt;h2&gt;Dancing The Encoding Dance&lt;/h2&gt;
+&lt;p&gt;To understand the live of a filename parameter to the shell, this is btw
+now what happens on Python 3 worst case:&lt;/p&gt;
+&lt;ol class=&quot;arabic simple&quot;&gt;
+&lt;li&gt;the shell passes the filename as bytes to the script&lt;/li&gt;
+&lt;li&gt;the bytes are being decoded from the expected encoding by Python
+before they ever hit your code.  Because this is a lossy process,
+Python 3 applies an special error handler that encodes encoding errors
+as surrogates into the string.&lt;/li&gt;
+&lt;li&gt;the python code then encounters a file not existing error and needs to
+format an error message.  Because we write to a text stream we cannot
+write surrogates out as they are not valid unicode.  Instead we now&lt;/li&gt;
+&lt;li&gt;encode the unicode string with the surrogates to utf-8 and tell it to
+handle the surrogate escapes as it.&lt;/li&gt;
+&lt;li&gt;then we decode from utf-8 and tell it to ignore errors.&lt;/li&gt;
+&lt;li&gt;the resulting string now goes back out to our text only stream
+(stderr)&lt;/li&gt;
+&lt;li&gt;after which the terminal will decode our string for displaying
+purposes.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Here is what happens on Python 2:&lt;/p&gt;
+&lt;ol class=&quot;arabic simple&quot;&gt;
+&lt;li&gt;the shell passes the filename as bytes to the script.&lt;/li&gt;
+&lt;li&gt;the shell decodes our string for displaying purposes.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;And because no string handling happens anywhere there the Python 2 version
+is just as correct if not more correct because the shell then can do a
+better job at showing the filename (for instance it could highlight the
+encoding errors if it woudl want.  In case of Python 3 we need to handle
+the encoding internally so that's no longer possible to detect for the
+shell).&lt;/p&gt;
+&lt;p&gt;Note that this is not making the script less correct.  In case you would
+need to do actual string handling on the input data you would switch to
+Unicode handling in 2.x or 3.x.  But in that case you also want to support
+a &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;--charset&lt;/span&gt;&lt;/tt&gt; parameter on your script explicitly so the work is pretty
+much the same on 2.x and 3.x anyways.  Just that it's worse because for
+that to work on 3.x you need to construct the binary stdout first which is
+unnecessary on 2.x.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;but-you-re-wrong-armin&quot;&gt;
+&lt;h2&gt;But You're Wrong Armin&lt;/h2&gt;
+&lt;p&gt;Clearly I'm wrong.  I have been told so far that:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;I only feel it's painful because I don't think like a beginner and
+the new Unicode system is so much easier for beginners.&lt;/li&gt;
+&lt;li&gt;I don't consider Windows users and how much more correct this new text
+model is for Windows users.&lt;/li&gt;
+&lt;li&gt;The problem is not Python, the problem is the POSIX specification.&lt;/li&gt;
+&lt;li&gt;The linux distributions really need to start supporting &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;C.UTF-8&lt;/span&gt;&lt;/tt&gt;
+because they are stuck in the past.&lt;/li&gt;
+&lt;li&gt;The problem is SSH because it passes incorrect encodings.  This is a
+problem that needs to be fixed in SSH.&lt;/li&gt;
+&lt;li&gt;The real problem with lots of unicode errors in Python 3 is that
+people just don't pass explicit encodings and instead assume that
+Python 3 does the right thing to figure it out (which it really can't
+so you should pass explicit encodings).  Then there would be no
+problems.&lt;/li&gt;
+&lt;li&gt;I work with &amp;quot;boundary code&amp;quot; so obviously that's harder on Python
+3 now (duh).&lt;/li&gt;
+&lt;li&gt;I should spend my time fixing Python 3 instead of complaining on
+Twitter and my blog.&lt;/li&gt;
+&lt;li&gt;You're making problems where there are none.  Just let everybody fix
+their environment and encodings everywhere and everything is fine.
+It's a user problem.&lt;/li&gt;
+&lt;li&gt;Java had this problem for ages, it worked just fine for developers.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;You know what?  I did stop complaining while I was working with HTTP for a
+while, because I buy the idea that a lot of the problems with HTTP/WSGI
+are something normal people don't need to deal with.  But you know what?
+The same problem appears in simple Hello World style scenarios.  Maybe I
+should give up trying to achieve a high quality of Unicode support in my
+libraries and just live with broken stuff.&lt;/p&gt;
+&lt;p&gt;I can bring up counter arguments for each of the point above, but
+ultimately it does not matter.  If Python 3 was the only Python language I
+would use, I would eat up all the problems and roll with it.  But it's
+not.  There is a perfectly other language available called Python 2, it
+has the larger user base and that user base is barely at all migrating
+over.  At the moment it's just very frustrating.&lt;/p&gt;
+&lt;p&gt;Python 3 might be large enough that it will start to force UNIX to go the
+Windows route and enforce Unicode in many places, but really, I doubt it.&lt;/p&gt;
+&lt;p&gt;The much more likely thing to happen is that people stick to Python 2 or
+build broken stuff on Python 3.  Or they go with Go.  Which uses an even
+simpler model than Python 2: everything is a byte string.  The assumed
+encoding is UTF-8.  End of the story.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">The Updated Guide to Unicode on Python</title>
+    <id>http://lucumr.pocoo.org/2013/7/2/the-updated-guide-to-unicode</id>
+    <updated>2013-07-02T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2013/7/2/the-updated-guide-to-unicode" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;I figured that it might be the right time to do an updated introduction to
+unicode in Python.  Primarily because the unicode chapter got a whole lot
+of new confusing chapters on Python 3 that a developer needs to know.&lt;/p&gt;
+&lt;p&gt;Let's start first with how unicode worked on Python 2.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;unicode-on-python-2&quot;&gt;
+&lt;h2&gt;Unicode on Python 2&lt;/h2&gt;
+&lt;p&gt;Unicode on Python 2 is a fairly simple thing.  There are two types of
+string literals: bytestrings (look like this on 2.x: &lt;tt class=&quot;docutils literal&quot;&gt;'foo'&lt;/tt&gt;) and
+unicode strings (which have a leading &lt;tt class=&quot;docutils literal&quot;&gt;u&lt;/tt&gt; prefix like this: &lt;tt class=&quot;docutils literal&quot;&gt;u'foo'&lt;/tt&gt;).
+Since 2.6 you can also be explicit about bytestrings and write them with a
+leading &lt;tt class=&quot;docutils literal&quot;&gt;b&lt;/tt&gt; prefix like this: &lt;tt class=&quot;docutils literal&quot;&gt;b'foo'&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;Python 2's biggest problem with unicode was that some APIs did not support
+it.  The most common ones were many filesystem operations, the datetime
+module, the csv reader and quite a few interpreter internals.  In addition
+to that a few APIs only ever worked with non unicode strings or caused a
+lot of confusion if you introducted unicode.  For instance docstrings
+break some tools if they are unicode instead of bytestrings, the return
+value of &lt;tt class=&quot;docutils literal&quot;&gt;__repr__&lt;/tt&gt; must only ever be bytes and not unicode strings etc.&lt;/p&gt;
+&lt;p&gt;Aside from that Python had one feature that usually confused developers: a
+byte string for as long as it only contained ASCII characters could be
+upgraded to a unicode string implicitly.  If however it was not ASCII safe
+it would have caused some form of &lt;tt class=&quot;docutils literal&quot;&gt;UnicodeError&lt;/tt&gt;.  Either a
+&lt;tt class=&quot;docutils literal&quot;&gt;UnicodeEncodeErrror&lt;/tt&gt; or a &lt;tt class=&quot;docutils literal&quot;&gt;UnicodeDecodeError&lt;/tt&gt; depending on when it
+failed.&lt;/p&gt;
+&lt;p&gt;Because of all that the rule of thumb on 2.x was this:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;the first time you know your encoding properly decode from bytes into
+unicode.&lt;/li&gt;
+&lt;li&gt;when it's most convenient for you and you know the target encoding,
+encode back to bytes.&lt;/li&gt;
+&lt;li&gt;internally feel free to use bytes literals for as long as they are
+restricted to the ascii subset.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;This worked really well for many 2.x libraries.  On Flask for instance you
+will only encounter unicode issues if you try to pass byte string literals
+with non ascii characters to the templates or if you try to use Flask with
+APIs that do not support unicode.  Aside from that it takes a lot of work
+to create a unicode error.&lt;/p&gt;
+&lt;p&gt;This is accomplished because the whole WSGI layer is byte based and the
+whole Flask layer is unicode based (for text).  As such Flask just does
+the encoding when it transfers from WSGI over to Flask.  Likewise the
+return value is inspected and if the return type is unicode it will
+automatically encode it before handling data back to the WSGI layer.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;basic-unicode-on-python-3&quot;&gt;
+&lt;h2&gt;Basic Unicode on Python 3&lt;/h2&gt;
+&lt;p&gt;On Python 3 two things happened that make unicode a whole lot more
+complicated.  The biggest one is that the bytestring was removed.  It was
+replaced with an object called &lt;tt class=&quot;docutils literal&quot;&gt;bytes&lt;/tt&gt; which is created by the Python 3
+bytes syntax: &lt;tt class=&quot;docutils literal&quot;&gt;b'foo'&lt;/tt&gt;.  It might look like a string at first, but it's
+not.  Unfortunately it does not share much of the API with strings.&lt;/p&gt;
+&lt;p&gt;The following code example shows that the bytes object is very different
+of the string object indeed:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;key=&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;value&amp;#39;&lt;/span&gt;
+&lt;span class=&quot;go&quot;&gt;&amp;#39;key=value&amp;#39;&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;key=&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;value&amp;#39;&lt;/span&gt;
+&lt;span class=&quot;go&quot;&gt;&amp;quot;key=b&amp;#39;value&amp;#39;&amp;quot;&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;key=&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;value&amp;#39;&lt;/span&gt;
+&lt;span class=&quot;gt&quot;&gt;Traceback (most recent call last):&lt;/span&gt;
+  File &lt;span class=&quot;nb&quot;&gt;&amp;quot;&amp;lt;stdin&amp;gt;&amp;quot;&lt;/span&gt;, line &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;, in &lt;span class=&quot;n&quot;&gt;&amp;lt;module&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;gr&quot;&gt;TypeError&lt;/span&gt;: &lt;span class=&quot;n&quot;&gt;unsupported operand type(s) for %: &amp;#39;bytes&amp;#39; and &amp;#39;bytes&amp;#39;&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;go&quot;&gt;&amp;#39;10&amp;#39;&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;bytes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;go&quot;&gt;b&amp;#39;\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00&amp;#39;&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;list&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;foo&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;go&quot;&gt;[&amp;#39;f&amp;#39;, &amp;#39;o&amp;#39;, &amp;#39;o&amp;#39;]&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;list&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;foo&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;go&quot;&gt;[102, 111, 111]&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;foo&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;foo&amp;#39;&lt;/span&gt;
+&lt;span class=&quot;go&quot;&gt;False&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;One could argue that that's fine, because you will no longer mix bytes and
+unicode, but unfortunately that's not the case.  The reason for this is
+that a whole bunch of APIs work on bytes and unicode strings
+interchangeably.  For instance all the file system APIs operate on both
+unicode and bytes:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;os&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;listdir&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;/tmp/test&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;go&quot;&gt;[&amp;#39;Scheiß_Encoding&amp;#39;]&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;os&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;listdir&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;/tmp/test&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;go&quot;&gt;[b&amp;#39;Schei\xc3\x9f_Encoding&amp;#39;]&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;That might not seem like a big deal at first, but APIs have the attitude
+of spreading further.  For instance opening a file will set the name
+attribute to a “string” of that type:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;/tmp/test/Schei&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\xc3\x9f&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;_Encoding&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;
+&lt;span class=&quot;go&quot;&gt;b&amp;#39;/tmp/test/Schei\xc3\x9f_Encoding&amp;#39;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;As a result every user of the &lt;tt class=&quot;docutils literal&quot;&gt;.name&lt;/tt&gt; attribute will have to force it to
+the right type before interacting with it.  The same thing also has been
+true on 2.x, however on 3.x this behavior is mostly undocumented.&lt;/p&gt;
+&lt;p&gt;It's not just file operations, it also happens on other APIs like the
+urllib parsing module which can produce both bytes and unicode strings:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;parse_qs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;foo=bar&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;go&quot;&gt;{b&amp;#39;foo&amp;#39;: [b&amp;#39;bar&amp;#39;]}&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;parse_qs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;foo=bar&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;go&quot;&gt;{&amp;#39;foo&amp;#39;: [&amp;#39;bar&amp;#39;]}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;magic-defaults-in-3-x&quot;&gt;
+&lt;h2&gt;Magic Defaults in 3.x&lt;/h2&gt;
+&lt;p&gt;Python 3 unfortunately made a choice of guessing a little bit too much
+with unicode in some places.  When I asked the question at one conference
+before about what people believe the default encoding for text files on
+Python 3 was, most were replying UTF-8.  This is correct on some operating
+systems.  It's definitely true for OS X and it's true for most linux
+distributions I tried.  However how does Python determine that encoding?
+The answer is by looking into the locale settings in the environment
+variables.&lt;/p&gt;
+&lt;p&gt;Unfortunately those break very quickly.  A good example for instance is
+SSH'ing from a german locale into a US linux box that does not support the
+german locale.  Linux will then attempt to set the locale and fails, and
+default to &lt;tt class=&quot;docutils literal&quot;&gt;C&lt;/tt&gt; which is ASCII.  Python then very happily opens a file in
+ASCII mode.  Here is the logic that Python applies to guessing the default
+encoding on files:&lt;/p&gt;
+&lt;ol class=&quot;arabic simple&quot;&gt;
+&lt;li&gt;it first starts out finding the device the file is located on and will
+try to get the encoding from that device.  This function currently
+only ever does something for terminals.  As far as I know this only
+ever does something really interesting on windows where it might
+return a codepage (which totally is not unicode, but that's expected).&lt;/li&gt;
+&lt;li&gt;The same function that finds out the device encoding might also call
+&lt;tt class=&quot;docutils literal&quot;&gt;nl_langinfo(CODESET)&lt;/tt&gt; which returns the current encoding that the
+locale system is aware of.  Traditionally the locale support was not
+initialized on the Python interpreter but it definitely gets
+initialized somewhere.  This call is also the one that can fail when a
+locale is not available but set (SSH example from above).&lt;/li&gt;
+&lt;li&gt;If for whatever reason &lt;tt class=&quot;docutils literal&quot;&gt;device_encoding&lt;/tt&gt; does not return anything
+(for instance because the device was not a terminal) it will try to
+import the locale module (which BTW is written in Python, always
+interesting to see when the stuff written in C imports a Python
+module) and call into the &lt;tt class=&quot;docutils literal&quot;&gt;locale.getpreferredencoding&lt;/tt&gt; function and
+use the return value of that.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Because it does not set the locale there it basically only calls into
+&lt;tt class=&quot;docutils literal&quot;&gt;nl_langinfo(CODESET)&lt;/tt&gt; again.  Because that call sometimes fails on OS X
+it converts the return value for OS X into utf-8 if it does not get a
+useful result otherwise.&lt;/p&gt;
+&lt;p&gt;I am not a fan of that behavior and I strongly recommend explicitly
+passing the encoding of text files as third parameter.  That's how we did
+it on 2.x and that's also how I recommend doing it on Python 3.  I really
+wish the default encoding was changed to utf-8 in all cases except for
+terminal devices and maybe have some encoding='auto' flag that guesses.&lt;/p&gt;
+&lt;p&gt;I failed installing a package on python 3 a while ago because a
+contributor name was containing a non ASCII name and the setup.py file was
+opening the README file for the docstring.  Worked fine on OS X and normal
+Linux, but broke hard when I SSH'ed into my Linux box from an Austrian OS
+X.  I am not sure how many people run into that (I assume not a lot) but
+it's annoying when it happens and there is literally nothing that
+guarantees that a file opened in text mode and without a defined encoding
+is UTF-8.  So do the world a favor and open text files like this:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;with&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;r&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;encoding&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;utf-8&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;different-types-of-unicode-strings&quot;&gt;
+&lt;h2&gt;Different Types of Unicode Strings&lt;/h2&gt;
+&lt;p&gt;In addition to regular unicode strings, on Python 3 you have to deal with
+two additional types of unicode strings.  The reason for this is that
+a library (or the Python interpreter) does not have enough knowledge about
+the encoding so it has to apply some tricks.  Where in Python 2.x we made
+a string stick to being bytes in that case, on Python 3 there are two more
+choices you have.  These strings don't have proper names and look like
+regular unicode strings, so I am going to give them names for the sake of
+the argument.  Let's call the regular unicode string a “text” string.
+Each character in that string is correctly internally represented and no
+surprises are to be expected.&lt;/p&gt;
+&lt;p&gt;In addition to that there are strings I would call “transport decoded”
+strings.  Those strings are used in a few places.  The most common case
+where you are dealing with those strings is the WSGI protocol and most
+things that interface with HTTP.  WSGI declares that strings in the WSGI
+environment are represented as incorrectly decoded latin1 strings.  In
+other words what happens is that all unicode strings in the Python 3 WSGI
+environment are actually incorrectly encoded for any codepoint above
+ASCII.  In order to properly decode that strings you will need to encode
+the string back to latin 1 and decode from the intended encoding.
+Werkzeug internally refers to such strings as “dance encoded” strings.
+The following logic has to be applied to properly re-decode them to the
+actual character set:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;wsgi_decoding_dance&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;charset&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;utf-8&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;errors&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;replace&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;latin1&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;charset&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;errors&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;wsgi_encoding_dance&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;charset&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;utf-8&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;errors&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;replace&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;isinstance&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;bytes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;latin1&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;errors&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;charset&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;latin1&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;errors&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;This logic is not just required for WSGI however, the same requirement
+comes up for any MIME and HTTP header.  Theoretically it's not a problem
+for these headers because they are limited to latin1 out of the box and
+use explicit encoding information if a string does not fit into latin1.
+Unfortunately in practical terms it's not uncommon for certain headers to
+be utf-8 encoded.  This is incredibly common with custom headers emitted
+by applications as well as the cookie headers if the cookie header is set
+via JavaScript as the browser API does not provide automatic encoding.&lt;/p&gt;
+&lt;p&gt;The second string type that is common on Python 3 is the “surrogate
+escaped string”.  These are unicode strings that cannot be encoded to an
+unicode encoding because they are actually invalid.  These strings are
+created by APIs that think an encoding is a specific one but cannot
+guarantee it because the underlying system does not fully enforce that.
+This functionality is provided by the &lt;tt class=&quot;docutils literal&quot;&gt;'surrogateescape'&lt;/tt&gt; error handler:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;letter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\N{LATIN CAPITAL LETTER U WITH DIAERESIS}&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;latin1&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;decoded_letter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;letter&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;utf-8&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;surrogateescape&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;decoded_letter&lt;/span&gt;
+&lt;span class=&quot;go&quot;&gt;&amp;#39;\udcdc&amp;#39;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;This is for instance happening for &lt;tt class=&quot;docutils literal&quot;&gt;os.environ&lt;/tt&gt; as well as all the
+unicode based filesystem functions.  If you try to encode such a string to
+&lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;utf-8&lt;/span&gt;&lt;/tt&gt; for instance you will receive an &lt;tt class=&quot;docutils literal&quot;&gt;UnicodeEncodeError&lt;/tt&gt;:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;decoded_letter&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;utf-8&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;gt&quot;&gt;Traceback (most recent call last):&lt;/span&gt;
+  File &lt;span class=&quot;nb&quot;&gt;&amp;quot;&amp;lt;stdin&amp;gt;&amp;quot;&lt;/span&gt;, line &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;, in &lt;span class=&quot;n&quot;&gt;&amp;lt;module&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;gr&quot;&gt;UnicodeEncodeError&lt;/span&gt;: &lt;span class=&quot;n&quot;&gt;&amp;#39;utf-8&amp;#39; codec can&amp;#39;t encode character&lt;/span&gt;
+&lt;span class=&quot;go&quot;&gt;  &amp;#39;\udcdc&amp;#39; in position 0: surrogates not allowed&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;To solve this problem you need to encode such strings with the encoding
+error handling set to &lt;tt class=&quot;docutils literal&quot;&gt;'surrogateescape'&lt;/tt&gt;.  As an extension this means
+that strings received from functions that might carry surrogates need to
+be resolved before passed to APIs not dealing with such strings.&lt;/p&gt;
+&lt;p&gt;This primarily means that you have two options: change all your
+&lt;tt class=&quot;docutils literal&quot;&gt;encode()&lt;/tt&gt; errorhandling anywhere in your codebase from &lt;tt class=&quot;docutils literal&quot;&gt;'strict'&lt;/tt&gt;
+(which is the default) to &lt;tt class=&quot;docutils literal&quot;&gt;'surrogateescape'&lt;/tt&gt; or remove surrogates from
+your strings.  The easiest form I believe is going through a encode/decode
+dance.  I believe that currently that's also the only simple way to check
+if something was indeed surrogate escaped.&lt;/p&gt;
+&lt;p&gt;My suggestion is that every time you deal with an API that might produce
+surrogate escaped strings (&lt;tt class=&quot;docutils literal&quot;&gt;os.environ&lt;/tt&gt; etc.) you should just do a basic
+check if the value is surrogate escaped and raise an error (or remove the
+surrogate escaping and call it a day).  But don't forward those strings
+onwards as it will make it very painful to figure out what's wrong later.&lt;/p&gt;
+&lt;p&gt;If you for instance pass such a string to a template engine you will get
+an error somewhere else entirely and because the encoding happens at a
+much later stage you no longer know why the string was incorrect.  If you
+detect that error when it happens the issue becomes much easier to debug
+(basically restores 2.x behavior).&lt;/p&gt;
+&lt;p&gt;These functions might be useful:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;remove_surrogate_escaping&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;method&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;ignore&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;assert&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;method&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;ignore&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;replace&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;invalid removal method&amp;#39;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;utf-8&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;method&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;utf-8&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;is_surrogate_escaped&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;utf-8&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;UnicodeEncodeError&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;reason&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;surrogates not allowed&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;True&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;raise&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;False&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Both “transport decoded” and “surrogate escaped” strings are the same type
+as regular strings so the best way to keep them apart is memorize where
+they come from.  In Werkzeug I wrote helper functions that fetch the
+strings from their container (WSGI environ) and immediately decode them so
+that a user never has to deal with the low level details.&lt;/p&gt;
+&lt;p&gt;The following interfaces produce some of those strings:&lt;/p&gt;
+&lt;table border=&quot;1&quot; class=&quot;docutils&quot;&gt;
+&lt;colgroup&gt;
+&lt;col width=&quot;38%&quot; /&gt;
+&lt;col width=&quot;63%&quot; /&gt;
+&lt;/colgroup&gt;
+&lt;thead valign=&quot;bottom&quot;&gt;
+&lt;tr&gt;&lt;th class=&quot;head&quot;&gt;API&lt;/th&gt;
+&lt;th class=&quot;head&quot;&gt;String Type&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody valign=&quot;top&quot;&gt;
+&lt;tr&gt;&lt;td&gt;&lt;tt class=&quot;docutils literal&quot;&gt;os.environ&lt;/tt&gt;&lt;/td&gt;
+&lt;td&gt;surrogate escaped&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;tt class=&quot;docutils literal&quot;&gt;os.listdir&lt;/tt&gt;&lt;/td&gt;
+&lt;td&gt;surrogate escaped&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;WSGI environ&lt;/td&gt;
+&lt;td&gt;transport decoded (&lt;em&gt;latin1&lt;/em&gt;)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;HTTP/MIME headers&lt;/td&gt;
+&lt;td&gt;transport decoded (&lt;em&gt;latin1&lt;/em&gt;)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;tt class=&quot;docutils literal&quot;&gt;email&lt;/tt&gt; text payload&lt;/td&gt;
+&lt;td&gt;surrogate escaped&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;tt class=&quot;docutils literal&quot;&gt;nntplib&lt;/tt&gt; all data&lt;/td&gt;
+&lt;td&gt;surrogate escaped&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;tt class=&quot;docutils literal&quot;&gt;os.exec*&lt;/tt&gt; functions&lt;/td&gt;
+&lt;td&gt;surrogate escaped (except on windows)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;tt class=&quot;docutils literal&quot;&gt;subprocess&lt;/tt&gt; environ&lt;/td&gt;
+&lt;td&gt;surrogate escaped (except on windows)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;tt class=&quot;docutils literal&quot;&gt;subprocess&lt;/tt&gt; arguments&lt;/td&gt;
+&lt;td&gt;surrogate escaped (except on windows)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;There are also some special cases in the stdlib where strings are very
+confusing.  The &lt;tt class=&quot;docutils literal&quot;&gt;cgi.FieldStorage&lt;/tt&gt; module which WSGI applications are
+sometimes still using for form data parsing is now treating
+&lt;tt class=&quot;docutils literal&quot;&gt;QUERY_STRING&lt;/tt&gt; as surrogate escaping, but instead of using utf-8 as
+charset for the URLs (as browsers) it treats it as the encoding returned
+by &lt;tt class=&quot;docutils literal&quot;&gt;locale.getpreferredencoding()&lt;/tt&gt;.  I have no idea why it would do
+that, but it's incorrect.  As workaround I recommend not using
+&lt;tt class=&quot;docutils literal&quot;&gt;cgi.FieldStorage&lt;/tt&gt; for query string parsing.&lt;/p&gt;
+&lt;p&gt;Unfortunately the docs generally are very quiet about where they are using
+surrogate escaping or not.  Generally the best way is to look at the
+source currently.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;detecting-errors&quot;&gt;
+&lt;h2&gt;Detecting Errors&lt;/h2&gt;
+&lt;p&gt;On Python 2.x detecting misuse of Unicode was quite simple.  Generally if
+you did dodgy things you got some form of &lt;tt class=&quot;docutils literal&quot;&gt;UnicodeError&lt;/tt&gt; or
+&lt;tt class=&quot;docutils literal&quot;&gt;UnicodeWarning&lt;/tt&gt;.  Usually you either got a fatal &lt;tt class=&quot;docutils literal&quot;&gt;UnicodeEncodeError&lt;/tt&gt;
+or &lt;tt class=&quot;docutils literal&quot;&gt;UnicodeDecodeError&lt;/tt&gt; or you got logged a &lt;tt class=&quot;docutils literal&quot;&gt;UnicodeWarning&lt;/tt&gt;.  The
+latter for instance happened when comparing bytes and unicode where the
+bytes could not be decoded from ASCII.  On Python 3 the situation looks
+very different unfortunately.&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;&lt;tt class=&quot;docutils literal&quot;&gt;AttributeError&lt;/tt&gt;: this usually happens if you try to use a string
+only API on a bytes object.  Usually this happens for calls to
+&lt;tt class=&quot;docutils literal&quot;&gt;casefold()&lt;/tt&gt;, &lt;tt class=&quot;docutils literal&quot;&gt;encode()&lt;/tt&gt;, or &lt;tt class=&quot;docutils literal&quot;&gt;format()&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;tt class=&quot;docutils literal&quot;&gt;TypeError&lt;/tt&gt;: this can happen for a variety of different reasons.
+The most common one is string formatting which does not work on bytes.
+If you try to do &lt;tt class=&quot;docutils literal&quot;&gt;foo % bar&lt;/tt&gt; and &lt;tt class=&quot;docutils literal&quot;&gt;foo&lt;/tt&gt; turns out to be a bytes
+object you will get a &lt;tt class=&quot;docutils literal&quot;&gt;TypeError&lt;/tt&gt;.  Another form of this is that
+something iterates over a string and expects a one-character string to
+be returned but actually an integer is produced.&lt;/li&gt;
+&lt;li&gt;&lt;tt class=&quot;docutils literal&quot;&gt;UnicodeEncodeError&lt;/tt&gt;: usually happens now due to surrogate escaping
+problems when you're not using the &lt;tt class=&quot;docutils literal&quot;&gt;'surrogateescape'&lt;/tt&gt; error handler
+on encoding strings or forget to remove surrogates from strings.&lt;/li&gt;
+&lt;li&gt;garbled unicode: happens if you're not dealing with transport decoded
+strings properly.  This usually happens with WSGI.  The best to catch
+this is to never expose WSGI strings directly and always go through an
+extra level of indirection.  That way you don't accidentally mix
+unicode strings of different types.&lt;/li&gt;
+&lt;li&gt;no error: that happens for instance when you compare bytes and strings
+and the comparison will just return &lt;tt class=&quot;docutils literal&quot;&gt;False&lt;/tt&gt; without giving a
+warning.  This can be remedied by running the Python interpreter with
+the &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;-b&lt;/span&gt;&lt;/tt&gt; flag which will emit warnings for bytes and text
+comparisons.&lt;/li&gt;
+&lt;li&gt;running out of memory / huge strings: this happens when you try to
+pass a large integer to the &lt;tt class=&quot;docutils literal&quot;&gt;bytes()&lt;/tt&gt; constructor.  I have seen this
+happen a few times when porting to Python 3 where the pattern was a
+form of “if object not an instance of bytes, call &lt;tt class=&quot;docutils literal&quot;&gt;bytes()&lt;/tt&gt; on it”.
+This is dangerous because integers are valid input values to the
+&lt;tt class=&quot;docutils literal&quot;&gt;bytes()&lt;/tt&gt; constructor that will allocate as many null bytes as
+the integer passed.  The recommendation there is to stop using that
+pattern and write a &lt;tt class=&quot;docutils literal&quot;&gt;soft_bytes&lt;/tt&gt; function that catches integer
+parameters before passing it to &lt;tt class=&quot;docutils literal&quot;&gt;bytes&lt;/tt&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;writing-unicode-bytes-combination-apis&quot;&gt;
+&lt;h2&gt;Writing Unicode/Bytes Combination APIs&lt;/h2&gt;
+&lt;p&gt;Because there are so many cases where an API can return both bytes or
+unicode strings depending on where they come from, new patterns need to be
+created.  In Python 2 that problem solved itself because bytestrings were
+promoted to unicode strings automatically.  On Python 3 that is no longer
+the case which makes it much harder to implement with APIs that do both.&lt;/p&gt;
+&lt;p&gt;Werkzeug and Flask use the following helpers to provide (or work with)
+APIs that deal with both strings and bytes:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;normalize_string_tuple&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tup&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;sd&quot;&gt;&amp;quot;&amp;quot;&amp;quot;Ensures that all types in the tuple are either strings&lt;/span&gt;
+&lt;span class=&quot;sd&quot;&gt;    or bytes.&lt;/span&gt;
+&lt;span class=&quot;sd&quot;&gt;    &amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;tupiter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;iter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tup&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;is_text&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;isinstance&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;next&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tupiter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tupiter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;isinstance&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;is_text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;raise&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;TypeError&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Cannot mix str and bytes arguments (got &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;)&amp;#39;&lt;/span&gt;
+                &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;repr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tup&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tup&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;make_literal_wrapper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;reference&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;sd&quot;&gt;&amp;quot;&amp;quot;&amp;quot;Given a reference string it returns a function that can be&lt;/span&gt;
+&lt;span class=&quot;sd&quot;&gt;    used to wrap ASCII native-string literals to coerce it to the&lt;/span&gt;
+&lt;span class=&quot;sd&quot;&gt;    given string type.&lt;/span&gt;
+&lt;span class=&quot;sd&quot;&gt;    &amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;isinstance&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;reference&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;lambda&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;lambda&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;ascii&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;These functions together go quite far to make APIs work for both strings
+and bytes.  For instance this is how URL joining works in Werkzeug which
+is enabled by the &lt;tt class=&quot;docutils literal&quot;&gt;normalize_string_tuple&lt;/tt&gt; and &lt;tt class=&quot;docutils literal&quot;&gt;make_literal_wrapper&lt;/tt&gt;
+helpers:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;url_unparse&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;components&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;scheme&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;netloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;query&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fragment&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; \
+        &lt;span class=&quot;n&quot;&gt;normalize_string_tuple&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;components&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;make_literal_wrapper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;scheme&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;url&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;netloc&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;or&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;scheme&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;startswith&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;/&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))):&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;path&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;/&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;path&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;/&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;url&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;//&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;netloc&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;or&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;elif&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;url&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;scheme&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;url&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;scheme&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;:&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;url&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;query&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;url&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;url&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;?&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;query&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fragment&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;url&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;url&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;#&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fragment&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;url&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;This way the function only needs to be written once for handling both
+bytes and strings which is in my mind a nicer solution than what the
+standard library does which is implementing every function twice which
+means a lot of copy/pasting.&lt;/p&gt;
+&lt;p&gt;Another problem is wrapping file objects in Python 3 because they now only
+support either texts or bytes but there is no documented interface to
+figure out what they accept.  Flask uses the following workaround:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;is_text_reader&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;sd&quot;&gt;&amp;quot;&amp;quot;&amp;quot;Given a file object open for reading this function checks if&lt;/span&gt;
+&lt;span class=&quot;sd&quot;&gt;    the reader is text based.&lt;/span&gt;
+&lt;span class=&quot;sd&quot;&gt;    &amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;read&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;str&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;is_bytes_reader&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;sd&quot;&gt;&amp;quot;&amp;quot;&amp;quot;Given a file object open for reading this function checks if&lt;/span&gt;
+&lt;span class=&quot;sd&quot;&gt;    the reader is bytes based.&lt;/span&gt;
+&lt;span class=&quot;sd&quot;&gt;    &amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;read&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;bytes&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;is_text_writer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;sd&quot;&gt;&amp;quot;&amp;quot;&amp;quot;Given a file object open for writing this function checks if&lt;/span&gt;
+&lt;span class=&quot;sd&quot;&gt;    the reader is text based.&lt;/span&gt;
+&lt;span class=&quot;sd&quot;&gt;    &amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;write&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;True&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;TypeError&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;False&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;is_bytes_writer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;sd&quot;&gt;&amp;quot;&amp;quot;&amp;quot;Given a file object open for writing this function checks if&lt;/span&gt;
+&lt;span class=&quot;sd&quot;&gt;    the reader is bytes based.&lt;/span&gt;
+&lt;span class=&quot;sd&quot;&gt;    &amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;write&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;True&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;TypeError&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;False&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;For instance Flask uses this to make JSON work with both text and bytes
+again similar to how it worked in 2.x:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;io&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;json&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;_json&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;load&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;**&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;kwargs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;encoding&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;kwargs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pop&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;encoding&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;or&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;utf-8&amp;#39;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;is_bytes_reader&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;io&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TextIOWrapper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;io&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;BufferedReader&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;encoding&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_json&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;load&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;**&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;kwargs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;dump&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;obj&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;**&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;kwargs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;encoding&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;kwargs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pop&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;encoding&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;encoding&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;is_bytes_reader&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;io&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TextIOWrapper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;encoding&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;_json&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dump&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;obj&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;**&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;kwargs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;unicode-is-hard&quot;&gt;
+&lt;h2&gt;Unicode is Hard&lt;/h2&gt;
+&lt;p&gt;Unicode is still hard, and in my experience it's not much easier on 3.x
+than it was on 2.x.  While the transition forced me to make some APIs work
+better with unicode (and now more correct) I still had to add a lot of
+extra code that was not necessary on Python 2.  If someone does another
+dynamic language in the future I believe the correct solution would have
+been this:&lt;/p&gt;
+&lt;ol class=&quot;arabic simple&quot;&gt;
+&lt;li&gt;take the approach of Python 2.x and allow mixing of bytes and unicode
+strings.&lt;/li&gt;
+&lt;li&gt;Make &lt;tt class=&quot;docutils literal&quot;&gt;'foo'&lt;/tt&gt; mean unicode strings and &lt;tt class=&quot;docutils literal&quot;&gt;b'foo'&lt;/tt&gt; mean byte strings.&lt;/li&gt;
+&lt;li&gt;Make byte strings have an encoding attribute that defaults to
+&lt;tt class=&quot;docutils literal&quot;&gt;ASCII&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;Add a method to replace the encoding information (eg:
+&lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;b'foo'.replace_encoding_hint('latin1')&lt;/span&gt;&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;When comparing strings and bytes use the encoding hint instead of the
+ASCII default (or more correct system default encoding which for
+better or worse was always ASCII).&lt;/li&gt;
+&lt;li&gt;Have a separate &lt;tt class=&quot;docutils literal&quot;&gt;bytes&lt;/tt&gt; type that works exactly like strings
+that is not hashable and cannot carry encoding information and
+generally just barks when trying to convert it to strings.  That way
+you can tag true binary data which can be useful sometimes (for
+instance for serialization interfaces).&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;If someone wants to see how much complexity the new unicode support in
+Python 3 caused have a look at the code of the &lt;tt class=&quot;docutils literal&quot;&gt;os&lt;/tt&gt; module on 3.x, the
+internal &lt;tt class=&quot;docutils literal&quot;&gt;io&lt;/tt&gt; module file operation utilities and things like
+&lt;tt class=&quot;docutils literal&quot;&gt;urllib.parse&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;On the bright side: nothing changes much for high level users of Python.
+I think Flask provides for instance a painless experience for unicode on
+both 2.x and 3.x.  Users are almost entirely shielded from the
+complexities of unicode handling.  The higher level the API, the fewer
+does encoding play a role in it.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">UCS vs UTF-8 as Internal String Encoding</title>
+    <id>http://lucumr.pocoo.org/2014/1/9/ucs-vs-utf8</id>
+    <updated>2014-01-09T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2014/1/9/ucs-vs-utf8" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Unicode is a fascinating mess.  It's fascinating in many ways, but one of
+the most interesting one is how well it works given the complexity.  It's
+easily forgotten when working with Unicode that even though the Unicode
+Consortium actively develops the Unicode standard there is a colorful
+history behind it.  Besides Unicode that everybody knows, there is also
+the Universal Character Set as defined by ISO 10646.&lt;/p&gt;
+&lt;p&gt;Nowadays Unicode and ISO's UCS are for most practical purposes the same
+thing with a slightly different name.  This however was not always the
+case and in the beginning those were different undertakings.  The reason
+this is still somewhat relevant information, is because in some ways
+history still shines through.&lt;/p&gt;
+&lt;p&gt;I'm not going to talk about all the history of Unicode here, many people
+have been doing this before.  In case you &lt;em&gt;are&lt;/em&gt; curious, here are some
+links that might be of interest:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://babelstone.blogspot.co.uk/2007/06/unicode-and-isoiec-10646.html&quot;&gt;Unicode and ISO/IEC 10646&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://www.unicode.org/history/earlyyears.html&quot;&gt;Early Years of Unicode&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://en.wikipedia.org/wiki/ISO/IEC_10646#Correlation_to_Unicode&quot;&gt;Universal Character Set&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;However there are some basics that are important to know even today to get
+an understanding of why things work in certain ways.  When Unicode and ISO
+10646 were not the same thing yet, they had different ideas of how things
+should work.  This can still be seen today in the encoding names.  UCS2
+and UCS4 are 2 and 4 byte encodings for the Universal Character Set (UCS).
+The UTF formats came later and until today they stand both for Unicode
+Transformation Format as well as UCS Transformation Format.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;utfs&quot;&gt;
+&lt;h2&gt;UTFs&lt;/h2&gt;
+&lt;p&gt;Unicode started out early as a 16bit encoding roughly equivalent to the
+now deprecated UCS2 encoding.  When it became clear that Unicode needed
+more than ~16bit of characters the hope for having a fixed length encoding
+was not particularly high any more.&lt;/p&gt;
+&lt;p&gt;The ISO group already previously developed an encoding for their standard
+to map the many characters that was ASCII compatible.  The format was
+called UTF-1 but had some serious problems such as the lack of self
+synchronization.  If you were presented with a potentially truncated or
+destroyed steam of data you might have received garbage unless you knew
+what data was there in the string before.&lt;/p&gt;
+&lt;p&gt;In 1992 UTF-8 was created (so a few years before Unicode 2.0) and nowadays
+it's probably the most popular encoding for data exchange.  UTF-8 supports
+an astonishing &lt;a class=&quot;reference external&quot; href=&quot;http://w3techs.com/technologies/details/en-utf8/all/all&quot;&gt;80% of the internet&lt;/a&gt;.  UTF-8 is
+very pragmatic but not just that, it's also very reliable.&lt;/p&gt;
+&lt;p&gt;When the Unicode consortium gave up on UCS-2 because it was no longer
+possible to support all of Unicode as a fixed length encoding with just 16
+bits per unit two things had to happen: they needed to introduce a
+variable length encoding with 16 bit unit sizes and they had to reduce the
+total number of code points that can ever be addressed to find a way to
+make UTF-16 get the same characteristics as UTF-8.  Namely it was
+necessary that if the stream of data was corrupted, you would not be
+presented with potentially misleading characters.  For instance if a
+character did not fit into a single 16 bit unit and needed a second one,
+it was necessary that everything continues working.  If the first one was
+lost in transmission the second one is actually an invalid character that
+can be ignored and not accidentally taken for a wrong character.&lt;/p&gt;
+&lt;p&gt;In order to achieve that they came up with the concept of surrogate pairs
+to encode characters if they don't fit into ~16 bit.  Essentially UTF-16
+is now defined as an encoding that is either 2 or 4 bytes long but never
+more than that.  The way this works is that 65.536 characters fit
+into just one unit.  If a character is outside of that range it gets split
+up into two units of 16 bits each and the data is mangled in a way that
+makes them uniquely distinct.  If you would look at one of the two
+surrogates in the pair separately without the knowledge of the other, it
+would become apparently that this is in incomplete character.  For this
+trick to work the range &lt;cite&gt;D800&lt;/cite&gt; to &lt;cite&gt;DBFF&lt;/cite&gt; are reserved for the trail
+surrogates and &lt;cite&gt;DC00&lt;/cite&gt; to &lt;cite&gt;DF00&lt;/cite&gt; for the lead ones.  As an end result the
+total range of what can be encoded by UTF-16 is the lowest of all UTF
+formats.&lt;/p&gt;
+&lt;p&gt;UTF-32 is the same as the old UCS-4 encoding and remains fixed width.  Why
+can this remain fixed width?  As UTF-16 is now the format that can encode
+the least amount of characters it set the limit for all formats.  It was
+defined that 1,112,064 was the total number of code points that will ever
+be defined by either Unicode or ISO 10646.  Since Unicode is now only
+defined from &lt;cite&gt;0&lt;/cite&gt; to &lt;cite&gt;10FFFF&lt;/cite&gt; UTF-32 sounds a bit like a pointless encoding
+now as it's 32 bit wide, but only ever about 21 bits are used which makes
+this very wasteful.&lt;/p&gt;
+&lt;p&gt;While UTF-8 is defined all the way up to 31 bit it now can not practically
+grow past 4 byte which means that the worst case of all formats is the
+same:&lt;/p&gt;
+&lt;table border=&quot;1&quot; class=&quot;docutils&quot;&gt;
+&lt;colgroup&gt;
+&lt;col width=&quot;54%&quot; /&gt;
+&lt;col width=&quot;15%&quot; /&gt;
+&lt;col width=&quot;15%&quot; /&gt;
+&lt;col width=&quot;15%&quot; /&gt;
+&lt;/colgroup&gt;
+&lt;thead valign=&quot;bottom&quot;&gt;
+&lt;tr&gt;&lt;th class=&quot;head&quot;&gt;&amp;nbsp;&lt;/th&gt;
+&lt;th class=&quot;head&quot;&gt;UTF-8&lt;/th&gt;
+&lt;th class=&quot;head&quot;&gt;UTF-16&lt;/th&gt;
+&lt;th class=&quot;head&quot;&gt;UTF-32&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody valign=&quot;top&quot;&gt;
+&lt;tr&gt;&lt;td&gt;Highest code point&lt;/td&gt;
+&lt;td&gt;10FFFF&lt;/td&gt;
+&lt;td&gt;10FFFF&lt;/td&gt;
+&lt;td&gt;10FFFF&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Code unit size&lt;/td&gt;
+&lt;td&gt;8 bit&lt;/td&gt;
+&lt;td&gt;16 bit&lt;/td&gt;
+&lt;td&gt;32 bit&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Byte order dependent&lt;/td&gt;
+&lt;td&gt;no&lt;/td&gt;
+&lt;td&gt;yes&lt;/td&gt;
+&lt;td&gt;yes&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Fewest bytes per character&lt;/td&gt;
+&lt;td&gt;1&lt;/td&gt;
+&lt;td&gt;2&lt;/td&gt;
+&lt;td&gt;4&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Most bytes per character&lt;/td&gt;
+&lt;td&gt;4&lt;/td&gt;
+&lt;td&gt;4&lt;/td&gt;
+&lt;td&gt;4&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;I have noticed that seems to surprise people because the assumption is
+that the worst case of UTF-8 would be more than 4 bytes.  This would have
+been been theoretically correct if UTF-16 would not exist and Unicode
+would have received more than 1,112,064 characters.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;which-one-to-pick&quot;&gt;
+&lt;h2&gt;Which One To Pick?&lt;/h2&gt;
+&lt;p&gt;Out of all the choices UTF-8 immediately looks like the best one.  UTF-32
+is clearly out when it comes to memory consumption as you will be wasting
+about 40% or memory.  UTF-8 is also not byte order dependent which is an
+immediate win, but it also works with C strings (so is backwards
+compatible) and worst case it only wastes as much memory as all the other
+formats.&lt;/p&gt;
+&lt;p&gt;Upon further introspection it however becomes clear that depending on the
+language of the text stored, UTF-16 will become more space efficient.  For
+instance for Japanese text UTF-16 will be more space efficient than UTF-8
+as many characters are on the basic plane and with that will only require
+a single UTF-16 code point whereas they are high enough up in the range
+that they will require 3 bytes for UTF-8.&lt;/p&gt;
+&lt;p&gt;This however is not the case when Japanese text is mixed with ASCII
+control structures.  For instance XML or HTML documents include enough
+in-line control data that is in the ASCII range that UTF-8 becomes more
+efficient as a format compared to UTF-16 (before compression).  For
+instance the front page of the Japanese Wikipedia is 92KB in UTF-8 and
+166KB in UTF-16.&lt;/p&gt;
+&lt;p&gt;For text UTF-8 has clearly won.  The only times I see a UTF-16 document
+fly by is when I get something a Windows user accidentally created with
+Notepad which apparently sometimes stores as UTF-16.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;internal-encodings&quot;&gt;
+&lt;h2&gt;Internal Encodings&lt;/h2&gt;
+&lt;p&gt;However the question is not so easy when working with Unicode internally
+and there have been different opinions on this issue.  The most prominent
+approaches for this have been UTF-8 and UTF-16.  UTF-16 is the encoding of
+choice for Java, C# and Objective C (as well as the Windows API).  The
+nice property of UTF-16 is that it allows you to be sloppy as the vast
+majority of data you will be presented with is probably in the basic
+plane.  This means that operations like &lt;tt class=&quot;docutils literal&quot;&gt;strlen()&lt;/tt&gt; will both return the
+number of code units as well as the number of characters.&lt;/p&gt;
+&lt;p&gt;For a really long time there did not seem to be much of a contest to using
+UTF-16 as internal encoding.  For a long time the only programming
+language (besides lots of C code) that used UTF-8 as internal encoding
+seemed to be Perl.  Now however Ruby, Go as well as Rust have decided on
+using UTF-8.  While Ruby can work with lots of internal string encodings,
+UTF-8 is the one you find most commonly.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-value-of-constant-access&quot;&gt;
+&lt;h2&gt;The Value of Constant Access&lt;/h2&gt;
+&lt;p&gt;So why was UTF-16 so popular?&lt;/p&gt;
+&lt;p&gt;UTF-16's biggest selling point was usually that it's possible to address
+characters directly.  That would actually be fine, if programming
+languages would provide a data type with at least 21 bit of precision to
+hold a whole Unicode character though.  C# and Java unfortunately do not
+support that.  That Java does not provide it makes sense to some degree
+considering the age of the language and how the string is exposed.  That
+C# does not support it is unfortunate however.&lt;/p&gt;
+&lt;p&gt;Rust and Go for instance have this better sorted out.  While they do use
+UTF-8 as internal string encoding and expose this to the user, they
+provide 32 bit data types (called rune in Go and char in rust).  In both
+programming languages you can iterate in actual Unicode characters over
+the whole string.  In many cases this is plenty because parsing for
+instance usually only needs to look at one or two characters at the time.&lt;/p&gt;
+&lt;p&gt;In many ways the question is how valuable constant time addressing of a
+single character in strings is.  I think this is something that is almost
+impossible to answer because depending on if that's possible or not, the
+typical algorithms look different.&lt;/p&gt;
+&lt;p&gt;What Rust and Go gain from having UTF-8 strings is that they are very
+efficient when they need to juggle with bytes next to textual content.
+For instance many wire protocols like HTTP are based on ASCII metadata.
+While HTTP is technically latin1, it's very rare that you will actually
+encounter a genuine latin1 header.  It's in fact, much more common, that
+people will not be aware of the latin1 part of the specification and put
+UTF-8 data in a header.&lt;/p&gt;
+&lt;p&gt;To take Rust as an example, parsing protocols is very efficient because in
+many cases a parsing step becomes a simple memcpy.  The reason for this is
+that so much data out there is UTF-8.  After copying of the data you just
+need to do a basic check afterwards if the UTF-8 is not invalid, which can
+be nicely optimized.  In contrast to that UTF-16 is a trickier because
+you need to figure out the length of the buffer through an initial scan
+and then a second one to decode the data.  Or you do it in one go and
+overallocate.&lt;/p&gt;
+&lt;p&gt;Go even gets away with using completely unchecked UTF-8 strings.  In Rust
+it's impossible to construct a string in safe code with invalid UTF-8
+characters.  Go on the other hand lets you happily mix random bytes into
+your string, but all IO operations are required to ensure that the data is
+valid.  While this sounds pretty terrible it's actually not too bad.  I do
+prefer Rust's approach though which still gives you the nice handling of
+bytes and strings that Go provides, but errors stay somewhat contained as
+you can expect a string to be valid.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;rethinking-internal-formats&quot;&gt;
+&lt;h2&gt;Rethinking Internal Formats?&lt;/h2&gt;
+&lt;p&gt;For a really long time it looked like nobody would challenge the idea of
+using UTF-16 as internal string format but that seems to change now.  On
+one hand some languages are exploring using UTF-8 internally, on the other
+hand we have Python 3 which explores the idea of switching between latin1,
+UCS-2 and UTF-32 on a string-by-string basis.&lt;/p&gt;
+&lt;p&gt;The Python 3 trick sounded quite good on the paper but I noticed that
+there are some practical downsides.  For instance Emojis are outside of
+the basic plane which means that Python needs to represent them as UTF-32
+internally.  With how lots of template engines are currently structured
+that can cause some interesting characteristics.  Jinja2 for instance
+currently renders in Unicode and then has a separate encoding step.  If
+you would build a github comment page and an Emoji would be in the
+comments then whole your response upgrades to UTF-32 just because of a
+single character.  In corner cases like this it might be interesting to
+use the streaming interface of Jinja2 to encode chunk by chunk to UTF-8 to
+avoid the extra cost of a more expensive internal string.&lt;/p&gt;
+&lt;p&gt;As someone who works a lot at the byte &amp;lt;-&amp;gt; Unicode boundary the idea of
+having strings with an internal UTF-8 encoding is very interesting.
+Having worked with Rust for a while now I am getting more and more
+convinced that the approach is a good idea.  While it forces you to give
+up on the idea of being able to address characters individually, that is
+actually not a huge loss.  For a start Unicode would pretty much require
+you to normalize your strings anyways before you do text processing due to
+the many ways in which you can format the strings.  For instance umlauts
+come in combined characters but they can also be manually created by
+placing the regular letter followed by the combining diaeresis character.&lt;/p&gt;
+&lt;p&gt;So for quite a few operations (like validating length, font rendering
+etc.) the basic operations a string type provides are already non
+sufficient anyways.  Something as simple as “is this string long enough
+for a tweet” already requires quite a bit of special casing.&lt;/p&gt;
+&lt;p&gt;So far at least I have not missed direct character access for anything but
+peeking at known ASCII characters in Rust and I don't really expect that
+the string would become a problem.  Especially if UTF-8 stays the dominant
+format then keeping it internally as well makes a lot of sense and
+requires lots of unnecessary encoding and decoding steps and means the
+language does not need to provide support for ASCII strings separately.&lt;/p&gt;
+&lt;p&gt;I'm definitely expecting more languages to take the UTF-8 route in the
+future and just provide more tools to deal with Unicode as part of the
+standard library.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+</feed>
+

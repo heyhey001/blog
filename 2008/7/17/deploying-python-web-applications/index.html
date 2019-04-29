@@ -1,0 +1,116 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>Deploying Python Web Applications | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">Deploying Python Web Applications</h1>
+
+  
+  <p class=date>written on Thursday, July 17, 2008
+  
+
+  <p>Every once in a while I'm really impressed by a library I stumble upon.
+A while back that was <a class="reference external" href="http://lucumr.pocoo.org/cogitations/2008/07/05/virtualenv-to-the-rescue/">virtualenv</a>,
+now i stumbled upon <a class="reference external" href="http://www.nongnu.org/fab/">fabric</a>. I was using
+capistrano for a <a class="reference external" href="http://www.plurk.com/">project I was working on</a>
+which was kinda okay but somehow I wasn't sold to it.</p>
+<p>Yesterday however <a class="reference external" href="http://djangopeople.net/apollo13/">apollo13</a>
+stumbled upon fabric which is capistrano just in Python, with a working
+put command and less annoying in general.</p>
+<p>In combination with a custom virtualenv bootstrapping script Python web
+application deployment is a charm. One “fab bootstrap” later the servers
+are creating a virtual python environment, compiling all dependencies,
+checking out all eggs and initializing the application environment.
+Updates are just one “fab production deploy” away.</p>
+<p>And the best part is that fabric is not limited to Python. You can use
+it to deploy anything you can control over ssh.</p>
+<p>Here an example fabfile (the file that controls the deployment)</p>
+<div class="highlight"><pre><span></span><span class="nb">set</span><span class="p">(</span>
+    <span class="n">fab_hosts</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;srv1.example.com&#39;</span><span class="p">,</span> <span class="s1">&#39;srv2.example.com&#39;</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">deploy</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Deploy the latest version.&quot;&quot;&quot;</span>
+    <span class="c1"># pull all changes from mercurial and touch the wsgi file to</span>
+    <span class="c1"># tell the apache to reload the application.</span>
+    <span class="n">run</span><span class="p">(</span><span class="s2">&quot;hg pull -u; touch application.wsgi&quot;</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">bootstrap</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Asks for a list of servers and bootstrapps the application there.&quot;&quot;&quot;</span>
+    <span class="nb">set</span><span class="p">(</span><span class="n">fab_hosts</span><span class="o">=</span><span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">raw_input</span><span class="p">(</span><span class="s1">&#39;Servers: &#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">()])</span>
+    <span class="n">run</span><span class="p">(</span><span class="s2">&quot;hg clone http://repository.example.com/application&quot;</span><span class="p">)</span>
+    <span class="n">local</span><span class="p">(</span><span class="s2">&quot;./generate-wsgi-file.py &amp;gt; /tmp/application.wsgi&quot;</span><span class="p">)</span>
+    <span class="n">put</span><span class="p">(</span><span class="s2">&quot;/tmp/application.wsgi&quot;</span><span class="p">,</span> <span class="s2">&quot;application.wsgi&quot;</span><span class="p">)</span>
+</pre></div>
+<p>Saved as fabfile.py “fab bootstrap” then asks for some servers and
+bootstraps the application there, after changes in the repository you
+can “fab deploy” the latest version. Of course that's just a very basic
+made up example, but it shows how you can use fabric.</p>
+<p>I'm using makefiles currently to execute common tasks for various Python
+projects (like releasing code, resting unittests and much more), I
+suppose fabric could also do that for me. And that would have the
+advantage that it works for windows users too.</p>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/fabric/">fabric</a> and 
+      <a href="/tags/python/">python</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

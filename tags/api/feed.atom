@@ -1,0 +1,716 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Armin Ronacher's Thoughts and Writings</title>
+  <id>http://lucumr.pocoo.org/feed.atom</id>
+  <updated>2016-07-10T00:00:00Z</updated>
+  <link href="http://lucumr.pocoo.org/" />
+  <link href="http://lucumr.pocoo.org/feed.atom" rel="self" />
+  <subtitle type="text">Armin Ronacher's personal blog about programming, games and random thoughts that come to his mind.</subtitle>
+  <generator>Werkzeug</generator>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Don't Panic! The Hitchhiker's Guide to Unwinding</title>
+    <id>http://lucumr.pocoo.org/2014/10/30/dont-panic</id>
+    <updated>2014-10-30T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2014/10/30/dont-panic" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Rust has an awesome developer community but sometimes emotions can cloud
+the discussions that are taking place.  One of the more interesting
+discussions (or should I say flamewars) evolve around the concept of stack
+unwinding in Rust.  I consider myself very strongly on one side of this
+topic but I have not been aware of how hot this topic is until I
+accidentally tweeted by preference.  Since then I spent a bit of time
+reading up no the issue and figured I might write about it since it is
+quite an interesting topic and has huge implications on how the language
+works.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;what-is-this-about&quot;&gt;
+&lt;h2&gt;What is this About?&lt;/h2&gt;
+&lt;p&gt;As I wrote last time, there are two different error handling models in
+Rust these days.  In this blog post I will call them result carriers and
+panics.&lt;/p&gt;
+&lt;p&gt;A result carrier is a type that can carry either a success value or a
+failure value.  In Rust there are currently two very strong ones and a
+weak one:  the strong ones are &lt;cite&gt;Result&amp;lt;T, E&amp;gt;&lt;/cite&gt; which carries a &lt;cite&gt;T&lt;/cite&gt; result
+value or an &lt;cite&gt;E&lt;/cite&gt; error value and the &lt;cite&gt;Option&amp;lt;T&amp;gt;&lt;/cite&gt; value which either carries
+a &lt;cite&gt;T&lt;/cite&gt; result value or &lt;cite&gt;None&lt;/cite&gt; which indicates that no value exists.  By
+convention there is also a weak one which is &lt;cite&gt;bool&lt;/cite&gt; which generally
+indicates success by signalling &lt;cite&gt;true&lt;/cite&gt; and failure by signalling &lt;cite&gt;false&lt;/cite&gt;.
+There is a proposal to actually formalize the carrier concept by
+introducing a &lt;cite&gt;Carrier&lt;/cite&gt; trait that can (within reason) convert between any
+of those types which would aid composability.&lt;/p&gt;
+&lt;p&gt;The second way to indicate failure is a panic.  Unlike value carriers
+which are passed through the stack explicitly in the form of return
+values, panics fly through the stack until they arrive at the frame of the
+task in which case they will terminate it.  Panics are for all intents and
+purposes task failures.  The way this works is by unwinding the stack
+slice by slice, invoking cleanup code at each level and finally terminate
+the task.  Panics are intended for situations where the runtime runs out
+of choices about how to deal with this failure.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;why-the-panic&quot;&gt;
+&lt;h2&gt;Why the Panic?&lt;/h2&gt;
+&lt;p&gt;Currently there is definitely a case where there are too many calls in
+Rust that will just panic.  For me one of the prime examples of something
+that panics in a not very nice way is the default print function.  In
+fact, your rust Hello World example can panic if invoked the wrong way:&lt;/p&gt;
+&lt;pre class=&quot;literal-block&quot;&gt;
+$ ./hello
+Hello World!
+$ ./hello 1&amp;lt; /dev/null
+task '&amp;lt;main&amp;gt;' panicked at 'failed printing to stdout: Bad file descriptor'
+&lt;/pre&gt;
+&lt;p&gt;The &amp;quot;task panicked&amp;quot; message is a task responding to a panic.  It
+immediately stops doing what it does and prints an error message to
+stderr.  It's a very prevalent problem unfortunately with the APIs
+currently as people do not want to deal with explicit error handling
+through value carriers and as such use the APIs that just fail the task
+(like &lt;cite&gt;println&lt;/cite&gt;).  That all the tutorials in Rust also go down this road
+because it's easier to read is not exactly helping.&lt;/p&gt;
+&lt;p&gt;One of my favorite examples is that the &lt;cite&gt;rustc&lt;/cite&gt; compiler's pretty printing
+will cause an internal compiler error when piped into &lt;cite&gt;less&lt;/cite&gt; and less is
+closed with the &lt;cite&gt;q&lt;/cite&gt; key because the pipe is shutting down:&lt;/p&gt;
+&lt;pre class=&quot;literal-block&quot;&gt;
+$ rustc a-long-example.rs --pretty=expanded|less
+error: internal compiler error: unexpected failure
+note: the compiler hit an unexpected failure path. this is a bug.
+note: we would appreciate a bug report: http://doc.rust-lang.org/complement-bugreport.html
+note: run with `RUST_BACKTRACE=1` for a backtrace
+task '&amp;lt;main&amp;gt;' panicked at 'failed printing to stdout: broken pipe (Broken pipe)'
+&lt;/pre&gt;
+&lt;p&gt;The answer to why the panic is that computers are hard and many things can
+fail.  In C for instance &lt;cite&gt;printf&lt;/cite&gt; returns an integer which can indicate if
+the command failed.  Did you ever check it?  In Rust the policy is to not
+let failure go through silently and because nobody feels like handling
+failures of every single print statement, that panicking behavior is in
+place for many common APIs.&lt;/p&gt;
+&lt;p&gt;But let's assume those APIs would not panic but require explicit error
+handling, why do we even need panics?  Primarily the problem comes up in
+situations where a programming error happened that could not have been
+detected at compile time or the environment in which the application is
+executing is not providing the assumptions the application makes.  Some
+good examples for the former are out of bound access in arrays and an
+example for the latter are out of memory errors.&lt;/p&gt;
+&lt;p&gt;Rust has safe and unsafe access to array members but the vast majority of
+array access goes through the unsafe access.  Unsafe in this case does not
+mean that you get garbage back, but it means that the runtime will panic
+and terminate the task.  Everything is still safe and everything but you
+just killed your thread of execution.&lt;/p&gt;
+&lt;p&gt;For memory errors and things of that nature it's more tricky.  &lt;cite&gt;malloc&lt;/cite&gt; in
+C returns you a null pointer when it fails to allocate.  It looks a bit
+obvious that if you just inherit this behavior you don't need to panic.
+What that would allow you to do is to run a bit longer after you ran out
+of memory but there is very little you can actually do from this point
+onwards.  The reason for this is that you just ran out of memory and you
+are at risk that any further thing you are going to do in order to recover
+from it, is going to run into the same issue.  This is especially a
+problem if your error representation in itself requires memory.  This is
+hardly a problem that is unique to Rust.  Python for instance when it
+boots up needs to preallocate a &lt;cite&gt;MemoryError&lt;/cite&gt; so that if it ever runs out
+of memory has an error it can use to indicate the failure as it might be
+impossible at that point to actually allocate enough memory to represent
+the out of memory failure.&lt;/p&gt;
+&lt;p&gt;You would be limited to only calling things that do not allocate anything
+which might be close to impossible to do.  For instance there is no
+guarantee that just printing a message to stdout does not require an
+internal allocation.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;what-s-unwinding&quot;&gt;
+&lt;h2&gt;What's Unwinding?&lt;/h2&gt;
+&lt;p&gt;Stack unwinding is what makes panics in Rust work.  To understand how it
+works you need to understand that Rust sticks very close to the metal and
+as such stack unwinding requires an agreed upon protocol to work.&lt;/p&gt;
+&lt;p&gt;When you raise an exception you need to immediately bubble up stack frame
+by stack frame until you hit your exception handler.  In case of Rust you
+will hit the code that shuts down the task as you cannot setup handlers
+yourself.  However as you blaze through the stack frames, Rust needs to
+execute all necessary cleanup code on each level so that no memory or
+resources leak.&lt;/p&gt;
+&lt;p&gt;This unwinding protocol is highly related to the calling conventions and
+not at all standardized.  One of the big problems with stack unwinding is
+that it's not exactly an operation that comes natural to program
+execution, at least not on modern processors.  When you want to fly
+through some stack frames you need to figure out what was the previous
+stack frame.  On AMD64 for instance there is no guaranteed way to get a
+stacktrace at all without implementing &lt;a class=&quot;reference external&quot; href=&quot;http://www.dwarfstd.org/&quot;&gt;DWARF&lt;/a&gt;.  However stack unwinding does have the
+assumed benefit that because you are generally not going down the error
+path, there are less branches to take when a function returns as the
+calling frame does not have to check for an error result.  If an error
+does occur, stack unwinding automatically jumps to the error branch and
+otherwise it's not considered.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;what-s-the-problem-with-unwinding&quot;&gt;
+&lt;h2&gt;What's the Problem with Unwinding?&lt;/h2&gt;
+&lt;p&gt;Traditionally I think there are two problems with stack unwinding.  The
+first one is that unlike function calling conventions, stack unwinding is
+not particularly standardized.  This is especially a problem if you try to
+combine functions from different programing languages together.  The most
+portable ABI is the C ABI and that one does not know anything about
+stack unwinding.  There is some standardization on some operating systems
+but even then it does not guarantee that it will be used.  For instance on
+Windows there is Structured Exception Handling (SEH) which however is not
+used by LLVM currently and as such not by Rust.&lt;/p&gt;
+&lt;p&gt;If the stack unwinding is not standardized between different languages it
+automatically limits the usefulness.  For instance if you want to use a
+C++ library from another programming language, your best bet is actually
+to expose a C interface for it.  This also means that any function you
+invoke through the C wrapper needs to catch down all exceptions and report
+them through an alternative mechanism out, making it more complicated for
+everybody.  This even causes quite a bit of pain in the absence of
+actually going through a programming language boundary.  If you ever used
+the PPL libraries (a framework for asynchronous task handling and
+parallelism) on Windows you might have seen how it internally catches down
+exceptions and reconstructs them in other places to make them travel
+between threads safely.&lt;/p&gt;
+&lt;p&gt;The second problem with stack unwinding is that it's really complex.  In
+order to unwind a stack you need to figure out what your parent frame
+actually is.  This is not necessarily a simple thing to do.  On AMD64 for
+instance there is not enough information available on the stack to find
+higher stack frames so your only option is to implement the very complex
+DWARF spec or change the calling conventions so that you do have enough
+meta information on the stack.  This might be simple for a project that
+has full control of all dependencies, but the moment you call into a
+library you did not compile, this no longer works.&lt;/p&gt;
+&lt;p&gt;It's no surprise that stack unwinding traditionally is one of the worse
+supported features in programming languages.  It's not unheard of that a
+compiler does not implement exceptions for C++ and the reason for this is
+that stack unwinding is a complex thing.  Even if they do implement it,
+very often exceptions are just made to work but not made to be fast.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;exceptions-in-a-systems-language&quot;&gt;
+&lt;h2&gt;Exceptions in a Systems Language&lt;/h2&gt;
+&lt;p&gt;You don't have to be a kernel developer to not be a fan of stack
+unwinding.  Any person that wants to develop a shared library that is used
+by other people will sooner or later have to think about how to prevent
+things from throwing exceptions.  In C++ it's not hard to actually wrap
+all exported functions in huge try / catch blocks that will just catch
+down everything and report a failure code out, but in Rust it's currently
+actually a bit more complex.&lt;/p&gt;
+&lt;p&gt;The reason for this is that in Rust you cannot actually handle exceptions.
+When a function panics it terminates the task.  This implies that there
+needs to be task in the first place that can isolate the exception or you
+cause issues for your users.  Because tasks furthermore are actually
+threads the cost of encapsulating every function call in a thread does not
+sound very appealing.&lt;/p&gt;
+&lt;p&gt;Today you already are in the situation in Rust that if you write a library
+that wants to export a C ABI and is used by other people you can already
+not call into functions that panic unless you are in the situation where
+your system is generally running a thread and you dispatch messages into
+it.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;panicking-less-and-disabling-unwinding&quot;&gt;
+&lt;h2&gt;Panicking Less and Disabling Unwinding&lt;/h2&gt;
+&lt;p&gt;I wish I personally have for the language is that you can write code that
+is guaranteed to not panic unless it really ends up in a situation where
+it has no other choice.  The biggest areas of concern there are
+traditionally memory allocations.  However in the vast majority of
+situations failure from memory allocation is actually not something you
+need to be concerned with.  Modern operating systems make it quite hard to
+end up in a situation where an allocation fails.  There is virtual memory
+management and swapping and OOM killers.  An malloc that returns null in a
+real world situation, other than by passing an unrealistically large size,
+is quite uncommon.  And on embedded systems or similar situations you
+usually already keep an eye on if you are within your budget and you just
+avoid ever hitting the limit.  This allocation problem is also a lot
+smaller if you are you a specialized context where you just avoid generic
+containers that allocate memory on regular operations.&lt;/p&gt;
+&lt;p&gt;Once panics are unlikely to happen, it's an option to disable the support
+for unwinding and to just abort the application if a panic ever happens.
+While this sounds pretty terrible, this is actually the right thing to do
+for a wide range of environments.&lt;/p&gt;
+&lt;p&gt;The best way to isolate failures is on the operating system level through
+separate processes.  This sounds worse than it actually is for two
+reasons: the first is that the operating system provides good support for
+shipping data between processes.  Especially for server applications the
+ability to have a watchdog processes that runs very little critical code,
+opens sockets and passes the file descriptors into worker processes is a
+very convincing concept.  If you do end up crashing the worker no request
+is lost other than the currently handled one if it's single threaded.  And
+if it's multi threaded you might kill a few more requests but new,
+incoming requests are completely oblivious that a failure happened as they
+will queue up in the socket held by the watchdog.  This is something that
+systemd and launchd for instance provide out of the box.&lt;/p&gt;
+&lt;p&gt;In Rust especially a process boundary is a lot less scary than in other
+programming languages because the language design strongly discourages
+global state and encourages message passing.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;less-panic-needs-better-apis&quot;&gt;
+&lt;h2&gt;Less Panic Needs Better APIs&lt;/h2&gt;
+&lt;p&gt;The bigger problem than making panic a fatal thing and removing unwinding,
+is actually providing good APIs that make this less important.  The
+biggest problem with coming up with replacements for panics is that any
+stack frame needs to deal with failure explicitly.  If you end up writing
+a function that only ever returned a &lt;cite&gt;true&lt;/cite&gt; or &lt;cite&gt;false&lt;/cite&gt; for indicating
+success or failure, but you now need to call into something that might
+fail with important and valuable error information you do not have a
+channel to pass that information out without changing your own function's
+interface.&lt;/p&gt;
+&lt;p&gt;The other problem is that nobody wants to deal with failure if they can
+avoid doing so.  The print example is a good one because it's the type of
+application where people really do not want to deal with it.  &amp;quot;What can go
+wrong with printing&amp;quot;.  Unfortunately a lot.  There are some proposals for
+Rust about how error propagation and handling can be made nicer but we're
+quite far from this reality.&lt;/p&gt;
+&lt;p&gt;Until we arrive there, I don't think disabling of stack unwinding would be
+a good idea.  On the long run however I hope it's a goal because it would
+make Rust both more portable and interesting as a language to write
+reusable libraries in.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">On Error Handling in Rust</title>
+    <id>http://lucumr.pocoo.org/2014/10/16/on-error-handling</id>
+    <updated>2014-10-16T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2014/10/16/on-error-handling" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Rust is improving quite a lot lately and it makes it very exciting to play
+with the language and see how good API design could look like.  There are
+areas in it however that are a bit frustrating still.  For me one area is
+error handling.  But some improvements might be coming up which I find
+quite exciting because it changes things around a bit from what most
+people are used to.&lt;/p&gt;
+&lt;p&gt;I actually wanted to write about about the API design in my little
+redis library but I expect the changes in the error handling to change the
+dynamics around a lot.  Because of that I want to write a bit about the
+error handling in Rust currently and where it could be going.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;rust-s-concept-of-failure&quot;&gt;
+&lt;h2&gt;Rust's Concept of Failure&lt;/h2&gt;
+&lt;p&gt;Rust at present has two ways to indicate failure: results and hard task
+failures.  In practical terms only the former is actually what you should
+be concerned with.  Task failures are a last resort that you can fall back
+to if there is nobody who can pick up on your problem or if the problem is
+just of a nature that does not permit any error handling.&lt;/p&gt;
+&lt;p&gt;At present a result is as good as it gets.  A type &lt;tt class=&quot;docutils literal&quot;&gt;Result&amp;lt;T, E&amp;gt;&lt;/tt&gt; has
+two possible states in which it can be: &lt;tt class=&quot;docutils literal&quot;&gt;Ok(T)&lt;/tt&gt; or &lt;tt class=&quot;docutils literal&quot;&gt;Err(E)&lt;/tt&gt;.  So it
+either succeeded with an object of value &lt;tt class=&quot;docutils literal&quot;&gt;T&lt;/tt&gt; or it failed with an object
+of value &lt;tt class=&quot;docutils literal&quot;&gt;E&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;I think this concept in generally is quite obvious to developers, even if
+they have not used Rust.  Because failures are quite common there is also
+a macro provided in Rust called &lt;cite&gt;try!&lt;/cite&gt; which implements an early return
+that propagates the error part upwards:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;load_document&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;-&amp;gt; &lt;span class=&quot;nb&quot;&gt;Result&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Document&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;DatabaseError&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;let&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;db&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;open_database&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;());&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;db&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;load&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;document_1&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;With the &lt;cite&gt;try!&lt;/cite&gt; macro expanded it looks a bit like this:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;load_document&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;-&amp;gt; &lt;span class=&quot;nb&quot;&gt;Result&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Document&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;DatabaseError&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;let&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;db&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;match&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;open_database&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Ok&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;match&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;db&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;load&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;document_1&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Ok&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;As you can see, the &lt;cite&gt;try!&lt;/cite&gt; macro makes things quite straightforward.
+There is however quite a big problem with it, and that is that all the
+errors from the function have to be the same.  In many cases that is just
+wrong.  A good example is my &lt;a class=&quot;reference external&quot; href=&quot;http://github.com/mitsuhiko/redis-rs&quot;&gt;redis-rs&lt;/a&gt; library.  Since all operations
+are happening over sockets you can either get an &lt;cite&gt;IOError&lt;/cite&gt; or you might be
+presented with a redis specific error.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;errors-across-abstraction-boundaries&quot;&gt;
+&lt;h2&gt;Errors Across Abstraction Boundaries&lt;/h2&gt;
+&lt;p&gt;The problem of errors that want to cross an abstraction boundary are a
+long standing issue in many programming languages.  There have been quite
+a few extreme approaches to this problem.&lt;/p&gt;
+&lt;p&gt;The most extreme example is probably the concept of unchecked exceptions.
+In Python for instance anything can fail with any error.  This fit's
+Python's design quite well because Python is a highly dynamic language and
+until you actually execute the thing you don't really know what's going to
+happen.  However the same concept also exists in C# and other more static
+languages where it feels much more alien.&lt;/p&gt;
+&lt;p&gt;Java has checked exceptions which have a terrible reputation (deservedly).
+With checked exceptions you have the guarantee that (with the exception of
+runtime exceptions which also exist) an API will not raise you an
+exception you cannot deal with.  However it suffers from the same general
+problem as you currently have in Rust where you need to figure out what
+exactly you should do when your contract to the outside world is that you
+only raise exception X but the function you are calling into raises
+exception Z.  In Java this is especially annoying because the error
+handling is very involved.&lt;/p&gt;
+&lt;p&gt;In some other languages like C the errors typically are an in-band signal
+that indicates that something went wrong and an some state elsewhere that
+you can query to figure out what happened.  This is by far the worst
+because it requires that something holds state for you but it's
+reasonably flexible.&lt;/p&gt;
+&lt;p&gt;The Python interpreter for instance has a thread local variable that
+contains the &amp;quot;interpreter state&amp;quot; which holds a reference to the last
+actual error that happened.  Individual calls return &lt;cite&gt;NULL&lt;/cite&gt; pointers or
+other indicator values.  When you fail in a function you return &lt;cite&gt;NULL&lt;/cite&gt;
+after creating an error object and storing in the interpreter state.  If
+you call into another function and you can see that a failure indicator
+(&lt;cite&gt;NULL&lt;/cite&gt; pointer) comes back you just propagate the failure upwards.  Once
+something that can handle the error sees a &lt;cite&gt;NULL&lt;/cite&gt; it can go back to the
+interpreter state to figure out what exactly happened.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;what-rust-has-in-mind&quot;&gt;
+&lt;h2&gt;What Rust has in Mind&lt;/h2&gt;
+&lt;p&gt;&lt;a class=&quot;reference external&quot; href=&quot;https://github.com/aturon/rfcs/blob/error-chaining/active/0000-error-chaining.md&quot;&gt;One of the proposals&lt;/a&gt;
+for Rust currently introduce a new concept which combines various
+different approaches by changing how errors would propagate.  It sticks
+with the general idea that your functions return your errors but it
+introduces the concept of error interoperability.&lt;/p&gt;
+&lt;p&gt;Think of it like this: the contract your library has with the outside
+world is that your library exposes a certain behavior and some behavior is
+an implementation detail.  While it's fairly obvious that your database
+library will eventually do IO to talk to the database, it does not mean
+that it will always do.  This has always been a problem with checked
+exceptions in Java because some of the interfaces do not make sense in all
+circumstances.  If for instance my redis library would ever start talking
+to an in-memory simulation of Redis it will probably stop producing IO
+errors internally.&lt;/p&gt;
+&lt;p&gt;The idea of the proposal is twofold.  The first one is that errors
+generally follow a common pattern.  An error is whatever the user wants it
+to be, but it needs to implement the &lt;cite&gt;Error&lt;/cite&gt; trait and implement some
+general methods to extract some information out of the error (Like a
+description that gives an error message and optionally some more detail
+information).  In addition the neat aspect is that an error can have a
+cause which points to another error.&lt;/p&gt;
+&lt;p&gt;So in case of my redis library for instance if the library would have to
+report an IO error it would report a redis error with a message like
+&amp;quot;Encountered an IO error while talking to the server&amp;quot; and links back to
+the actual IO error.&lt;/p&gt;
+&lt;p&gt;To wrap an error in another error the &lt;cite&gt;FromError&lt;/cite&gt; trait exists that can
+facilitate this.  So my redis library would implement a conversion of
+&lt;cite&gt;IOError&lt;/cite&gt; to a &lt;cite&gt;RedisError&lt;/cite&gt; that also stores the IO error as cause.&lt;/p&gt;
+&lt;p&gt;The elegance becomes obvious once you see the actual usage code in action:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;impl&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;FromError&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IOError&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;RedisError&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;from_err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;: &lt;span class=&quot;nc&quot;&gt;IOError&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;-&amp;gt; &lt;span class=&quot;nc&quot;&gt;RedisError&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;RedisError&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;            &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;descr&lt;/span&gt;: &lt;span class=&quot;s&quot;&gt;&amp;quot;Encountered an IO error&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;            &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cause&lt;/span&gt;: &lt;span class=&quot;nb&quot;&gt;Some&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;read_value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;host&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;port&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;-&amp;gt; &lt;span class=&quot;nb&quot;&gt;Result&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Parser&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;RedisError&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;let&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sock&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TcpStream&lt;/span&gt;::&lt;span class=&quot;n&quot;&gt;connect&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;host&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;port&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;let&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;parser&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Parser&lt;/span&gt;::&lt;span class=&quot;n&quot;&gt;new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sock&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;as&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Reader&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;parser&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;parse_value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;The &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;TcpStream::connection&lt;/span&gt;&lt;/tt&gt; method fails with an &lt;cite&gt;IOError&lt;/cite&gt;.  Because our
+own function fails with &lt;cite&gt;RedisError&lt;/cite&gt;, the &lt;cite&gt;try!&lt;/cite&gt; macro will automatically
+invoke the &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;FromError::from_err&lt;/span&gt;&lt;/tt&gt; method to create a new redis error that
+wraps the cause one.  Now we just need to make sure that &lt;cite&gt;RedisError&lt;/cite&gt;
+implements the &lt;cite&gt;Error&lt;/cite&gt; trait to provide the useful bits for
+introspection.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;from-try-to-navigation&quot;&gt;
+&lt;h2&gt;From try! To Navigation&lt;/h2&gt;
+&lt;p&gt;But this is not where Rust wants to stop.  There is &lt;a class=&quot;reference external&quot; href=&quot;https://github.com/rust-lang/rfcs/pull/243&quot;&gt;another RFC&lt;/a&gt; which proposes an operator
+to replace the &lt;tt class=&quot;docutils literal&quot;&gt;try!&lt;/tt&gt; macro with an operator and it's actually really
+neat.&lt;/p&gt;
+&lt;p&gt;In a nutshell &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;try!(x)&lt;/span&gt;&lt;/tt&gt; would become &lt;tt class=&quot;docutils literal&quot;&gt;x?&lt;/tt&gt;.  The consequences are quite
+cool because you can then arbitrarily nest failure conditions:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;load_document&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;-&amp;gt; &lt;span class=&quot;nb&quot;&gt;Result&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Document&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;DatabaseError&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;open_database&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;?&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;load&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;document_1&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;This is quite a dramatic improvement over the initial version.  There are
+even more things proposed that would go quite far in emulating exceptions
+without exceptions.  For more information &lt;a class=&quot;reference external&quot; href=&quot;https://github.com/rust-lang/rfcs/pull/243&quot;&gt;read the RFC&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;and-in-python&quot;&gt;
+&lt;h2&gt;And in Python?&lt;/h2&gt;
+&lt;p&gt;I think the interesting bit about the &lt;cite&gt;FromError&lt;/cite&gt; trait is that the
+general concept is very good in other languages too.  In Python for
+instance it would be very welcome if libraries would start being a bit
+more hygienic with the exceptions they can report.  For instance with the
+requests library I generally have to catch down a whole bunch of
+exceptions that are not officially part of the contract (socket
+exceptions, SSL errors etc.).&lt;/p&gt;
+&lt;p&gt;Especially in Python 3 where exceptions generally get chained if rethrown
+correctly there really is no reason for not catching down and rethrowing
+internal exceptions through one exception type of the library.  Having to
+only deal with a &lt;cite&gt;RequestFailed&lt;/cite&gt; exception is much more convenient and
+future proof.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Rust and Rest</title>
+    <id>http://lucumr.pocoo.org/2016/7/10/rust-rest</id>
+    <updated>2016-07-10T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2016/7/10/rust-rest" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;A few months back I decided to write a command line client for &lt;a class=&quot;reference external&quot; href=&quot;http://www.getsentry.com/&quot;&gt;Sentry&lt;/a&gt; because manually invoking the Sentry API for
+some common tasks (such as dsym or sourcemap management is just no fun).
+Given the choice of languages available I went with Rust.  The reason for
+this is that I want people to be able to download a single executable that
+links everything in statically.  The choice was between C, C++, Go and
+Rust.  There is no denying that I really like Rust so it was already a
+pretty good choice for me.  However what made it even easier is that Rust
+quite a potent ecosystem for what I wanted.  So here is my lessons learned
+from this.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;libraries-for-http&quot;&gt;
+&lt;h2&gt;Libraries for HTTP&lt;/h2&gt;
+&lt;p&gt;To make an HTTP request you have a choice of libraries.  In particular
+there are two in Rust you can try: &lt;a class=&quot;reference external&quot; href=&quot;http://hyper.rs/&quot;&gt;hyper&lt;/a&gt; and
+&lt;a class=&quot;reference external&quot; href=&quot;https://crates.io/crates/curl&quot;&gt;rust-curl&lt;/a&gt;.  I tried both and there are
+some releases with the former but I settled in rust-curl in the end.  The
+reason for this is twofold.  The first is that curl (despite some of the
+oddities in how it does things) is very powerful and integrates really
+well with the system SSL libraries.  This means that when I compile the
+executable I get the native TLS support right away.  rust-curl also
+(despite being not a pure rust library) compiles really well out of the
+box on Windows, macOS and Linux.  The second reason is that Hyper is
+currently undergoing a major shift in how it's structured and a bit in
+flux.  I did not want to bet on that too much.  When I started it also did
+not have proxy support which is not great.&lt;/p&gt;
+&lt;p&gt;For JSON parsing and serializing I went with &lt;a class=&quot;reference external&quot; href=&quot;https://crates.io/crates/serde&quot;&gt;serde&lt;/a&gt;.  I suppose that serde will eventually
+be the library of choice for all things serialization but right now it's
+not.  It depends on compiler plugins and there are two ways to make it
+work right now.  One is to go with nightly Rust (which is what I did) the
+other is to use the build script support in Rust.  This is similar to what
+you do in Go where some code generation happens as part of the build.  It
+definitely works but it's not nearly as nice as using serde with nightly
+Rust.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;api-design&quot;&gt;
+&lt;h2&gt;API Design&lt;/h2&gt;
+&lt;p&gt;The next question is what a good API design for a Rust HTTP library is.  I
+struggeld with this quite a bit and it took multiple iterations to end up
+with something that I think is a good pattern.  What I ended up is a
+collection of multiple types:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;&lt;tt class=&quot;docutils literal&quot;&gt;Api&lt;/tt&gt;: I have a basic client object which I call &lt;tt class=&quot;docutils literal&quot;&gt;Api&lt;/tt&gt; internally.
+it manages the curl handles (right now it just caches one) and also
+exposes convenience methods to perform certain types of HTTP requests.
+On top of that it provides high level methods that send the right HTTP
+requests and handle the responses.&lt;/li&gt;
+&lt;li&gt;&lt;tt class=&quot;docutils literal&quot;&gt;ApiRequest&lt;/tt&gt;: basically your request object.  It's mostly a builder
+for making requests and has a method to send the request and get a
+response object.&lt;/li&gt;
+&lt;li&gt;&lt;tt class=&quot;docutils literal&quot;&gt;ApiResponse&lt;/tt&gt;: contains the response from the HTTP request.  This also
+provides various helpers to convert the response into different things.&lt;/li&gt;
+&lt;li&gt;&lt;tt class=&quot;docutils literal&quot;&gt;ApiResult&amp;lt;T&amp;gt;&lt;/tt&gt;: this is a result object which is returned from most
+methods.  The error is a special API error that converts from all the
+APIs we call into.  This means it can hold curl errors, form errors,
+JSON errors, IO errors and more.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;To give you an idea how this looks like I want to show you one of the
+high level methods that use most of the API:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;pub&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;list_releases&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;org&lt;/span&gt;: &lt;span class=&quot;kp&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;project&lt;/span&gt;: &lt;span class=&quot;kp&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;-&amp;gt; &lt;span class=&quot;nc&quot;&gt;ApiResult&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Vec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ReleaseInfo&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Ok&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;format&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;/projects/{}/{}/releases/&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;                         &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PathArg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;org&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PathArg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;project&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)))&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;?&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;convert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;?&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;(Note that I'm using the new question mark syntax &lt;tt class=&quot;docutils literal&quot;&gt;?&lt;/tt&gt; instead of the
+more familiar &lt;tt class=&quot;docutils literal&quot;&gt;try!&lt;/tt&gt; macro here)&lt;/p&gt;
+&lt;p&gt;So what is happening here?&lt;/p&gt;
+&lt;ol class=&quot;arabic simple&quot;&gt;
+&lt;li&gt;This is a method on the &lt;tt class=&quot;docutils literal&quot;&gt;Api&lt;/tt&gt; struct.  We use the &lt;tt class=&quot;docutils literal&quot;&gt;get()&lt;/tt&gt;
+shorthand method to make an HTTP &lt;cite&gt;GET&lt;/cite&gt; request.  It takes one argument
+which is the URL to make the request to.  We use standard string
+formatting to create the URL path here.&lt;/li&gt;
+&lt;li&gt;The &lt;cite&gt;PathArg&lt;/cite&gt; is a simple wrapper that customizes the formatting so
+that instead of just stringifying a value it also percent encodes it.&lt;/li&gt;
+&lt;li&gt;The return value of the &lt;cite&gt;get&lt;/cite&gt; method is a &lt;tt class=&quot;docutils literal&quot;&gt;ApiResult&amp;lt;ApiResponse&amp;gt;&lt;/tt&gt;
+which provides a handy &lt;tt class=&quot;docutils literal&quot;&gt;convert()&lt;/tt&gt; method which does both error
+handling and deserialization.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;How does the JSON handling take place here?  The answer is that
+&lt;tt class=&quot;docutils literal&quot;&gt;convert()&lt;/tt&gt; can do that.  Because &lt;tt class=&quot;docutils literal&quot;&gt;Vec&amp;lt;ReleaseInfo&amp;gt;&lt;/tt&gt; has an automatic
+deserializer implemented.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-error-onion&quot;&gt;
+&lt;h2&gt;The Error Onion&lt;/h2&gt;
+&lt;p&gt;The bulk of the complexity is hidden behind multiple layers of error
+handling.  It took me quite a long time to finally come up with this
+design which is why I'm particularly happy with finally having found one I
+really like.  The reason error handling is so tricky with HTTP requests is
+because you want to have both the flexibility of responding to specific
+error conditions as well as automatically handling all the ones you are
+not interested in.&lt;/p&gt;
+&lt;p&gt;The design I ended up with is that I have an &lt;tt class=&quot;docutils literal&quot;&gt;ApiError&lt;/tt&gt; type.  All the
+internal errors that the library could encounter (curl errors etc.) are
+automatically converted into an &lt;tt class=&quot;docutils literal&quot;&gt;ApiError&lt;/tt&gt;.  If you send a request the
+return value is as such &lt;tt class=&quot;docutils literal&quot;&gt;Result&amp;lt;ApiResponse, ApiError&amp;gt;&lt;/tt&gt;.  However the
+trick here is that at this level no HTTP error (other than connection
+errors) is actually stored as &lt;tt class=&quot;docutils literal&quot;&gt;ApiError&lt;/tt&gt;.  Instead also a failed
+response (because for instance of a 404) is stored as the actual response
+object.&lt;/p&gt;
+&lt;p&gt;On the response object you can check the status of the response with these
+methods:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;pub&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;-&amp;gt; &lt;span class=&quot;kt&quot;&gt;u32&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;status&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;pub&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;failed&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;-&amp;gt; &lt;span class=&quot;kt&quot;&gt;bool&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;status&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;400&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;status&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;=&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;600&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;pub&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;ok&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;-&amp;gt; &lt;span class=&quot;kt&quot;&gt;bool&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;failed&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;However what's nice is that most of the time you don't have to do any of
+this.  The response method also provides a method to conver non successful
+responses into errors like this:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;pub&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;to_result&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;-&amp;gt; &lt;span class=&quot;nc&quot;&gt;ApiResult&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ApiResponse&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ok&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Ok&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;let&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Ok&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;deserialize&lt;/span&gt;::&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ErrorInfo&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;let&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Some&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;detail&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;detail&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;            &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ApiError&lt;/span&gt;::&lt;span class=&quot;n&quot;&gt;Http&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;detail&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ApiError&lt;/span&gt;::&lt;span class=&quot;n&quot;&gt;Http&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;generic error&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;into&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()))&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;This method consumes the response and depending on the condition of the
+response returns different results.  If everything was fine the response
+is returned unchanged.  However if there was an error we first try to
+deserialize the body with our own &lt;tt class=&quot;docutils literal&quot;&gt;ErrorInfo&lt;/tt&gt; which is the JSON response
+our API returns or otherwise we fall back to a generic error message and
+the status code.&lt;/p&gt;
+&lt;p&gt;What's deserialize?  It just invokes serde for deserialization:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;pub&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;deserialize&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;: &lt;span class=&quot;nc&quot;&gt;Deserialize&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;-&amp;gt; &lt;span class=&quot;nc&quot;&gt;ApiResult&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Ok&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;serde_json&lt;/span&gt;::&lt;span class=&quot;n&quot;&gt;from_reader&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;match&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;body&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Some&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;ref&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;body&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;body&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;b&amp;quot;&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[..],&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;?&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;One thing you can see here is that the body is buffered into memory
+entirely.  I was torn on this in the beginning but it actually turns out
+to make the API significantly nicer because it allows you to reason about
+the response better.  Without buffering up everything in memory it becomes
+much harder to do conditional things based on the body.  For the cases
+where we cannot deal with this limitation I have extra methods to stream
+the incoming data.&lt;/p&gt;
+&lt;p&gt;On deserialization we match on the body.  The body is an &lt;tt class=&quot;docutils literal&quot;&gt;Option&amp;lt;Vec&amp;lt;u8&amp;gt;&amp;gt;&lt;/tt&gt;
+here which we convert into a &lt;tt class=&quot;docutils literal&quot;&gt;&amp;amp;[u8]&lt;/tt&gt; which satisfies the &lt;tt class=&quot;docutils literal&quot;&gt;Read&lt;/tt&gt;
+interface which we can then use for deserialization.&lt;/p&gt;
+&lt;p&gt;The nice thing about the aforementioned &lt;tt class=&quot;docutils literal&quot;&gt;to_result&lt;/tt&gt; method is that it
+works just so nice.  The common case is to convert something into a result
+and to then deserialize the response if everything is fine.  Which is why
+we have this &lt;tt class=&quot;docutils literal&quot;&gt;convert&lt;/tt&gt; method:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;pub&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;convert&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;: &lt;span class=&quot;nc&quot;&gt;Deserialize&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;-&amp;gt; &lt;span class=&quot;nc&quot;&gt;ApiResult&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;to_result&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;().&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;and_then&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;deserialize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;complex-uses&quot;&gt;
+&lt;h2&gt;Complex Uses&lt;/h2&gt;
+&lt;p&gt;There are some really nice uses for this.  For instance here is how we
+check for updates from the GitHub API:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;pub&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;get_latest_release&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;-&amp;gt; &lt;span class=&quot;nc&quot;&gt;ApiResult&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Option&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;let&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;resp&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;https://api.github.com/repos/getsentry/sentry-cli/releases/latest&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;?&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;resp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;404&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;let&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;info&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;: &lt;span class=&quot;nc&quot;&gt;GitHubRelease&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;resp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;to_result&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;?&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;convert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;?&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;asset&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;in&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;info&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;assets&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;            &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;asset&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;==&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;REFERENCE_NAME&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;                &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Ok&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Some&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;                    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;info&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tag_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;                    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;asset&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;browser_download_url&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;                &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)));&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;            &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Ok&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Here we silently ignore a 404 but otherwise we parse the response as
+&lt;cite&gt;GitHubRelease&lt;/cite&gt; structure and then look through all the assets.  The call
+to &lt;cite&gt;to_result&lt;/cite&gt; does nothing on success but it will handle all the other
+response errors automatically.&lt;/p&gt;
+&lt;p&gt;To get an idea how the structures like &lt;cite&gt;GitHubRelease&lt;/cite&gt; are defined, this
+is all that is needed:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;#[derive(Debug, Deserialize)]&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;GitHubAsset&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;browser_download_url&lt;/span&gt;: &lt;span class=&quot;nb&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;: &lt;span class=&quot;nb&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+
+&lt;span class=&quot;cp&quot;&gt;#[derive(Debug, Deserialize)]&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;GitHubRelease&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tag_name&lt;/span&gt;: &lt;span class=&quot;nb&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;assets&lt;/span&gt;: &lt;span class=&quot;nb&quot;&gt;Vec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GitHubAsset&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;curl-handle-management&quot;&gt;
+&lt;h2&gt;Curl Handle Management&lt;/h2&gt;
+&lt;p&gt;One thing that is not visible here is how I manage the curl handles.  Curl
+is a C library and the Rust binding to it is quite low level.  While it's
+well typed and does not require unsafe code to use, it still feels very
+much like a C library.  In particular there is a curl &amp;quot;easy&amp;quot; handle object
+you are supposed to keep hanging around between requests to take advantage
+of keepalives.  However the handles are stateful.  Readers of this blog
+are aware that there are few things I hate as much as unnecessary stateful
+APIs.  So I made it as stateless as possible.&lt;/p&gt;
+&lt;p&gt;The &amp;quot;correct&amp;quot; thing to do would be to have a pool of &amp;quot;easy&amp;quot; handles.
+However in my case I never have more than one request outstanding at the
+time so instead of going with something more complex I stuff away the
+&amp;quot;easy&amp;quot; handle in a &lt;tt class=&quot;docutils literal&quot;&gt;RefCell&lt;/tt&gt;.  A &lt;tt class=&quot;docutils literal&quot;&gt;RefCell&lt;/tt&gt; is a smart pointer that
+moves the borrow semantics that rust normally requires at compile time to
+runtime.  This is rougly how this looks:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;pub&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;ApiRequest&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;&amp;#39;a&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;handle&lt;/span&gt;: &lt;span class=&quot;nc&quot;&gt;RefMut&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;&amp;#39;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;curl&lt;/span&gt;::&lt;span class=&quot;n&quot;&gt;easy&lt;/span&gt;::&lt;span class=&quot;n&quot;&gt;Easy&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;pub&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Api&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;shared_handle&lt;/span&gt;: &lt;span class=&quot;nc&quot;&gt;RefCell&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;curl&lt;/span&gt;::&lt;span class=&quot;n&quot;&gt;easy&lt;/span&gt;::&lt;span class=&quot;n&quot;&gt;Easy&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;impl&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Api&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;pub&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;method&lt;/span&gt;: &lt;span class=&quot;nc&quot;&gt;Method&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;url&lt;/span&gt;: &lt;span class=&quot;kp&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;-&amp;gt; &lt;span class=&quot;nc&quot;&gt;ApiResult&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ApiRequest&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;&amp;#39;a&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;let&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;handle&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;shared_handle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;borrow_mut&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ApiRequest&lt;/span&gt;::&lt;span class=&quot;n&quot;&gt;new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;handle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;method&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;url&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;This way if you call &lt;cite&gt;request&lt;/cite&gt; twice you will get a runtime panic if the
+last request is still outstanding.  This is fine for what I do.  The
+&lt;tt class=&quot;docutils literal&quot;&gt;ApiRequest&lt;/tt&gt; object itself implements a builder like pattern where you
+can modify the object with chaining calls.  This is roughly how this looks
+like when used for a more complex situation:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;pub&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;send_event&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;event&lt;/span&gt;: &lt;span class=&quot;kp&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;Event&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;-&amp;gt; &lt;span class=&quot;nc&quot;&gt;ApiResult&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;let&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dsn&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;config&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dsn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;as_ref&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;().&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ok_or&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Error&lt;/span&gt;::&lt;span class=&quot;n&quot;&gt;NoDsn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;?&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;let&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;event&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;: &lt;span class=&quot;nc&quot;&gt;EventInfo&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Method&lt;/span&gt;::&lt;span class=&quot;n&quot;&gt;Post&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dsn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get_submit_url&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;?&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;with_header&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;X-Sentry-Auth&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dsn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get_auth_header&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;event&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;timestamp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;?&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;with_json_body&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;event&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;?&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;send&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;?&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;convert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;?&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;w&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Ok&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;event&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;id&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;lessons-learned&quot;&gt;
+&lt;h2&gt;Lessons Learned&lt;/h2&gt;
+&lt;p&gt;My key takeaways from doing this in Rust so far have been:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;Rust is definitely a great choice for building command line utilities.
+The ecosystem is getting stronger by the day and there are so many
+useful crates already for very common tasks.&lt;/li&gt;
+&lt;li&gt;The cross platform support is superb.  Getting the windows build going
+was easy cake compared to the terror you generally go through with
+other languages (including Python).&lt;/li&gt;
+&lt;li&gt;serde is a pretty damn good library.  It's a shame it's not as nice to
+use on stable rust.  Can't wait for this stuff to get more stable.&lt;/li&gt;
+&lt;li&gt;Result objects in rust are great but sometimes it makes sense to not
+immediately convert data into a result object.  I originally converted
+failure responses into errors immediately and that definitely hurt the
+convenience of the APIs tremendously.&lt;/li&gt;
+&lt;li&gt;Don't be afraid of using C libraries like &lt;cite&gt;curl&lt;/cite&gt; instead of native
+Rust things.  It turns out that Rust's build support is pretty
+magnificent which makes installing the rust curl library
+straightforward.  It even takes care of compiling curl itself on
+Windows.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;If you want to see the code, the entire git repository of the client can
+be found online: &lt;a class=&quot;reference external&quot; href=&quot;http://github.com/getsentry/sentry-cli&quot;&gt;getsentry/sentry-cli&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+</feed>
+

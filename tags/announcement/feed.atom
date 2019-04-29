@@ -1,0 +1,332 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Armin Ronacher's Thoughts and Writings</title>
+  <id>http://lucumr.pocoo.org/feed.atom</id>
+  <updated>2015-12-21T00:00:00Z</updated>
+  <link href="http://lucumr.pocoo.org/" />
+  <link href="http://lucumr.pocoo.org/feed.atom" rel="self" />
+  <subtitle type="text">Armin Ronacher's personal blog about programming, games and random thoughts that come to his mind.</subtitle>
+  <generator>Werkzeug</generator>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Introducing Lektor — A Static File Content Management System For Python</title>
+    <id>http://lucumr.pocoo.org/2015/12/21/introducing-lektor</id>
+    <updated>2015-12-21T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2015/12/21/introducing-lektor" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;The longer I'm programming and creating software, the more I notice that I
+build a lot of stuff that requires maintenance even though it should not.
+In particular a topic that just keeps annoying me is how quickly
+technology moves forward and how much effort it is to maintain older code
+that still exists but now stands on ancient foundations.&lt;/p&gt;
+&lt;p&gt;This is not a new discovery mind you.  This blog you're reading started
+out as a Django application many, many years ago; made a transition to
+WordPress because I could not be bothered with updating Django; and then
+turned into two different static site generators because I did not want to
+bother with making database updates and rather wanted to track my content
+in a git repository.&lt;/p&gt;
+&lt;p&gt;I like static website generators quite a bit.  As everything needs a
+website these days — it's impossible to escape the work to create one.
+For programmers it's possible to get away with building something with
+static website generators like Jekyll, Hexo, Hugo, Pelican, Hyde, Brunch,
+Middleman, Harp, Expose, …&lt;/p&gt;
+&lt;p&gt;As you can see the list of tools available is endless.  Unfortunately
+though these tools are all aimed at programmers and it's very hard to use
+them as someone without programming experience.  Worse though: many of
+them are clones of each other just written in different programming
+languages with very similar designs.  There is very little innovation in
+that space and that's a bit unfortunate because I like the flexibility I
+get from frameworks like Flask at times.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;so-i-built-my-own&quot;&gt;
+&lt;h2&gt;So I Built My Own&lt;/h2&gt;
+&lt;p&gt;This is by far not the first time I built a static website generator but I
+hope it will be the last time.  This one however is different from any
+project I built before.  The reason it exists is quite frankly that it's
+impossible to escape family duties.  For me that means helping out with
+the website of my parents.  I knew that I did not want that to be
+WordPress or something that needs security updates so about two years ago
+I started to investigate that options there are.&lt;/p&gt;
+&lt;p&gt;After a ton of toying around I ended up using &lt;a class=&quot;reference external&quot; href=&quot;http://pythonhosted.org/Frozen-Flask/&quot;&gt;Frozen-Flask&lt;/a&gt; for that project.  It was neat
+because it allowed me to structure the website exactly like I wanted.
+However it also meant that whenever text started to change I needed to
+spend time on it.  Thus I had to investigate CMS solutions again.
+Countless weekends were wasted trying to make WordPress work again and
+looking at Statamic.  However I found them quite a bit more complex to
+customize than what I was used to with Frozen-Flask and they did not
+really fit the format at all.  Especially WordPress feels much more like a
+blog engine than a CMS.&lt;/p&gt;
+&lt;p&gt;Finally I decided to sit down and build something completely different: a
+content management system that uses flat files as source files like most
+other systems, but it has a locally hosted admin panel that a non
+programmer can use.  You install the application, double click on the
+project, a browser opens and you can edit the pages.  It builds in the
+background into static HTML files and there is a publish button to ship it
+up to a server.  For collaboration one can use Dropbox.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;enter-lektor&quot;&gt;
+&lt;h2&gt;Enter Lektor&lt;/h2&gt;
+&lt;p&gt;I called this system Lektor and Open Sourced it initially a few months ago
+after not having cared about it in a year or so.  However I had another
+run-in with a project which was the Sentry documentation.  Sentry uses
+Sphinx for the documentation and customizing the docs for what we had in
+mind there turned out to be a complete waste of time and sanity.  While
+Lektor is currently not in a position where it could replace Sphinx for
+Sentry it gave me enough motivation to hack on it again on weekends.&lt;/p&gt;
+&lt;p&gt;So I figured I might retry Open Sourcing it and made a website for it with
+documentation and cleaned up some bad stuff in it.&lt;/p&gt;
+&lt;p&gt;Here is what it looks like when you open up the admin panel:&lt;/p&gt;
+&lt;img alt=&quot;https://raw.githubusercontent.com/lektor/lektor-archive/master/screenshots/admin.png&quot; src=&quot;https://raw.githubusercontent.com/lektor/lektor-archive/master/screenshots/admin.png&quot; style=&quot;width: 100%;&quot; /&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;lektor-is-a-framework&quot;&gt;
+&lt;h2&gt;Lektor is a Framework&lt;/h2&gt;
+&lt;p&gt;But what makes Lektor so much fun to work with is that Lektor is (while
+very opinionated) very, very flexible.  It takes a lot of inspiration from
+ORMs like Django's.  Instead of there being a &amp;quot;blog component&amp;quot; you can model
+your own blog posts and render them with the templates you want to use.
+There is not a single built-in template that you have to use.  The only
+thing it gives you is a quickstart that sets up the folders and copies
+default minimalistic templates over.&lt;/p&gt;
+&lt;p&gt;As an example, here is how a blog index template looks like:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;{%&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;extends&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;blog_layout.html&amp;quot;&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;%}&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;{%&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;macros/pagination.html&amp;quot;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;render_pagination&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;%}&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;{%&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;block&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;title&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;%}&lt;/span&gt;My Blog&lt;span class=&quot;cp&quot;&gt;{%&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;endblock&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;%}&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;{%&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;block&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;body&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;%}&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;h1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;My Blog&lt;span class=&quot;p&quot;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;h1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;
+
+  &lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;ul&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;class&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;blog-index&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;
+  &lt;span class=&quot;cp&quot;&gt;{%&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;post&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;this.pagination.items&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;%}&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;li&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;
+      &lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;href&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;{{&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;post&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;url&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;}}&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;{{&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;post.title&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;}}&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt; —
+      by &lt;span class=&quot;cp&quot;&gt;{{&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;post.author&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;}}&lt;/span&gt;
+      on &lt;span class=&quot;cp&quot;&gt;{{&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;post.pub_date&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;dateformat&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;}}&lt;/span&gt;
+  &lt;span class=&quot;cp&quot;&gt;{%&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;endfor&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;%}&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;ul&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;
+
+  &lt;span class=&quot;cp&quot;&gt;{%&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;this.pagination.pages&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;%}&lt;/span&gt;
+    &lt;span class=&quot;cp&quot;&gt;{{&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;render_pagination&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;this.pagination&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;}}&lt;/span&gt;
+  &lt;span class=&quot;cp&quot;&gt;{%&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;endif&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;%}&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;{%&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;endblock&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;%}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;The system understands what the blog is, that it has child records, that
+those records are paginated, it can provide pagination etc.  However there
+is nothing in there that makes it a blog in itself.  It just has a very
+flexible ORM inspired component that gives access to the structured files
+on the file system.  Programming for Lektor feels very much like
+programming something with Flask or Django.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;learn-more&quot;&gt;
+&lt;h2&gt;Learn More&lt;/h2&gt;
+&lt;p&gt;If you want to learn more about it, there are quite a few resources at
+this point:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;&lt;a class=&quot;reference external&quot; href=&quot;https://www.getlektor.com/&quot;&gt;The Lektor Website&lt;/a&gt;, with documentation
+and all that cool stuff.&lt;/li&gt;
+&lt;li&gt;&lt;a class=&quot;reference external&quot; href=&quot;https://www.getlektor.com/blog/2015/12/hello-lektor/&quot;&gt;Introduction Blog Post&lt;/a&gt;,
+with some more back story and explanations of how it works.&lt;/li&gt;
+&lt;li&gt;&lt;a class=&quot;reference external&quot; href=&quot;https://www.getlektor.com/docs/guides/&quot;&gt;A Few Guides&lt;/a&gt; on how to
+build blogs, portfolio websites, etc.&lt;/li&gt;
+&lt;li&gt;&lt;a class=&quot;reference external&quot; href=&quot;https://www.getlektor.com/docs/quickstart/&quot;&gt;A Quickstart&lt;/a&gt; with a
+screencast to show the basics.&lt;/li&gt;
+&lt;li&gt;&lt;a class=&quot;reference external&quot; href=&quot;https://www.getlektor.com/docs/deployment/travisci/&quot;&gt;A Deployment Guide for Lektor + GitHub Pages&lt;/a&gt; that shows how
+to put something up with the help of Travis-CI (which also includes a
+short screencast).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;final-words&quot;&gt;
+&lt;h2&gt;Final Words&lt;/h2&gt;
+&lt;p&gt;I hope people find it useful.  I know that I enjoy using it a ton and I
+hope it makes others enjoy it similarly.  Because I run so many Open
+Source projects and maintenance of all of them turns out to be tricky I
+figured I do this better this time around.  Lektor belongs to a separate
+org and the project does not use any resources only I have access to
+(other than the domain name and the server travis-CI deploys to).  So in
+case people want to help out, there is no single point of failure!&lt;/p&gt;
+&lt;p&gt;I hope I can spend some time over Christmas to do the same to my other
+projects and alter the bus factor of them.&lt;/p&gt;
+&lt;p&gt;There is far too much in Lektor to be able to cover it in a single blog
+post so I will probably write a bit more about some of the really cool
+things about in in the next few weeks.  Enjoy!&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">New Blog</title>
+    <id>http://lucumr.pocoo.org/2010/11/23/new-blog</id>
+    <updated>2010-11-23T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2010/11/23/new-blog" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;I really wanted to stop giving status updates like this on my blog as
+irrelevant information is much better suited for twitter, but let this be
+the last exception.  I used to use my own blog software “Zine” on this
+website but after a while I had to recognice that I hate traditional
+weblog software.  When I started blogging a few years ago I used wordpress
+like everybody else did.  I also used subversion (if at all) and generally
+the world was a different place.&lt;/p&gt;
+&lt;p&gt;I always thought it would be a huge plus to be able to edit your blog
+posts online from any computer.  However I no longer have the urge to
+update my blog from a random location, instead I want to use this place to
+share things I learned, little stories, useful experiences and other
+things.  And all that requires careful proof reading and because it takes
+time, there is no reason why I shouldn't be able to do that on my personal
+notebook and my favourite text editor.&lt;/p&gt;
+&lt;p&gt;For random outbursts I now have Twitter, and that fulfills it's role
+perfectly.&lt;/p&gt;
+&lt;p&gt;The other new thing on this website is, that it's no longer featuring user
+comments.  There are a couple of reasons for that.  First of all 98% of
+all comments submitted on my old blog were spam.  Secondly however I don't
+really want user feedback to show up on my website.  Not because I am
+afraid of user feedback, but because I think these discussions should go
+to dedicated channels such as mailinglists, reddit and other websites.&lt;/p&gt;
+&lt;p&gt;Lastly that way I don't waste valuable CPU time on our already overloaded
+pocoo box and can move the blog around as necessary.&lt;/p&gt;
+&lt;p&gt;In case you are interested in the script that generates this website, head
+over to &lt;a class=&quot;reference external&quot; href=&quot;http://github.com/mitsuhiko/rstblog&quot;&gt;it's github page&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;But where did the existing content go?  I am currently in the process of
+sorting out useful blog posts and useless stuff I posted here.  The former
+will come back, nicely formatted and updated as necessary, the rest will
+move to a different URL with the original site design and comments
+preserved.&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">New Werkzeug and Flask Releases</title>
+    <id>http://lucumr.pocoo.org/2013/6/13/werkzeug-and-flask-releases</id>
+    <updated>2013-06-13T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2013/6/13/werkzeug-and-flask-releases" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;I'm very happy to announce that after a long break there are finally new
+releases for &lt;a class=&quot;reference external&quot; href=&quot;http://werkzeug.pocoo.org/&quot;&gt;Werkzeug&lt;/a&gt; and &lt;a class=&quot;reference external&quot; href=&quot;http://flask.pocoo.org/&quot;&gt;Flask&lt;/a&gt;.  These releases took their fair amount of
+time and I will ensure the process is quicker next time around.  There is
+however a good reason it took this long: they come with support for Python
+3 and we had to do some API changes in the process.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;what-s-going-to-break-for-you&quot;&gt;
+&lt;h2&gt;What's going to break for you&lt;/h2&gt;
+&lt;p&gt;Let's start with the unfortunate things first: we probably (slightly)
+broke your code in Werkzeug.  This was necessary because some
+functionality just does not map well to the updated &lt;a class=&quot;reference external&quot; href=&quot;http://www.python.org/dev/peps/pep-3333/&quot;&gt;PEP 3333&lt;/a&gt; specification.  This
+backwards incompatible breakage is mostly limited to the &lt;tt class=&quot;docutils literal&quot;&gt;werkzeug.urls&lt;/tt&gt;
+module as well as the &lt;tt class=&quot;docutils literal&quot;&gt;Headers&lt;/tt&gt; and &lt;tt class=&quot;docutils literal&quot;&gt;EnvironHeaders&lt;/tt&gt; data structures.
+You will notice that headers are now coming back in unicode at all times,
+decoded from latin1 and the URLs module now transparently unifies URI and
+IRI representation of URLs.&lt;/p&gt;
+&lt;p&gt;The &lt;tt class=&quot;docutils literal&quot;&gt;Headers&lt;/tt&gt; object also lost the ability to modify WSGI headers
+in-place through the old &lt;tt class=&quot;docutils literal&quot;&gt;linked&lt;/tt&gt; classmethod.  This was necessary as we
+could not replace the logic for PEP 3333 with acceptable performance and
+not producing a too complex implementation.&lt;/p&gt;
+&lt;p&gt;Flask itself should not break that much, but what do you know.  We cleaned
+up some internal implementations.  Primarily you will notice that the
+&lt;tt class=&quot;docutils literal&quot;&gt;|tojson&lt;/tt&gt; filter in Flask now uses different JSON serialization and HTML
+safety rules.  If you have some tests that rely on that old behavior you
+will need to adjust.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;goodbye-python-2-5&quot;&gt;
+&lt;h2&gt;Goodbye Python 2.5&lt;/h2&gt;
+&lt;p&gt;Bad news for you if you're on 2.5: support for your Python version is
+gone.  That was necessary to make the Python 3 port go forward.  Python
+2.5 by now is nearly 7 years old, it's time to move on.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;hello-python-3&quot;&gt;
+&lt;h2&gt;Hello Python 3&lt;/h2&gt;
+&lt;p&gt;On the flip-side support for Python 3 is in.  To be more exact: Python 3.3
+and higher.  For Werkzeug applications porting to Python 3 might be not as
+trivial but Flask applications should actually work mostly out of the box
+assuming their extensions are ported.  For instance all of the Flask
+examples work out of the box on 2.x and 3.x and with the exception of
+unit tests no modifications were necessary to their code.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;notable-changes&quot;&gt;
+&lt;h2&gt;Notable Changes&lt;/h2&gt;
+&lt;p&gt;Other than that, here are some changes that you will hopefully enjoy:&lt;/p&gt;
+&lt;p&gt;Werkzeug:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Werkzeug now pastes traceback into private github gists.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Some smaller improvements to make the HTTP exception classes in
+Werkzeug more useful.  They can now carry some payload and aborting
+with exceptions is streamlined.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Werkzeug's URL module now gained vastly improved IRI support and
+can properly parse and join URLs.  This support is currently
+intentionally in violation with the RFC to cover real-world cases
+better and to support parsing of unknown schemes.&lt;/p&gt;
+&lt;p&gt;This makes it possible for you to parse things like
+&lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;sqlite:///foo.db&lt;/span&gt;&lt;/tt&gt; without being surprised by the behavior.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Werkzeug gained a lot of utility functions to support bridging the
+differences between PEP 333/PEP 3333 and WSGI on 2.x and 3.x.  This
+includes access to the streams and URLs.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Werkzeug's internal form parsing got vastly improved which now makes
+it possible to access the stream in all cases.  It also no longer
+relies on content length which makes it possible to finally deal with
+chunked request bodies assuming the WSGI server provides support for
+it.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Introduced &lt;tt class=&quot;docutils literal&quot;&gt;get_data&lt;/tt&gt; methods as future proof replacement for the
+old &lt;tt class=&quot;docutils literal&quot;&gt;.data&lt;/tt&gt; descriptor on requests and responses.  This allows
+greater flexibility on dealing with form data.  In the future we will
+remove support for &lt;tt class=&quot;docutils literal&quot;&gt;.data&lt;/tt&gt; at which point attribute access on the
+request and response objects is largely side-effect free.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Flask:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Flask gained a &lt;tt class=&quot;docutils literal&quot;&gt;json&lt;/tt&gt; module which unifies JSON support for 2.x and
+3.x and extends it with useful helpers.  It provides safe methods to
+dump JSON for script blocks in HTML and also automatically serializes
+some common types like UUIDs and &lt;tt class=&quot;docutils literal&quot;&gt;datetime&lt;/tt&gt; objects.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Further work has been done to make the application context more
+prominent.  Templates can now be rendered from the application context
+only and &lt;tt class=&quot;docutils literal&quot;&gt;flask.g&lt;/tt&gt; is now bound to the application context as well.&lt;/p&gt;
+&lt;p&gt;This change might seem tiny but actually simplifies working with Flask
+from outside web environments.  You can now easier maintain database
+connections that are not bound to a HTTP request's lifetime.&lt;/p&gt;
+&lt;p&gt;The documentation also has started to shift to this new mode of
+working.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Flask's internal error handling has been improved to make responding
+to error cases more consistent.  This also has the added benefit of
+making the “commit on success, rollback on error” finally fully
+reliable.  Previously the test client would suppress the error
+information in some cases.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Introduced a &lt;tt class=&quot;docutils literal&quot;&gt;get_json&lt;/tt&gt; method on the request to go in line with
+Werkzeug's new &lt;tt class=&quot;docutils literal&quot;&gt;get_data&lt;/tt&gt; method.  The plan here is to remove
+support for the &lt;tt class=&quot;docutils literal&quot;&gt;.json&lt;/tt&gt; descriptor at one point.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Added a few configuration options to change defaults for JSON
+serialization.  This includes pretty-printing and ordering of keys.
+By default JSON objects are now ordered by keys to solve issues with
+invalidating HTTP caches due to Python's new randomized hash seed.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;changes-to-the-process&quot;&gt;
+&lt;h2&gt;Changes to the Process&lt;/h2&gt;
+&lt;p&gt;Going into the future there will be a new process for releases.  The
+target is to have much more frequent releases instead of large ones.
+Werkzeug is now getting to the point where it's possible to do releases
+often without breaking people's code as the API gets more stable.  (This
+release being the notable exception due to the Python 3 support)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;a-thank-you-note&quot;&gt;
+&lt;h2&gt;A Thank You Note&lt;/h2&gt;
+&lt;p&gt;Lastly I want to thank the community for making this release possible.  A
+huge amount of the work for these releases has been done on a sprint
+online on a weekend in May.  Special thanks go to DasIch, Thomas Waldmann,
+untitaker, Ronny Pfannschmidt, mgax, puzzlet, ThiefMaster and everybody
+else who contributed.&lt;/p&gt;
+&lt;p&gt;In this release the number of commits skyrocketed.  While the total
+changelog might not look all that impressive, the underlying improvements
+and code cleanups are substantial.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+</feed>
+

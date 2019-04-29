@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Armin Ronacher's Thoughts and Writings</title>
+  <id>http://lucumr.pocoo.org/feed.atom</id>
+  <updated>2015-03-30T00:00:00Z</updated>
+  <link href="http://lucumr.pocoo.org/" />
+  <link href="http://lucumr.pocoo.org/feed.atom" rel="self" />
+  <subtitle type="text">Armin Ronacher's personal blog about programming, games and random thoughts that come to his mind.</subtitle>
+  <generator>Werkzeug</generator>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">The Sentry in my Life</title>
+    <id>http://lucumr.pocoo.org/2015/3/30/sentry-in-my-life</id>
+    <updated>2015-03-30T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2015/3/30/sentry-in-my-life" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;The idea of converting an Open Source project into a company is something
+that excites many of us, but very often this is something that will not
+succeed.  Often times it's because many Open Source projects fill a void
+that exists largely because in that space no money can be made.  This is
+especially true for my projects which are largely developer facing
+utilities for which it's impossible to find a market.&lt;/p&gt;
+&lt;p&gt;This is something I was always more than happy with and I compensated this
+with my day job.  At Fireteam I work on things that interest me and pay
+me.  In this case online infrastructure for computer games.  This has
+given me both the opportunity to keep hacking on my own Open Source
+libraries in my free time (and partially on company time) and without
+Fireteam many of my projects would be in a worse state now.&lt;/p&gt;
+&lt;p&gt;Which is why I'm very excited to be able to join a company that makes
+money while combining my passion (which is building tools and libraries
+that make developer's lifes better) with my favourite development model
+(which is Open Source) by joining &lt;a class=&quot;reference external&quot; href=&quot;https://getsentry.com/&quot;&gt;Sentry&lt;/a&gt; as a
+partner.&lt;/p&gt;
+&lt;p&gt;Sentry is one of the tools that have stuck with me since shortly after its
+inception.  Every single project I made over the last few years which had
+real users, involved monitoring through Sentry in one form or another.
+It's a pretty simple concept: instead of logging to boring files, you send
+your incidents to Sentry, it stores them, groups them up, notifies you if
+necessary and renders them to you.&lt;/p&gt;
+&lt;p&gt;I've known David Cramer for many years now (the original creator of
+Sentry).  There was a lot of talk about us working together in the past,
+but things never quite worked out.  Now that he and his co-founder Chris
+Jennings decided to scale up the Sentry operations and do this full-time I
+decided to join them in their endeavours.&lt;/p&gt;
+&lt;p&gt;Initially we're going to focus on making Sentry the best that it can be,
+but you can probably expect some cool Open Source technology coming from
+us in the near future.&lt;/p&gt;
+</content>
+  </entry>
+</feed>
+

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Armin Ronacher's Thoughts and Writings</title>
+  <id>http://lucumr.pocoo.org/feed.atom</id>
+  <updated>2009-01-08T00:00:00Z</updated>
+  <link href="http://lucumr.pocoo.org/" />
+  <link href="http://lucumr.pocoo.org/feed.atom" rel="self" />
+  <subtitle type="text">Armin Ronacher's personal blog about programming, games and random thoughts that come to his mind.</subtitle>
+  <generator>Werkzeug</generator>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">The Sad State of MySQL Python</title>
+    <id>http://lucumr.pocoo.org/2009/1/8/the-sad-state-of-mysql-python</id>
+    <updated>2009-01-08T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2009/1/8/the-sad-state-of-mysql-python" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;I admit it. I was a friend of &lt;a class=&quot;reference external&quot; href=&quot;http://mysql.org/&quot;&gt;MySQL&lt;/a&gt;. Two years
+ago MySQL was the only database server I was using at all. Lately
+however I replaced nearly all applications that were still using MySQL
+with postgres and even SQLite. One of the applications that is still
+using MySQL is &lt;a class=&quot;reference external&quot; href=&quot;http://ubuntuusers.de/inyoka/&quot;&gt;Inyoka&lt;/a&gt;, the portal
+software deployed &lt;a class=&quot;reference external&quot; href=&quot;http://ubuntuusers.de/&quot;&gt;ubuntuusers&lt;/a&gt;. For reasons
+you don't want to know we are unable to switch the deployment setup from
+MySQL to postgres.&lt;/p&gt;
+&lt;p&gt;Now that would be fine if &lt;a class=&quot;reference external&quot; href=&quot;http://sourceforge.net/projects/mysql-python&quot;&gt;mysql-python&lt;/a&gt; aka &lt;cite&gt;MySQLdb&lt;/cite&gt; would not
+suck so much. Besides not supporting the latest MySQL features it also
+leaks memory a lot. A friend of mine who discovered the problem, noticed
+a couple of lost megabytes the minute on ubuntuusers — that's a lot.&lt;/p&gt;
+&lt;p&gt;That problem seems to be fixed in the SVN trunk but the latest activity
+there was more than 9 months ago which is a problem. Neither the
+cheeseshop`^W^W`pypi has non-leaking packages, also not Linux
+distributions such as debian or ubuntu. The &lt;a class=&quot;reference external&quot; href=&quot;http://mysql-python.blogspot.com/&quot;&gt;development blog&lt;/a&gt; was last updated in May of 2008
+which makes me even more concerned.&lt;/p&gt;
+&lt;p&gt;Now I wonder if anyone has experience with the MySQL library and the
+Python API to take over the development. I guess there are still some
+MySQL users left, even though the project has an incredible bad
+reputation lately &lt;a class=&quot;reference external&quot; href=&quot;http://monty-says.blogspot.com/2008/11/oops-we-did-it-again-mysql-51-released.html&quot;&gt;due to problems in the release management&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;As a temporary workaround I can recommend either updating to the trunk
+version (which seems to be unstable according to one of the last commit
+messages) or disable unicode support where the leak apparently is. Nice
+libraries such as &lt;a class=&quot;reference external&quot; href=&quot;http://sqlalchemy.org/&quot;&gt;SQLAlchemy&lt;/a&gt; can convert
+bytestrings to unicode automatically on their own as well if you &lt;a class=&quot;reference external&quot; href=&quot;http://www.sqlalchemy.org/trac/wiki/DatabaseNotes#MySQL&quot;&gt;tell
+them to&lt;/a&gt;.&lt;/p&gt;
+</content>
+  </entry>
+</feed>
+

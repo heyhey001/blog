@@ -1,0 +1,1085 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Armin Ronacher's Thoughts and Writings</title>
+  <id>http://lucumr.pocoo.org/feed.atom</id>
+  <updated>2016-03-24T00:00:00Z</updated>
+  <link href="http://lucumr.pocoo.org/" />
+  <link href="http://lucumr.pocoo.org/feed.atom" rel="self" />
+  <subtitle type="text">Armin Ronacher's personal blog about programming, games and random thoughts that come to his mind.</subtitle>
+  <generator>Werkzeug</generator>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Dealing with JavaScript's Automatic Semicolon Insertion</title>
+    <id>http://lucumr.pocoo.org/2011/2/6/automatic-semicolon-insertion</id>
+    <updated>2011-02-06T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2011/2/6/automatic-semicolon-insertion" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;If you look at the grammar of ECMAScript (or JavaScript for that matter)
+you will quickly notice that it requires semicolons as marker for the end
+of certain statements.  However if you look a little further you will
+find this little gem:&lt;/p&gt;
+&lt;blockquote&gt;
+Certain ECMAScript statements (empty statement, variable statement,
+expression statement, &lt;cite&gt;do&lt;/cite&gt;-&lt;cite&gt;while&lt;/cite&gt; statement, &lt;cite&gt;continue&lt;/cite&gt; statement,
+&lt;cite&gt;break&lt;/cite&gt; statement, &lt;cite&gt;return&lt;/cite&gt; statement, and &lt;cite&gt;throw&lt;/cite&gt; statement) must be
+terminated with semicolons. Such semicolons may always appear
+explicitly in the source text. For convenience, however, such
+semicolons may be omitted from the source text in certain situations.
+These situations are described by saying that semicolons are
+automatically inserted into the source code token stream in those
+situations.&lt;/blockquote&gt;
+&lt;p&gt;So how are these semicolons inserted for you?  By following these rules
+(paraphrased and simplified from ECMA-262 3rd edition, 7.9.1):&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;When, as the program is parsed, a token (called the offending token)
+is encountered that is not allowed by any production of the grammar,
+then a semicolon is automatically inserted before the offending token
+if one or more of the following conditions is true:&lt;/p&gt;
+&lt;ol class=&quot;arabic simple&quot;&gt;
+&lt;li&gt;The offending token is separated from the previous token by
+at least one &lt;cite&gt;LineTerminator&lt;/cite&gt;.&lt;/li&gt;
+&lt;li&gt;The offending token is &lt;tt class=&quot;docutils literal&quot;&gt;}&lt;/tt&gt;.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;When the end of the input stream of tokens is encountered and the
+parser is unable to parse the input token stream as a single complete
+program, then a semicolon is automatically inserted at the end of
+the input stream.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;A token is a restricted token when it is allowed by some production
+of the grammar, but the production is a &lt;em&gt;restricted production&lt;/em&gt; and
+the token would be the first token for a terminal or nonterminal
+immediately following the annotation “[no &lt;cite&gt;LineTerminator&lt;/cite&gt; here]”
+within the production.&lt;/p&gt;
+&lt;p&gt;If furthermore the restricted token is separated from the previous
+token by at least one &lt;cite&gt;LineTerminator&lt;/cite&gt;, then a semicolon is
+automatically inserted before the restricted token.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;There is an additional overriding condition on the above rules: a
+semicolon is never inserted automatically if the semicolon would then be
+parsed as an empty statement or that semicolon would become one of the two
+semicolons in the header of a &lt;cite&gt;for&lt;/cite&gt; statement.&lt;/p&gt;
+&lt;p&gt;What is a restricted production?  The following syntax rules:&lt;/p&gt;
+&lt;pre class=&quot;literal-block&quot;&gt;
+PostfixExpression ::=
+    LeftHandSideExpression [no LineTerminator here] &amp;quot;++&amp;quot;
+    LeftHandSideExpression [no LineTerminator here] &amp;quot;--&amp;quot;
+ContinueStatement ::=   &amp;quot;continue&amp;quot;  [no LineTerminator here]  Identifieropt ;
+BreakStatement ::=      &amp;quot;break&amp;quot;     [no LineTerminator here]  Identifieropt ;
+ReturnStatement ::=     &amp;quot;return&amp;quot;    [no LineTerminator here]  Expressionopt ;
+ThrowStatement ::=      &amp;quot;throw&amp;quot;     [no LineTerminator here]  Expression ;
+&lt;/pre&gt;
+&lt;p&gt;Alright. But what does this actually mean?&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;virtual-semicolons-in-action&quot;&gt;
+&lt;h2&gt;Virtual Semicolons in Action&lt;/h2&gt;
+&lt;p&gt;The specification also lists a few examples of how semicolons are inserted
+into code where semicolons are missing (7.9.2):&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;cm&quot;&gt;/* this */&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;
+&lt;span class=&quot;nx&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;b&lt;/span&gt;
+
+    &lt;span class=&quot;cm&quot;&gt;/* becomes this: */&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;nx&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;cm&quot;&gt;/* this */&lt;/span&gt;
+&lt;span class=&quot;nx&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;b&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;c&lt;/span&gt;
+
+    &lt;span class=&quot;cm&quot;&gt;/* becomes this */&lt;/span&gt;
+    &lt;span class=&quot;nx&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;c&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;cm&quot;&gt;/* this */&lt;/span&gt;
+&lt;span class=&quot;nx&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;b&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;c&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;d&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+
+    &lt;span class=&quot;cm&quot;&gt;/* becomes this */&lt;/span&gt;
+    &lt;span class=&quot;nx&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;b&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;c&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;d&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Except for the return example this seems straight forward and if you are
+avoiding linebreaks after the return statement you should be fine.  The
+last example stays a function call because the assignment by itself is a
+valid sentence.  If however one would add a plus after &lt;cite&gt;c&lt;/cite&gt;, the expression
+in parentheses would not be the argument for a function call &lt;a class=&quot;footnote-reference&quot; href=&quot;#update&quot; id=&quot;id1&quot;&gt;[1]&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Furthermore because automatic semicolon insertion is there and you can't
+get rid of it, no harm in not setting semicolons.  Right?  After all,
+worst case: you forgot one and JavaScript inserts one for you.  That
+however is actually not entirely true unfortunately as there are a few
+cases where things can break.  So the rest of this blog article only
+covers the cases where adding semicolons would have avoided a problem.  I
+am not talking about cases where changes in whitespace would be the
+solution to a problem (like removing a newline after the &lt;tt class=&quot;docutils literal&quot;&gt;return&lt;/tt&gt;
+keyword which is a well known solution to the most common automatic
+semicolon insertion problem).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;array-literals-versus-property-operators&quot;&gt;
+&lt;h2&gt;Array Literals versus Property Operators&lt;/h2&gt;
+&lt;p&gt;Like Python, JavaScript has array literals (&lt;tt class=&quot;docutils literal&quot;&gt;[1, 2, 3, 4]&lt;/tt&gt;) and uses a
+very similar syntax to access items of objects and arrays
+(&lt;tt class=&quot;docutils literal&quot;&gt;foo[index]&lt;/tt&gt;).  Unfortunately that particular little pseudo-ambiguity
+becomes a problem when you forget to place semicolons.  Take the following
+piece of JavaScript code as example:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;World&amp;quot;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;Hello&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;Goodbye&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;].&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;forEach&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;document&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;write&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;value&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot; &amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;&amp;lt;br&amp;gt;&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;That is not a syntax error, but it will fail with an odd error.  Why is
+that?  The problem is that JavaScript will insert semicolons after the
+&lt;tt class=&quot;docutils literal&quot;&gt;document.write()&lt;/tt&gt; call and after the &lt;tt class=&quot;docutils literal&quot;&gt;.forEach()&lt;/tt&gt; call, but not
+before the array literal.  In fact, it will attempt to use the array
+literal as indexer operator to the string from the line before.  We can
+easily verify that by rewriting the code a bit:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;Goodbye&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;Hello&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;Goodbye&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;].&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;forEach&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;document&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;write&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;value&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot; &amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;&amp;lt;br&amp;gt;&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;This will print the following output:&lt;/p&gt;
+&lt;pre class=&quot;literal-block&quot;&gt;
+1 undefined
+2 undefined
+3 undefined
+&lt;/pre&gt;
+&lt;p&gt;If you add a semicolon after the assignment to &lt;cite&gt;name&lt;/cite&gt; it would print this
+instead:&lt;/p&gt;
+&lt;pre class=&quot;literal-block&quot;&gt;
+Hello [object Object]
+Goodbye [object Object]
+&lt;/pre&gt;
+&lt;p&gt;If you are ever in that situation where you use &lt;tt class=&quot;docutils literal&quot;&gt;.forEach&lt;/tt&gt; or something
+similar on an array literal in a new line you will need a semicolon in the
+line before.  If you are all about consistency, that's a situation where
+you will have to use a semicolon to use your code.  Normally programming
+languages would allow you to put things into parentheses to avoid such
+ambiguities, but not so in JavaScript, because the same problem exists
+with parentheses.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;function-calls-versus-grouping&quot;&gt;
+&lt;h2&gt;Function Calls versus Grouping&lt;/h2&gt;
+&lt;p&gt;Same problem exists with function calls and parentheses for expression
+grouping unfortunately.  That's especially fun when you are concatenating
+JavaScript files and forget to add semicolons in between.  Imagine you
+have a JavaScript file &lt;cite&gt;counter.js&lt;/cite&gt; with this content:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;namespace&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;makeCounter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;counter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;counter&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;And then you have a file called &lt;cite&gt;complex.js&lt;/cite&gt; which declares some complex
+library inside a closure:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;nx&quot;&gt;namespace&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;exportedObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;})()&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;So what happens when you concatenate the files with just a newline is that
+the following will happen: &lt;cite&gt;namespace.makeCounter&lt;/cite&gt; is called with the
+anonymous function from &lt;cite&gt;complex.js&lt;/cite&gt; in parentheses and the return value
+(which happens to be another function) will then be called without
+arguments.&lt;/p&gt;
+&lt;p&gt;After that &lt;cite&gt;namespace.exportedObject&lt;/cite&gt; will not be assigned at all and
+&lt;cite&gt;namespace.makeCounter&lt;/cite&gt; will be &lt;tt class=&quot;docutils literal&quot;&gt;0&lt;/tt&gt; instead of a function.  Again, this
+problem would not be a problem if one would have used a semicolon after
+the function expression in &lt;cite&gt;counter.js&lt;/cite&gt;.&lt;/p&gt;
+&lt;p&gt;That's also especially annoying when adding parentheses around an
+expression at the begin of a line.  That might cause the line above to
+suddenly become a function call:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;cm&quot;&gt;/* this works */&lt;/span&gt;
+&lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;foo&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;
+&lt;span class=&quot;nx&quot;&gt;something&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;method&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;foo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;42&lt;/span&gt;
+
+&lt;span class=&quot;cm&quot;&gt;/* this does not work, will try to call 2(...) */&lt;/span&gt;
+&lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;foo&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;something&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;method&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;foo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;42&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;consistency-and-simplicity&quot;&gt;
+&lt;h2&gt;Consistency and Simplicity&lt;/h2&gt;
+&lt;p&gt;If we ignore for a moment that the ambiguity between the division operator
+and the regular expression literal in JavaScript is a little bit tricky,
+JavaScript as a language is easy to parse.  It has a grammar which you can
+drop into your favorite parsing tool and it should be able to generate
+yourself a parser.  However with the extra rule of these weird semicolons
+it becomes a lot harder to implement.&lt;/p&gt;
+&lt;p&gt;The logical conclusion here is that people will get it wrong.  For
+instance JavaScript says that if there is a newline in the multiline
+comment (&lt;tt class=&quot;docutils literal&quot;&gt;/* ... */&lt;/tt&gt;) it counts as a &lt;cite&gt;LineTerminator&lt;/cite&gt;.  At least one
+JavaScript engine is ignoring that.  Also JavaScript engines are actively
+breaking ECMA compatibility to cover some real world cases and are
+introducing virtual semicolons in places where they should not be allowed
+(&lt;a class=&quot;reference external&quot; href=&quot;https://bugzilla.mozilla.org/show_bug.cgi?id=238945&quot;&gt;Mozilla Bug #238945&lt;/a&gt;).&lt;/p&gt;
+&lt;p&gt;Why would this be relevant?  Because there are a lot of tools that are
+operating on JavaScript source:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;First and foremost there are different browsers implementing
+JavaScript.  Because automatic semicolon insertion has shown to be
+handled differently in browsers it wouldn't be too unlikely that you
+will encounter some differences there.  Though I would argue that the
+chances that current browsers differ in interpretation will be low.&lt;/p&gt;
+&lt;p&gt;However there are certainly ECMAScript implementations out there that
+are less in sync with how browsers are interpreting it (Flash, various
+scripting languages like Unity Script, .NET's ECMA script
+implementation and many more.)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Documentation tools will have to parse your JavaScript to figure out
+where comments and function signatures are.  While for most of these
+tools some fuzziness is okay and semicolons shouldn't be much of a
+problem some edge cases might throw the parser into a state where it
+cannot continue parsing.  For instance because it expects an
+expression between a property operator (&lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;foo[(expression&lt;/span&gt; here)]&lt;/tt&gt;)
+when the programmer was writing an array literal.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Many i18n libraries are parsing JavaScript code to find strings marked
+as translatable.  The “parser” I wrote for  &lt;a class=&quot;reference external&quot; href=&quot;http://babel.edgewall.org/&quot;&gt;Babel&lt;/a&gt; for instance is basically just trying
+to infer all that from the tokens instead of properly parsing the
+code.  This does give some wrong matches from time to time but I was
+too lazy to write a proper JavaScript parser from scratch for that.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;Compression libraries have to parse JavaScript to figure out what is
+a local identifier, what is a global one etc.  &lt;a class=&quot;reference external&quot; href=&quot;http://dean.edwards.name/packer/&quot;&gt;Packer&lt;/a&gt; for instance destroys code that
+does not have semicolons after function expressions:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;x&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;cm&quot;&gt;/* blafasel */&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;y&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;cm&quot;&gt;/* blafasel */&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Will be compressed into invalid JavaScript:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(){}&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;y&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(){}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://aresemicolonsnecessaryinjavascript.com/&quot;&gt;Are Semicolons Necessary in Javascript?&lt;/a&gt;  Despite popular
+belief the answer is “sometimes” and not “no”.  But to save yourself time
+and troubles, just place them all the time.  Not only will it save
+yourself some headaches, your code will also look more consistent.
+Because there will be situations where a semicolon becomes necessary to
+resolve ambiguities.&lt;/p&gt;
+&lt;table class=&quot;docutils footnote&quot; frame=&quot;void&quot; id=&quot;update&quot; rules=&quot;none&quot;&gt;
+&lt;colgroup&gt;&lt;col class=&quot;label&quot; /&gt;&lt;col /&gt;&lt;/colgroup&gt;
+&lt;tbody valign=&quot;top&quot;&gt;
+&lt;tr&gt;&lt;td class=&quot;label&quot;&gt;&lt;a class=&quot;fn-backref&quot; href=&quot;#id1&quot;&gt;[1]&lt;/a&gt;&lt;/td&gt;&lt;td&gt;This example was incorrect earlier.  I since fixed it and
+updated the section about function calls to also cover the mistake I
+made.  This was pointed out via mail and Twitter by &lt;a class=&quot;reference external&quot; href=&quot;http://twitter.com/cdleary&quot;&gt;Chris Leary&lt;/a&gt;.  Another reason to explicitly set
+semicolons :-)&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Micropackages and Open Source Trust Scaling</title>
+    <id>http://lucumr.pocoo.org/2016/3/24/open-source-trust-scaling</id>
+    <updated>2016-03-24T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2016/3/24/open-source-trust-scaling" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Like everybody else this week &lt;a class=&quot;reference external&quot; href=&quot;https://www.getsentry.com/&quot;&gt;we&lt;/a&gt; had fun
+with &lt;a class=&quot;reference external&quot; href=&quot;http://www.haneycodes.net/npm-left-pad-have-we-forgotten-how-to-program/&quot;&gt;the pad-left disaster&lt;/a&gt;.
+We're from the Python community and our exposure to the node ecosystem is
+primarily for the client side.  We're big fans of the ecosystem that
+develops around react and as such quite a bit of our daily workflow
+involves npm.&lt;/p&gt;
+&lt;p&gt;What frustrated me personally about this conversation that took place over
+the internets about the last few days however has nothing to do with npm,
+the guy who deleted his packages, any potential trademark disputes or the
+supposed inability of the JavaScript community to write functions to pad
+strings.  It has more to do with how the ecosystem evolving around npm has
+created the most dangerous and irresponsible environment which in many
+ways leaves me scared.&lt;/p&gt;
+&lt;p&gt;My opinion very quickly went from “&lt;a class=&quot;reference external&quot; href=&quot;https://twitter.com/mitsuhiko/status/712429716356124673&quot;&gt;Oh that's funny&lt;/a&gt;” to
+“&lt;a class=&quot;reference external&quot; href=&quot;https://twitter.com/mitsuhiko/status/712430645671280640&quot;&gt;This concerns me&lt;/a&gt;”.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;dependency-explosion&quot;&gt;
+&lt;h2&gt;Dependency Explosion&lt;/h2&gt;
+&lt;p&gt;When &amp;quot;pad left&amp;quot; disaster stroke I had a brief look at Sentry's dependency
+tree.  I should probably have done that before but for as long things work
+you don't really tend to do that.  At the time of writing we have 39
+dependencies in our &lt;tt class=&quot;docutils literal&quot;&gt;package.json&lt;/tt&gt;.  These dependencies are strongly
+vetted in the sense that we do not include anything there we did not
+investigate properly.  What however we cannot do, is also to investigate
+every single dependency there is.  The reason for this is how these node
+dependencies explode.  While we have 39 direct dependencies, we have more
+than a thousand dependencies in total as it turns out.&lt;/p&gt;
+&lt;p&gt;To give you a comparison: the Sentry backend (Sentry server) has 45 direct
+dependencies.  If you resolve all dependencies and install them as well
+you end up with a total of 65 packages which is significantly less.  We
+only get a total of 20 packages over what we depend on ourselves.  The
+typical Python project would be similar.  For instance the Flask framework
+depends on three (soon to be four with Click added) other packages:
+Werkzeug, Jinja2 and itsdangerous.  Jinja2 additionally depends on
+MarkupSafe.  All of those packages are written by the same author however
+but split into rough responsibilities.&lt;/p&gt;
+&lt;p&gt;Why is that important?&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;dependencies incur cost.&lt;/li&gt;
+&lt;li&gt;every dependency is a liability.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-cost-of-dependencies&quot;&gt;
+&lt;h2&gt;The Cost of Dependencies&lt;/h2&gt;
+&lt;p&gt;Let's talk about the cost of dependencies first.  There are a few costs
+associated with every dependency and most of you who have been programming
+for a few years will have encountered this.&lt;/p&gt;
+&lt;p&gt;The most obvious costs are that packages need to be downloaded from
+somewhere.  This corresponds to direct cost.  The most shocking example I
+encountered for this is the &lt;a class=&quot;reference external&quot; href=&quot;https://www.npmjs.com/package/isarray&quot;&gt;isarray&lt;/a&gt;
+npm package.  It's currently being downloaded short of 19 million times a
+month from npm.  The entire contents of that package can fit into a single
+line:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;module&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;exports&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;isArray&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{}.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;toString&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;call&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;[object Array]&amp;#39;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;However in addition to this stuff there is a bunch of extra content in it.
+You actually end up downloading a 2.5KB tarball because of all the extra
+metadata, readme, license file, travis config, unittests and makefile.  On
+top of that npm adds 6KB for its own metadata.  Let's round it to 8KB that
+need to be downloaded.  Multiplied with the total number of downloads last
+month the node community downloaded 140GB worth of isarray.  That's half
+of the monthly downloads of what Flask achieves measured by size.&lt;/p&gt;
+&lt;p&gt;The footprint of Sentry's server component is big when you add up all the
+dependencies.  Yet the entire installation of Sentry from pypi takes about
+30 seconds including compiling lxml.  Installing the over 1000
+dependencies for the UI though takes I think about 5 minutes even though
+you end up with a fraction of the code afterwards.  Also the further you
+are away from the npm CDN node the worse the price for the network
+roundtrip you pay.  I threw away my node cache for fun and ran npm install
+on Sentry.  Takes about 4.5 minutes.  And that's with good latency to npm,
+on a above average network connect and a top of the line Macbook Pro with
+an SSD.  I don't want to know what the experience is for people on
+unreliable network connections.  Afterwards I end up with 165MB in
+&lt;cite&gt;node_modules&lt;/cite&gt;.  For comparison the entirety of the Sentry's backend
+dependencies on the file system and all metadata is 60MB.&lt;/p&gt;
+&lt;p&gt;When we have a thousand different dependencies we have a thousand
+different licenses and copyright files.  Really makes me wonder what the
+license screen of a node powered desktop application would look like.  But
+it's not also a thousand licenses, it's a huge number of independent
+developers.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;trust-and-auditing&quot;&gt;
+&lt;h2&gt;Trust and Auditing&lt;/h2&gt;
+&lt;p&gt;This leads me to what my actual issue with micro-dependencies is: we do not
+have trust solved.  Every once in a while people will bring up how we all
+would be better off if we PGP signed our Python packages.  I think what a
+lot of people miss in the process is that signatures were never a
+technical problem but a trust and scaling problem.&lt;/p&gt;
+&lt;p&gt;I want to give you a practical example of what I mean with this.  Say you
+build a program based on the Flask framework.  You pull in a total of 4-5
+dependencies for Flask alone which are all signed off my me.  The attack
+vector to get untrusted code into Flask is:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;get a backdoor into a pull request and get it merged&lt;/li&gt;
+&lt;li&gt;steal my credentials to PyPI and publish a new release with a backdoor&lt;/li&gt;
+&lt;li&gt;put a backdoor into one of my dependencies&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;All of those attack vectors I cover.  I use my own software, monitor what
+releases are PyPI which is also the only place to install my software
+from.  I 2FA all my logins where possible, I use long randomly generated
+passwords where I cannot etc.  None of my libraries use a dependency I do
+not trust the developer of.  In essence if you use Flask you only need to
+trust me to not be malicious or idiotic.  Generally by vetting me as a
+person (or maybe at a later point an organization that releases my
+libraries) you can be reasonably sure that what you install is what you
+expect and not something dangerous.  If you develop large scale Python
+applications you can do this for all your dependencies and you end up with
+a reasonably short list.  More than that.  Because Python's import system
+is very limited you end up with only one version of each library so when
+you want to go in detail and sign off on releases you only need to do it
+once.&lt;/p&gt;
+&lt;p&gt;Back to Sentry's use of npm.  It turns out we have four different versions
+of the same query string library because of different version pinning by
+different libraries.  Fun.&lt;/p&gt;
+&lt;p&gt;Those dependencies can easily end up being high value targets because of
+how few people know about them.  juliangruber's &amp;quot;isarray&amp;quot; has 15 stars on
+github and only two people watch the repository.  It's downloaded 18
+million times a month.  Sentry depends on it 20 times.  14 times it's a
+pin for &lt;tt class=&quot;docutils literal&quot;&gt;0.0.1&lt;/tt&gt;, once it's a pin for &lt;tt class=&quot;docutils literal&quot;&gt;^1.0.0&lt;/tt&gt; and 5 times for
+&lt;tt class=&quot;docutils literal&quot;&gt;~1.0.0&lt;/tt&gt;.  Any pin for anything other than a strict version match is a
+disaster waiting to happen if someone would manage to push out a point
+release for it by stealing juliangruber's credentials.&lt;/p&gt;
+&lt;p&gt;Now one could argue that the same problem applies if people hack my
+account and push out a new Flask release.  But I can promise you I will
+notice a release from one of my ~5 libraries because of a) I monitor those
+packages, b) other people would notice a release.  I doubt people would
+notice a new isarray release.  Yet &lt;tt class=&quot;docutils literal&quot;&gt;isarray&lt;/tt&gt; is not sandboxed and runs
+with the same rights as the rest of the code you have.&lt;/p&gt;
+&lt;p&gt;For instance sindresorhus &lt;a class=&quot;reference external&quot; href=&quot;https://www.npmjs.com/~sindresorhus&quot;&gt;maintains 827 npm packages&lt;/a&gt;.  Most of which are probably one
+liners.  I have no idea how good his opsec is, but my assumption is that
+it's significantly harder for him to ensure that all of those are actually
+his releases than it is for me as I only have to look over a handful.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;signatures&quot;&gt;
+&lt;h2&gt;Signatures&lt;/h2&gt;
+&lt;p&gt;There is a common talk that package signatures would solve a lot of those
+issues but at the end of the day because of the trust we get from PyPI and
+npm we get very little extra security from a package signature compared to
+just trusting the username/password auth on package publish.&lt;/p&gt;
+&lt;p&gt;Why package signatures are not the holy grail was &lt;a class=&quot;reference external&quot; href=&quot;https://caremad.io/2013/07/packaging-signing-not-holy-grail/&quot;&gt;covered by Donald
+Stufft&lt;/a&gt;
+aka Mr PyPI.  You should definitely read that since he's describing the
+overarching issue much better than I could ever do.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;future-of-micro-dependencies&quot;&gt;
+&lt;h2&gt;Future of Micro-Dependencies&lt;/h2&gt;
+&lt;p&gt;To be perfectly honest:  I'm legitimately scared about node's integrity
+of the ecosystem and this worry does not go away.  Among other things I'm
+using keybase and keybase uses unpinned node libraries left and right.
+keybase has 225 node dependencies from a quick look.  Among those many
+partially pinned one-liner libraries for which it would be easily enough
+to roll out backdoor update if one gets hold of credentials.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Update: it has been pointed out that keybase shrinkwrapped in the node
+client and that the new client is written in Go.&lt;/em&gt; &lt;a class=&quot;reference external&quot; href=&quot;https://twitter.com/maxtaco/status/713037656255557632&quot;&gt;Source&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;If micro-dependencies want to have a future then something must change in
+npm.  Maybe they would have to get a specific tag so that the system can
+automatically run automated analysis to spot unexpected updates.  Probably
+they should require a CC0 license to simplify copyright dialogs etc.&lt;/p&gt;
+&lt;p&gt;But as it stands right now I feel like this entire thing is a huge
+disaster waiting to happen and if you are not using node shrinkwrap yet
+you better get started quickly.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Say “Yes” to JavaScript</title>
+    <id>http://lucumr.pocoo.org/2013/7/1/say-yes-to-javascript</id>
+    <updated>2013-07-01T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2013/7/1/say-yes-to-javascript" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;A few days ago Mozilla finally removed some options from their control
+panel.  The one I am most happy about is &lt;a class=&quot;reference external&quot; href=&quot;https://bugzilla.mozilla.org/show_bug.cgi?id=873709&quot;&gt;the removal&lt;/a&gt; of the “Disable
+JavaScript” checkbox.  This goes hand in hand with an earlier blog post
+by Alex Limi about &lt;a class=&quot;reference external&quot; href=&quot;http://limi.net/checkboxes-that-kill/&quot;&gt;Checkboxes that kill your product&lt;/a&gt;.  If you have not read that
+link, do it now.&lt;/p&gt;
+&lt;p&gt;My immediate response to change of removing the switch was: “Thank god,
+that should have happened ages ago”.  When I was happily tweeting this I
+got some responses about how I can support such a step in the browser that
+removes features and restricts a user's freedom.  Instead of replying to
+each and every tweet I figured I might just write down my thoughts on that
+topic.&lt;/p&gt;
+&lt;p&gt;I believe there are two reasons why some people want to disable
+JavaScript: the feeling of extra privacy and improving page speeds.  There
+are two main problems with that: none of those things are solved by
+disabling JavaScript categorically.  The better solution to that are
+add-ons maintained by people that block out the right JavaScript and let
+everything else through.&lt;/p&gt;
+&lt;p&gt;The reason for that is that a user cannot reliably decide on if the
+JavaScript is necessary or not.  There is this general understanding among
+some more technically skilled people that a website should always work
+without JavaScript.  This might have been true a few years ago, but
+nowadays that is impossible to do.&lt;/p&gt;
+&lt;p&gt;Some applications now are written as frontends to APIs and the application
+does not provide any rendering on the server side besides a nice error
+message that the website requires JavaScript.  Worse than that though,
+some websites just assume that JavaScript is actually activated.  In some
+cases they might have one landing page that does a nice fallback to give
+you an error message if JavaScript is missing, but when it deep links you
+to a page that goes away.&lt;/p&gt;
+&lt;p&gt;It's a great day for a web developer when we can finally assume that a
+browser &lt;em&gt;will&lt;/em&gt; have JavaScript running.  Many modern web applications can
+be much more performant &lt;em&gt;because&lt;/em&gt; they take advantage of JavaScript.  User
+interfaces that depend on JavaScript have much better abilities to make it
+enjoyable for a user.&lt;/p&gt;
+&lt;p&gt;I agree that the particular case of a page breaking entirely is not that
+bad because the technical user that disabled it will quickly realize that
+he or she should activate JavaScript again.  Unfortunately there are cases
+where currently users are assuming that JavaScript is not necessary but
+is.&lt;/p&gt;
+&lt;p&gt;A good example for instance is payment handling on the internet.  Unless
+you want to go through all the hoops of getting PCI compliance for your
+servers, you will have to deal with JavaScript payment gateways.  Some are
+not even that nice and only give you a basic iframe to work with and you
+will need JavaScript hacks to make your redirects break out of the iframe.&lt;/p&gt;
+&lt;p&gt;In that particular case the base page of the store does not require
+JavaScript but once you go through a payment flow one step might require
+the execution of JavaScript for the transaction to not get stuck.&lt;/p&gt;
+&lt;p&gt;You don't get extra privacy by disabling JavaScript.  I can fully track
+you even without JavaScript.  At the same time I can enhance your browser
+experience through better written JavaScript code that allows me to do
+things with your browser that plain HTML does not allow.&lt;/p&gt;
+&lt;p&gt;Instead of having a global “disable JavaScript and cookies” flag we should
+instead invest more into things like tightly tuned browser extensions that
+intelligently remove obnoxious JavaScript from specific pages.&lt;/p&gt;
+&lt;p&gt;JavaScript is quickly becoming a huge part of modern web applications.  We
+as developers should be happy that browsers go our way and make our life
+easier.&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Stop Being Cute and Clever</title>
+    <id>http://lucumr.pocoo.org/2013/12/9/stop-being-clever</id>
+    <updated>2013-12-09T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2013/12/9/stop-being-clever" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;The last few days I spent a bit of my spare time on making a &lt;a class=&quot;reference external&quot; href=&quot;http://timesched.pocoo.org/&quot;&gt;world time
+scheduler&lt;/a&gt;.  Some of you might recognize
+the concept from another website.  The idea was quite simple: build a
+clone of worldtime buddy and explore working with third party AngularJS
+directives and a few JavaScript libraries and try to reuse as much as
+possible.&lt;/p&gt;
+&lt;p&gt;It was not a fun experience.  I have not raged so much about working with
+something in a really long time and that says something, because I'm quite
+quick at voicing my unhappiness (I'm so sorry for my Twitter followers).&lt;/p&gt;
+&lt;p&gt;I'm using JavaScript quite regularly on my own, but I very rarely need to
+deal with other people's code.  Normally I pretty much stick to jQuery,
+underscore and maybe AngularJS and I stay focused on the browser or
+command line utilities.  This time around though, I went all-in and used
+various libraries.&lt;/p&gt;
+&lt;p&gt;For this project I obviously used jQuery which is impossible to avoid (and
+why would you) but also AngularJS with a bunch of UI components
+(angular-ui and some bindings to jQuery UI).  For timezone handling I used
+moment.js with moment-timezone.&lt;/p&gt;
+&lt;p&gt;Let me preface this in that I really don't want to criticise anyone's
+individual code here.  More than that, if someone would look at my own
+JavaScript code it would not be any better.  If anything it's worse,
+because I did not spend much time on it and I'm not very experienced with
+JavaScript.&lt;/p&gt;
+&lt;p&gt;However I do see a worrying trend of absolutely appalling code quality
+in JavaScript libraries (at least the selection of the ones I was using)
+and I started to do some thinking on why that is.&lt;/p&gt;
+&lt;p&gt;There are so many problems I have with JavaScript libraries and all of
+them are pretty much a result of how the language works and that nobody
+seems to care.  Not that you could not write better code, but it seems
+like everybody gravitates towards falling into the same traps.&lt;/p&gt;
+&lt;p&gt;The reason I started actively looking into other people's JavaScript code
+was that my naive approach of sending 3MB of city names into the
+typeahead.js autocomplete library resulted in a really sluggish UI.  Now
+obviously a clever person would not send that much into an autocomplete
+field.  A better plan would be to filter the data on the server first, but
+it turns out that it wasn't the loading that was slow, but the filtering of the data.
+That made no sense to me, because even if the system did a linear search
+through 26.000 cities it should not have been this slow.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;backstory&quot;&gt;
+&lt;h2&gt;Backstory&lt;/h2&gt;
+&lt;p&gt;So the UI was slow — obviously it should be my fault of sending so many
+records.  Interestingly though my performance degraded upon usage of
+the typeahead widget.  In very peculiar ways even.  To give you an idea of
+how crazy it, this was my reproduction case which I started out with:&lt;/p&gt;
+&lt;ol class=&quot;arabic simple&quot;&gt;
+&lt;li&gt;Search for San Francisco by typing &amp;quot;san&amp;quot;.  Takes ~200ms.&lt;/li&gt;
+&lt;li&gt;Search for San Francisco by typing &amp;quot;fran&amp;quot;.  Takes ~200ms.&lt;/li&gt;
+&lt;li&gt;Search for San Francisco by typing &amp;quot;san fran&amp;quot;.  Takes a second.&lt;/li&gt;
+&lt;li&gt;Search for San Francisco by typing &amp;quot;san&amp;quot; again.  Takes a second.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;What's going on there?  How does the search corrupt by finding more than
+one item once?&lt;/p&gt;
+&lt;p&gt;The first thing I did was using Firefox' new profiler to see where all
+the time is wasted.  Quite quickly I found a whole bunch of stuff in
+typeahead that was just overly weird.&lt;/p&gt;
+&lt;p&gt;The slowness was relatively quickly found: an epic &lt;a class=&quot;reference external&quot; href=&quot;https://github.com/twitter/typeahead.js/blob/6e641d30d9e1b75b017e9ed1127b7a882f004488/src/dataset.js#L177&quot;&gt;misuse of data
+structures&lt;/a&gt;
+and a weird algorithm.  The whole way of how the library finds matches is
+pretty bizarre and includes such amazing things as going over a list of
+strings and then checking for each of those strings if it's contained
+within any of the other lists including the original list itself.  When
+that first list has 6000 items and for each of those you do a linear
+search if it's indeed in the list this can indeed get pretty slow.&lt;/p&gt;
+&lt;p&gt;But mistakes happen and especially if you only test with small data sets
+you will not notice that.  Me sending thousands of cities and timezones
+into the little thing was too much.  Also not everybody writes search
+functions every day, so I don't blame anyone for that.&lt;/p&gt;
+&lt;p&gt;But because I had to debug this thing I found some of the most bizarre
+code I had the pleasure to read.  Upon further investigation, it seems to
+be hardly a thing unique to typeahead.&lt;/p&gt;
+&lt;p&gt;Based on that I'm now pretty convinced now that JavaScript is the Wild
+West of software development.  Primarily because it rivals 2003 PHP code
+in terms of code quality, but it seems fewer people care because it
+runs on the client instead of server.  You don't have to pay for your
+slowly running JavaScript code.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;clever-code&quot;&gt;
+&lt;h2&gt;“Clever” Code&lt;/h2&gt;
+&lt;p&gt;The first pain point is people being cute and clever with JavaScript.  And
+that makes me reviewing code and hunting for bugs ridiculously paranoid.
+Even if you know the idioms applied you will still not be sure if the
+side effects are intentional or if someone made a mistake.&lt;/p&gt;
+&lt;p&gt;To give you an example of such a weird idom, I want to show you some code
+from typeahead.js as it exists in the library, just reindented to make it
+look nicer:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;_transformDatum&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;datum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;value&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;utils&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;isString&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;datum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;?&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;datum&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;datum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;valueKey&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;
+        &lt;span class=&quot;nx&quot;&gt;tokens&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;datum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;tokens&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;utils&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;tokenizeText&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;item&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;nx&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;nx&quot;&gt;tokens&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;tokens&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;utils&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;isString&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;datum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;nx&quot;&gt;item&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;datum&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{};&lt;/span&gt;
+        &lt;span class=&quot;nx&quot;&gt;item&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;datum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;valueKey&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;datum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;nx&quot;&gt;item&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;datum&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;datum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;nx&quot;&gt;item&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;tokens&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;utils&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;filter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;item&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;tokens&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;token&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;utils&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;isBlankString&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;token&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;});&lt;/span&gt;
+    &lt;span class=&quot;nx&quot;&gt;item&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;tokens&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;utils&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;map&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;item&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;tokens&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;token&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;token&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;toLowerCase&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;});&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;item&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;This is just one function, but it's one that stuck with me for a wide
+range of reasons.  What the function does is converting a datum object
+into an item.  What's a datum?  Well here it starts.  It seems like the
+library author at one point re-decided his approach.  It must have started
+out with accepting a string and then wrapping it in an object that has a
+value attribute (which is the string) and a token array which are the
+individual tokens.  Then however it got messy and now the return value of
+that function is a wrapper around a datum object (or string) that has a
+slightly different interface.  It copies a bunch of the input data over,
+but then it just renames some attributes.  Assuming the input value is an
+object and not a string in this form:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;quot;value&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;San Francisco&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;quot;tokens&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;san&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;francisco&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;quot;extra&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Then a transformation to this happens:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;quot;value&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;San Francisco&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;quot;tokens&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;san&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;francisco&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;quot;datum&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;&amp;quot;value&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;San Francisco&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;&amp;quot;tokens&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;san&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;francisco&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;&amp;quot;extra&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{}&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;I can totally see why the code ends up doing what it does, but from
+looking at a completely different piece of code first it became very
+confusing as of why my datum object became a slightly different datum
+object containing basically the same information.  Worse: it uses double
+the memory because through the array operations it makes copies of the
+tokens.  Looking around a bit it turns out that I could just send the
+correctly formatted datum objects in and cut down memory consumption by
+10MB.&lt;/p&gt;
+&lt;p&gt;The reason though why I want to point out that code, is that it's quite
+idiomatic JavaScript code and that's frustrating.  It's fuzzy and it's
+weird, lacks type information and is too clever.&lt;/p&gt;
+&lt;p&gt;It just sends objects around.  You can't ask the datum: are you a datum.
+It's just an object.  Given how similar the input data looked I expected
+the return value to be the same object, but it was not.  Looking more into
+the implementation though it turned out that you could send a whole bunch
+of different types in — and it would still have worked, just done
+something else entirely and blown up much, much later.  It's impressive
+how much bad input data you can send in and JavaScript will still somehow
+come up with results.&lt;/p&gt;
+&lt;p&gt;But not only does it lack type information, that code also tries to be
+really clever with using a mix of operator abuse and functional
+programming.  I can't tell you how paranoid I am about this style of
+JavaScript nowadays given how weird the map functions works.  Not many
+languages manages to implement map in a way that &lt;tt class=&quot;docutils literal&quot;&gt;[&amp;quot;1&amp;quot;, &amp;quot;2&amp;quot;,
+&lt;span class=&quot;pre&quot;&gt;&amp;quot;3&amp;quot;].map(parseInt)&lt;/span&gt;&lt;/tt&gt; would result in &lt;tt class=&quot;docutils literal&quot;&gt;[1, NaN, NaN]&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;Reasoning about JavaScript code is hard.&lt;/p&gt;
+&lt;p&gt;This however is not the extent of it.  The abuse of language and operators
+is widespread.  A bit further down this amazing piece of code can be
+found:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;_processData&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;that&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;itemHash&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{},&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;adjacencyList&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{};&lt;/span&gt;
+    &lt;span class=&quot;nx&quot;&gt;utils&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;each&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;datum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;item&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;that&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;_transformDatum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;datum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;id&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;utils&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;getUniqueId&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;item&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+        &lt;span class=&quot;nx&quot;&gt;itemHash&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;id&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;item&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;nx&quot;&gt;utils&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;each&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;item&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;tokens&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;token&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;character&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;token&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;charAt&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;adjacency&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;
+                &lt;span class=&quot;nx&quot;&gt;adjacencyList&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;character&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;adjacencyList&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;character&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;id&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
+            &lt;span class=&quot;o&quot;&gt;!~&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;utils&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;indexOf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;adjacency&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;id&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;adjacency&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;push&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;id&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;});&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;});&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;nx&quot;&gt;itemHash&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;itemHash&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;nx&quot;&gt;adjacencyList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;adjacencyList&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;To fill in the reader: &lt;tt class=&quot;docutils literal&quot;&gt;utils.indexOf&lt;/tt&gt; is a linear search in an array
+and &lt;tt class=&quot;docutils literal&quot;&gt;utils.getUniqueId&lt;/tt&gt; returns an ever increasing integer as an actual
+integer.&lt;/p&gt;
+&lt;p&gt;Obviously the writer of this code knew about hash tables having an
+&lt;tt class=&quot;docutils literal&quot;&gt;O(1)&lt;/tt&gt; complexity, otherwise why would that person put that string into
+the hashmap.  Yet a few lines of code later it does a linear search first
+before placing the item in the list.  When throwing 100,000 tokens at this
+code, it gets really slow, trust me.&lt;/p&gt;
+&lt;p&gt;Also I would like to point out this loop:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;utils&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;each&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;item&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;tokens&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;token&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;character&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;token&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;charAt&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;adjacency&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;
+        &lt;span class=&quot;nx&quot;&gt;adjacencyList&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;character&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;adjacencyList&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;character&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;id&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;!~&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;utils&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;indexOf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;adjacency&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;id&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;adjacency&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;push&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;id&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;});&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;I'm pretty sure the author was very proud.  For a start why is it written
+like this?  Is &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;!~utils.indexOf(...)&lt;/span&gt; &amp;amp;&amp;amp;&lt;/tt&gt; really a good replacement over
+&lt;tt class=&quot;docutils literal&quot;&gt;if &lt;span class=&quot;pre&quot;&gt;(utils.indexOf(...)&lt;/span&gt; &amp;gt;= 0)&lt;/tt&gt;?  Let alone the fact that the hashmap
+with the adjacency lists is called &lt;cite&gt;adjacencyList&lt;/cite&gt; ... Or that the list is
+initialized with the ID of the string and then immediately a linear search
+is performed over that list to find the item again.  Or that the entry in
+the hashmap is created by checking for the boolean-ness of the list and
+then using the or operator to invoke an assignment expression to place a
+list in the hashmap.&lt;/p&gt;
+&lt;p&gt;Another common hack I see is to use the unary plus operator (which in any
+other programming language is the most pointless operator ever since it's
+a noop) to convert a string into an integer.  &lt;tt class=&quot;docutils literal&quot;&gt;+value&lt;/tt&gt; is pretty much
+the same as &lt;tt class=&quot;docutils literal&quot;&gt;parseInt(value, 10)&lt;/tt&gt;.  This is a ridiculous pattern and I wish
+it would not exist.&lt;/p&gt;
+&lt;p&gt;So I have this theory that this whole crazy business with operators is
+coming from Ruby.  But in Ruby it made sense as there were only two
+objects that are false: &lt;cite&gt;false&lt;/cite&gt; and &lt;cite&gt;nil&lt;/cite&gt;.  Everything else is true.
+Ruby's whole language is based on that concept too.  In JavaScript many
+objects are false and then sometimes not.&lt;/p&gt;
+&lt;p&gt;For instance the empty string &lt;tt class=&quot;docutils literal&quot;&gt;&amp;quot;&amp;quot;&lt;/tt&gt; is false.  Except when it's an
+object then it's true.  Strings get promoted to objects by accident
+sometimes.  For instance jQuery's &lt;tt class=&quot;docutils literal&quot;&gt;each&lt;/tt&gt; function passes the current
+value of the iterator as &lt;cite&gt;this&lt;/cite&gt;.  But because this cannot point to
+primitives like numbers and strings, the object needs to get promoted to a
+boxed string object.  All the sudden it behaves different in some
+situations:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;kc&quot;&gt;false&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Being cute with operators makes sense in ruby, but it makes no sense at
+all in JavaScript.  It's dangerous.  Not because I don't trust the
+developer to test his code and know what he's doing, but because later on
+someone else will have to look at the code and he will no longer know if
+the behavior was intentional or not.&lt;/p&gt;
+&lt;p&gt;To use the &lt;tt class=&quot;docutils literal&quot;&gt;~&lt;/tt&gt; operator to check the return value of an &lt;cite&gt;indexOf&lt;/cite&gt;
+function that returns &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;-1&lt;/span&gt;&lt;/tt&gt; for a missing match is just crazy business.
+And please don't come with the argument that it's faster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;we-re-doing-it-live&quot;&gt;
+&lt;h2&gt;We're Doing it Live!&lt;/h2&gt;
+&lt;p&gt;Questionable use of operators and fuzzy typing is one thing, but the real
+killer is that people take the dynamic nature of JavaScript to the max.
+For me Python is already too much of a dynamic language, but at least
+Pythonistas are pretty reasonable with keeping runtime modification of
+classes and namespaces to a minimum.  But no, not so in JavaScript, and
+especially not in the angular world.&lt;/p&gt;
+&lt;p&gt;Classes do not exist, in JavaScript you're doing objects and sometimes
+they might have prototypes.  More often than not it's a big frack you to
+prototypes though and everybody just puts functions on objects.  Sometimes
+also functions to functions for good measure.  Weird object cloning is
+then par of the course except when it's not and state is just mutated left
+and right.  The singleton is god.&lt;/p&gt;
+&lt;p&gt;You find an angular directive that's pretty good but does one thing
+differently than you wanted?  There is a damn good chance it's monolithic
+though and the only way to modify is, is to attach a second directive at a
+higher priority that patches around in the scope of the other.  I wouldn't
+even be unhappy if subclassing was a thing of the past, and composition
+was the way forward, but this monkeypatching business is just not my
+style.&lt;/p&gt;
+&lt;p&gt;The dynamic nature of everything makes code evolve very, very quickly into
+an unmanageable mess where nobody quite knows any more what something
+does any more.&lt;/p&gt;
+&lt;p&gt;It's not just the lack of classes and types though.  The whole environment
+feels so much like a thing that is held together by duct tape on top of
+some layer of grease and paste.&lt;/p&gt;
+&lt;p&gt;Angular for instance uses this system of watching models and DOM for
+changes to automatically synchronize them.  Except it's so damn slow at
+it, that people write weird workarounds to attempt to stop handlers from
+firing.  This fuzzy logic quickly gets ridiculously confusing.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;what-is-immutability&quot;&gt;
+&lt;h2&gt;What is Immutability&lt;/h2&gt;
+&lt;p&gt;The higher level a programming language goes, the more immutable things
+get.  At least that was my feeling so far.  Not so in JavaScript.  APIs
+are littered with stateful concepts.  Maybe it's misplaced performance
+thing but it gets annoying quickly.  Some of the most annoying bugs I had
+to deal with in my scheduler app was the mutable nature of moment (date)
+objects.  Instead of &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;foo.add('minutes',&lt;/span&gt; 1)&lt;/tt&gt; returning a new object, it
+modifies &lt;cite&gt;foo&lt;/cite&gt; in place.  It's not that I did not know about that, the API
+is quite clear about it.  But unfortunately some code accidentally passed
+a reference out and it got modified.&lt;/p&gt;
+&lt;p&gt;Admittedly JavaScript should in theory be amazing for building APIs that
+use immutable objects considering you can freeze objects at will.  This is
+something that Python unfortunately lacks.  However at the same time
+Python has many more tools for making immutable objects interesting.  For
+instance it supports operator overloading and has first class support for
+using immutable objects as hash keys.  JavaScript has neither.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;useful-magic&quot;&gt;
+&lt;h2&gt;“Useful Magic”&lt;/h2&gt;
+&lt;p&gt;I love angular, very much so.  It's one of the sanest systems out there
+for UI design in JavaScript but the magic in it frightens me.  It starts
+with the simple things where the library renames directives.  If you make
+a directive called &lt;cite&gt;fooBar&lt;/cite&gt; you will use it as &lt;cite&gt;foo-bar&lt;/cite&gt; in the DOM.  Why?
+I suppose consistency with the &lt;tt class=&quot;docutils literal&quot;&gt;style&lt;/tt&gt; DOM API which did something
+similar in the past.  This makes looking for code really confusing because
+you might not quite know what the directive is called exactly.  It also
+completely abolishes the idea of namespaces.  If you have two directives
+with the same name in two different angular applications they will clash.&lt;/p&gt;
+&lt;p&gt;It does make the code more concise but also super confusing.  It also
+subverts the rules of the language in parts.  Dependency injection in
+angular happens by default through converting the JavaScript function back
+into a string (which yields the code) and then to use a regular expression
+to parse the function arguments.  If you are new to Angular that makes no
+sense at all and even now I find the whole idea of doing it like this just
+inherently wrong.  For a start, it subverts what JavaScript people have
+been doing for quite a while and that is treating local variables as
+basically anonymous.  The name does not matter.  This is something that
+minimizers have been taking advantage for ages.  Obviously that does not
+fare well with Angular so it provides an alternative to explicitly declare
+dependencies.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;what-are-layers&quot;&gt;
+&lt;h2&gt;What are Layers?&lt;/h2&gt;
+&lt;p&gt;One of the biggest oddities coming from a Python environment to client
+side JavaScript is the apparent entire lack of abstractions.  As an
+example of this, Angular provides a way to access the current URL's query
+parameters as dictionary.  What however it does not provide is a way to
+parse arbitrary query strings.  Why?  Because the internal parsing
+function is hidden away behind layers of closures and someone did not
+think that would be useful.&lt;/p&gt;
+&lt;p&gt;And it's not just Angular, it's everywhere.  JavaScript for instance lacks
+a function to properly escape HTML.  But the DOM internally obviously
+needs to do this in places.  So here is what I see people seriously
+suggesting as HTML escape function:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;escapeHTML&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;el&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;document&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;createElement&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;span&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;nx&quot;&gt;el&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;appendChild&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;document&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;createTextNode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;el&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;innerHTML&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;And it's not just parsing HTML that people do this way.  Observe how to
+use the DOM for link parsing:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;getQueryString&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;url&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;el&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;document&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;createElement&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;a&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;nx&quot;&gt;el&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;href&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;url&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;el&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;search&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;I find this insane, but it's absolutely everywhere.&lt;/p&gt;
+&lt;p&gt;In some ways I can understand that developers don't necessarily want to
+expose low-level functions but the end result is that users hack around in
+weird ways or duplicate the function for their own use.  It's not uncommon
+to have half a dozen implementations of the same functionality in a larger
+JavaScript application.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;but-it-runs&quot;&gt;
+&lt;h2&gt;“But it runs”&lt;/h2&gt;
+&lt;p&gt;PHP got big because it just worked and it took no time to get started.  A
+whole generation of developers started working with it and together that
+group of developers rediscovered years of prior experience in very painful
+ways.  There was a group mentality where one person copied the next
+person's code and did not think much about how it works.  I remember
+how plugin systems were just crazy talk and the common way for
+extensibility for PHP applications were &lt;a class=&quot;reference external&quot; href=&quot;https://www.phpbb.com/kb/article/how-to-install-mods/&quot;&gt;mod files&lt;/a&gt;.  Some misguided
+fool started that way and all the sudden everybody did it.  I'm pretty
+sure that's exactly how we ended up with register globals everywhere,
+weird manual SQL escaping (if there was escaping at all), the whole
+concept of sanitizing input instead of proper escaping etc.&lt;/p&gt;
+&lt;p&gt;JavaScript is largely the same.  While it's a different generation of
+developers and different problems, the whole mentality of copying together
+concepts found in one library into the next feels similar.  Worse: because
+it's running in a sandbox and on people's computers nobody seems to give a
+thought about security at all.  With the complete absence of escaping
+functions, HTML is concatenated with input strings left and right.&lt;/p&gt;
+&lt;p&gt;And unlike PHP performance does not matter because client side JavaScript
+“scales linearly with the number of users” running the application.&lt;/p&gt;
+&lt;p&gt;Angular is not inherently slow, but it's just so easy to make slow Angular
+directives and there are too many out there (and it's too easy to make your
+own slow ones).  Since you don't pay for the CPU time it is not even a
+consideration.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-future&quot;&gt;
+&lt;h2&gt;The Future?&lt;/h2&gt;
+&lt;p&gt;I'm not super pessimistic about JavaScript.  It's definitely improving but
+I think it will go through the same phase of emancipation as PHP where
+people from other languages and environments are forced to work with it
+and slowly introduce sanity into the community.  There will be a time
+after which the monkey patching of prototypes will stop, where stronger
+type systems will be introduced, people will start thinking about
+concurrency, where there will be a backlash over crazy meta programming
+and more.&lt;/p&gt;
+&lt;p&gt;Over the last few years you could see similar things happening in the
+Python community.  A few years ago meta classes were the hot new thing and
+now that people write bigger and bigger applications some sanity has returned.
+When Django came out the developers had to defend the use of functions
+instead of classes.  Now nobody talks much about that any more.&lt;/p&gt;
+&lt;p&gt;I just hope it will take the JavaScript community less time to adjust than
+others before them.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">The Problem with Implicit Scoping in CoffeeScript</title>
+    <id>http://lucumr.pocoo.org/2011/12/22/implicit-scoping-in-coffeescript</id>
+    <updated>2011-12-22T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2011/12/22/implicit-scoping-in-coffeescript" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;I love JavaScript and more than that I do love CoffeeScript quite a bit.
+It's beautiful, it follows largely the Ruby and Python design patterns
+that make sense and on top of all that is the code it generates really,
+really well done.  However I do have a major problem with it, and that's
+unfortunately part of the language design and cannot be fixed unless you
+fork off the project.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;closures-and-scoping&quot;&gt;
+&lt;h2&gt;Closures and Scoping&lt;/h2&gt;
+&lt;p&gt;Generally when you want to have a language that supports closures that are
+not only readable but also reassignable you need to express the difference
+in intention of creating a new variable in the current scope or overriding
+the one in the top level scope.&lt;/p&gt;
+&lt;p&gt;In JavaScript the &lt;tt class=&quot;docutils literal&quot;&gt;var&lt;/tt&gt; keyword explicitly specifies that you want a new
+variable.  If it's missing you reassign a variable of the same name in a
+higher scope:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;makeCounter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;counter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;             &lt;span class=&quot;cm&quot;&gt;/* new variable here */&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;inc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;nx&quot;&gt;counter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;counter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* reassign higher level variable */&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;counter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;In Python (Python 3 to be exact) the logic is inversed.  You need a
+keyword to express the intent of reassigning from an outer scope:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;make_counter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;counter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;                 &lt;span class=&quot;c1&quot;&gt;# new variable here&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;inc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;nonlocal&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;counter&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;counter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;counter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;   &lt;span class=&quot;c1&quot;&gt;# reassign higher level variable&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;counter&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inc&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;CoffeeScript does a third thing which is “always reassign unless unknown
+from higher scope”.  In this case it looks like this:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;makeCounter = &lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;-&amp;gt;&lt;/span&gt;
+  &lt;span class=&quot;nv&quot;&gt;counter = &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;                   &lt;span class=&quot;c1&quot;&gt;# new variable here&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;-&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nv&quot;&gt;counter = &lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;counter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;       &lt;span class=&quot;c1&quot;&gt;# reassign higher level variable&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;counter&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;why-is-coffeescript-s-method-bad&quot;&gt;
+&lt;h2&gt;Why is CoffeeScript's Method Bad?&lt;/h2&gt;
+&lt;p&gt;Now if you look at the code above the CoffeeScript one is the shortest.
+And you could even further simplify it.  However there is a huge problem
+with it: it makes maintenance of large code much harder than it has to be
+and because the problem can be entirely silent you won't notice until it's
+too late.&lt;/p&gt;
+&lt;p&gt;I had the problem for the first time where I was introducing a helper
+function in the same file that was named like a local helper variable.&lt;/p&gt;
+&lt;p&gt;The original code looked like this:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;shaderFromSource = &lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;(ctx, type, source, filename) -&amp;gt;&lt;/span&gt;
+  &lt;span class=&quot;nv&quot;&gt;shader = &lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;createShader&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+  &lt;span class=&quot;nv&quot;&gt;source = &lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;#define &amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;type&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;#39;\n&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;source&lt;/span&gt;
+  &lt;span class=&quot;nx&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;shaderSource&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;shader&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;source&lt;/span&gt;
+  &lt;span class=&quot;nx&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;compileShader&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;shader&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;getShaderParameter&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;shader&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;COMPILE_STATUS&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;shader&lt;/span&gt;
+  &lt;span class=&quot;nv&quot;&gt;log = &lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;getShaderInfoLog&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;shader&lt;/span&gt;
+  &lt;span class=&quot;nx&quot;&gt;console&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;error&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;describeShaderLog&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;log&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;filename&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Later I added this line on the top of the file:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;log&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;sin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cos&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;tan&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;Math&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;The purpose of that line is to “import” a bunch of functions from the
+&lt;tt class=&quot;docutils literal&quot;&gt;Math&lt;/tt&gt; “namespace”.  The end result is that in that file you can then
+use &lt;tt class=&quot;docutils literal&quot;&gt;tan(x)&lt;/tt&gt; instead of &lt;tt class=&quot;docutils literal&quot;&gt;Math.tan(x)&lt;/tt&gt;.  However adding that line now
+lets &lt;tt class=&quot;docutils literal&quot;&gt;shaderFromSource&lt;/tt&gt; fail.  Why?  Because it assigns to a variable
+named &lt;tt class=&quot;docutils literal&quot;&gt;log&lt;/tt&gt; which previously was local and just became global.&lt;/p&gt;
+&lt;p&gt;And the function will continue to work.  I was able to use the code for a
+while until I spotted that.  I did spot it late because of two reasons.
+One was that the &lt;tt class=&quot;docutils literal&quot;&gt;log&lt;/tt&gt; statement only ocurred if a shader failed loading
+and I had no shader errors for a while, secondly even after the function
+finished execution the code still worked up to the point where I called
+into the matrix calculation function again that needed the math imports.&lt;/p&gt;
+&lt;p&gt;At that point you get &lt;tt class=&quot;docutils literal&quot;&gt;log&lt;/tt&gt; is not a function and you wonder what
+happened.  Considering there are 400 lines of code in that module it took
+me a bit to figure out what happened.  Coupled with the race condition
+that it was this totally annoyed me.&lt;/p&gt;
+&lt;p&gt;Adding an import or writing a new function / global variable should never,
+ever affect local code in a function!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-simple-solution&quot;&gt;
+&lt;h2&gt;The Simple Solution&lt;/h2&gt;
+&lt;p&gt;The simple solution is to either add a &lt;tt class=&quot;docutils literal&quot;&gt;nonlocal&lt;/tt&gt; keyword like Python
+has or to introduce a &lt;tt class=&quot;docutils literal&quot;&gt;:=&lt;/tt&gt; parameter that works like &lt;tt class=&quot;docutils literal&quot;&gt;=&lt;/tt&gt; but
+explicitly overrides a higher level variable:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;makeCounter = &lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;-&amp;gt;&lt;/span&gt;
+  &lt;span class=&quot;nv&quot;&gt;counter = &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;                   &lt;span class=&quot;c1&quot;&gt;# new variable here&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;-&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nx&quot;&gt;counter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;counter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;       &lt;span class=&quot;c1&quot;&gt;# reassign higher level variable&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;counter&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;This could even be implicit for &lt;tt class=&quot;docutils literal&quot;&gt;+=&lt;/tt&gt; and other compound parameters since
+those will already assume that something from a higher scoped is assigned.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;inconsistencies&quot;&gt;
+&lt;h2&gt;Inconsistencies&lt;/h2&gt;
+&lt;p&gt;Jeremy Ashkenas (who is the developer behind CoffeeScript) told me on
+Twitter the following after proposing to fix this:&lt;/p&gt;
+&lt;blockquote&gt;
+&amp;#64;mitsuhiko Not gonna happen ;) Forbidding shadowing altogether is a
+huge win, and a huge conceptual simplification.&lt;/blockquote&gt;
+&lt;p&gt;Now here is the next problem.  CoffeeScript does not even forbid
+shadowing.  For instance function parameters shadow as show in this code
+(which works):&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;updateVBO: &lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;(x, y, z) -&amp;gt;&lt;/span&gt;
+  &lt;span class=&quot;nv&quot;&gt;chunk = &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;getChunk&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;y&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;z&lt;/span&gt;
+  &lt;span class=&quot;nv&quot;&gt;maker = &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;webglmc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;CubeMaker&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;
+
+  &lt;span class=&quot;nv&quot;&gt;addPlane = &lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;(side, block) -&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nx&quot;&gt;maker&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;addSide&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;side&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;getBlockTexture&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;block&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+  &lt;span class=&quot;nv&quot;&gt;isAir = &lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;(cx, cy, cz) =&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;cx&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cx&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;CHUNK_SIZE&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt;
+        &lt;span class=&quot;nx&quot;&gt;cx&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cx&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;CHUNK_SIZE&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt;
+        &lt;span class=&quot;nx&quot;&gt;cx&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cx&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;CHUNK_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;chunk&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;cx&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cy&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;CHUNK_SIZE&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cz&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;CHUNK_SIZE&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;CHUNK_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;getBlock&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;x&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;CHUNK_SIZE&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+                         &lt;span class=&quot;nx&quot;&gt;y&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;CHUNK_SIZE&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+                         &lt;span class=&quot;nx&quot;&gt;z&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;CHUNK_SIZE&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cz&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cz&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;CHUNK_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cy&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;CHUNK_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cx&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;CHUNK_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+        &lt;span class=&quot;nv&quot;&gt;block = &lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;chunk&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;cx&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cy&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;CHUNK_SIZE&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cz&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;CHUNK_SIZE&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;CHUNK_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;continue&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;block&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;isAir&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cx&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cz&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;addPlane&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;left&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;block&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;isAir&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cx&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cz&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;addPlane&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;right&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;block&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;isAir&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cy&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cz&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;addPlane&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;bottom&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;block&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;isAir&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cy&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cz&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;addPlane&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;top&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;block&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;isAir&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cz&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;addPlane&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;far&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;block&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;isAir&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cz&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;addPlane&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;near&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;block&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;The local &lt;tt class=&quot;docutils literal&quot;&gt;isAir&lt;/tt&gt; helper function uses the same parameters as the loop
+below.  Since it's a function parameter and CoffeeScript does not touch
+them they are automatically shadowing the loop and the code works.
+Exactly as expected and wanted.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;shadowing-is-good-for-you&quot;&gt;
+&lt;h2&gt;Shadowing is Good for You&lt;/h2&gt;
+&lt;p&gt;Shadowing is good for you, seriously.  With proper explicit scoping you
+only have to look on the code of the screen to see what it affects.  From
+the assignment you automatically know if it will be changing something
+from a higher scope or not.&lt;/p&gt;
+&lt;p&gt;CoffeeScript obviously gets a lot of inspiration from Ruby which suffers
+from the same problem, but with a much smaller impact.  In Ruby scoping
+ends at the next method.  Global variables are prefixed with &lt;tt class=&quot;docutils literal&quot;&gt;$&lt;/tt&gt; and
+classes and modules use a separate lookup which is determined by starting
+with a capital letter which is enforced.&lt;/p&gt;
+&lt;p&gt;As it stands right now, I consider the CoffeeScript scoping rules the
+worst of all possible scoping rules and it makes me feel uncomfortable
+using the language, now that I was bitten already.&lt;/p&gt;
+&lt;p&gt;Considering we won't see this changed since the author has already closed
+the issue and expressed his satisfaction with the current rules this
+article should at least serve as a reminder for errors not to repeat with
+the next language someone designs.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+</feed>
+

@@ -1,0 +1,237 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>April 1st Post Mortem | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">April 1st Post Mortem</h1>
+
+  
+  <p class=date>written on Saturday, April 3, 2010
+  
+
+  <p>This year I decided to finally do what I planned for quite some time: an
+April's fool joke. (I did contribute a bit to <a class="reference external" href="http://www.python.org/dev/peps/pep-3117/">PEP 3117</a>, but that does not count).
+This year I decided to make a little joke about Python microframeworks
+(micro-web-frameworks?) and wrote a little thing, and created a website
+and screencast for it: <a class="reference external" href="http://denied.immersedcode.org/">denied.immersedcode.org</a>.</p>
+<p>I did expect some responses to that, but I was a little bit surprised by
+some of them though. So here my full disclosure of the april's fool
+prank, what people thought of it and what my conclusion is.</p>
+<div class="section" id="the-motivation">
+<h2>The Motivation</h2>
+<p>It seems like everybody likes microframeworks. Not sure what caused
+that, but there are plenty of them. web.py (Python) and camping (Ruby)
+where the first of their kind I think. Later others followed and it
+seemed that people love the idea of software that does not have
+dependencies and comes in a single file. So I thought, I can do the same
+and make fun of it, so let's just create a framework based on existing
+technology and throw everything together in a large single file: denied
+was born. I just bundled a Werkzeug, simplejson and Jinja2 into a single
+file and added a bit of code that glues them together.</p>
+</div>
+<div class="section" id="the-implementation">
+<h2>The Implementation</h2>
+<p>Denied consists of 160 lines of code that implements a very basic WSGI
+application based on Werkzeug and Jinja2 that incorporates really stupid
+ideas into the code:</p>
+<ul class="simple">
+<li>it <a class="reference external" href="http://lucumr.pocoo.org/2009/7/24/singletons-and-their-problems-in-python">stores state in the module</a>
+and uses implicitly defined data structures</li>
+<li>there is a function that accepts both a template filename or a
+template source string as the same parameter and guesses based on the
+contents of the string.</li>
+<li>it introspects the interpreter frame to figure out the name of the
+function that called a template render function to automagically guess
+the name of the template.</li>
+<li>it uses automatic function registration and decorators to register
+URL rules.</li>
+</ul>
+<p>I don't want to go into details why I hate everything there, that would
+be a blog post of its own, but I want to point out that nearly all of
+these &quot;features&quot; were inspired by existing microframeworks.</p>
+<p>I did not expect anyone to detect from these things that the framework
+was an April's fool joke, but I thought that the obfuscated sourcecode
+and the fact that it was basically just a zipfile would be obvious.
+However I got more than one mail asking me to release the sourcecode of
+it because people want to hack on it. Right now it has more than 50
+followers and 6 forks on github which is insane if you keep in mind that
+Jinja2 and Werkzeug have less than 30 on bitbucket.</p>
+<p>Thinking about it a bit more made me realize that camping back in the
+days was in fact delivered as obfuscated 2K file of Ruby code. Not sure
+why _why did that, but he was a man of mysteries so probably just
+because he thought it was fun.</p>
+</div>
+<div class="section" id="the-screencast">
+<h2>The Screencast</h2>
+<p>To make the joke more obvious I created a screencast that would showcase
+the framework and do pretty much everything wrong. For that I created a
+persona called &quot;Eirik Lahavre&quot; that implemented the framework and did
+the screencast. Originally I wanted that person to be a Norwegian web
+developer but unfortunately the designated speaker disappeared so I had
+to ask a friend of mine (Jeroen Ruigrok van der Werven) to record it for
+me but he told me he can't do a norwegian accent so he went with French
+and Eirik Lundbergh became Eirik Lahavre. I lay flat on the floor when I
+listened to the recording for the first time because he's actually Dutch
+:)</p>
+</div>
+<div class="section" id="the-website">
+<h2>The Website</h2>
+<p>For the website I collected tongue-in-cheek fake endorsements from
+popular Python programmers and added one for myself that was just
+bashing the quality of the code. I'm afraid I sort of made myself
+popular by bashing other people's web frameworks, at least reading
+reddit, hacker news and various mailinglists leaves that impression so I
+thought it would be fun to emphasize that a bit more on that website.
+This also comes very close to the website of web.py which shows a few
+obviously bad comments from popular Python hackers.</p>
+<p>Furthermore the website shows a useless and short hello world example
+which shows nothing about how the framework works. This was inspired by
+every other microframework website out there. It claims RESTfulnes and
+super scaling capabilities, kick-ass performance and describes the
+developer of the project (the fictional Eirik Lahavre) as god of Python
+code and coming from a professional company.</p>
+</div>
+<div class="section" id="the-details">
+<h2>The Details</h2>
+<p>For everything in the joke I did what I would never do. I even went so
+far to create the HTML of the website against my own code style, to use
+deprecated HTML tags in the presentation, claim to use XHTML even though
+the doctype and mimetype was wrong. The screencast also claims that flat
+files were a scalable NoSQL database and that missing form helpers were
+something positive because it means full flexibility.</p>
+</div>
+<div class="section" id="the-impact">
+<h2>The Impact</h2>
+<p>The screencast was downloaded over 10,000 times and the website got more
+than 50.000 hits. The link is still tweeted and I never got that many
+retweets for anything related to my projects so far. The fake project on
+github has more than 50 followers and 6 forks. Quite a few people took
+the project serious from the few comments on reddit and the emails I
+got.</p>
+</div>
+<div class="section" id="what-i-learned">
+<h2>What I learned</h2>
+<ul class="simple">
+<li>It does not matter how good intended or well written a project is,
+the bold marketing is king. Being present on github is <em>huge</em>. As much
+as I love bitbucket and mercurial, but there is an immense difference
+between having your project on github or bitbucket, and I'm afraid
+that no matter what bitbucket does or what the mercurial people do,
+they will never even come close to github in terms of user base people
+following your code and contributing.</li>
+<li>Small snippets of code on the website are killer. Werkzeug tries to
+be honest by not showcasing a small &quot;Hello World&quot; application but
+something more complex to show the API, but that does not attract
+users. Jinja2 does not even try to show anything at all, you have to
+look at the documentation to see how it looks like. That drives
+potential users away.</li>
+<li>Don't be honest: be bold. Nobody will check your claims anyway and
+if they don't live up to the promise, you can still say that your test
+setup was or your understanding of the problem is different.</li>
+<li>There is no such thing as a &quot;bad endorsement&quot;. People took it as a
+good sign that I did not give the project my blessing.</li>
+</ul>
+</div>
+<div class="section" id="the-small-library">
+<h2>The Small Library</h2>
+<p>I'm currently trying to learn everything about game development and 3D
+graphics I possibly can. I found out that the best way to learn that is
+to write a minimal engine from scratch. Right now I'm doing that by
+looking at other source code and reading books and writing the most
+minimal code I can. I always try to prove to myself: existing code is
+way to complex, that has to be easier. After the third refactoring and
+improvements I usually end up with something as complex as the original
+code or the explanation from the book.</p>
+<p>There is a reason why things are as complex as they are and not easier.
+I think the same is true for microframeworks. The reason why everybody
+is that crazy about having a single file implementing whatever is
+necessary to implement a web application is because you can claim it's
+easy and you can understand it. However things are not that easy in
+reality. I am pretty sure that other framework developers will agree.</p>
+<p>web.py is the perfect example for that. It started as a library in 1000
+lines of code in a single file, and look at what it became. It's not
+that simple any more. Many of the initial design decisions that were
+plain wrong were reverted. Such as abusing the print statement for
+outputting values to the browser. There were good reasons why nobody
+before web.py used print to output strings, yet web.py did it that way.
+And a few versions later it disappeared again for good.</p>
+</div>
+<div class="section" id="what-will-change">
+<h2>What will Change?</h2>
+<p>For one I will put small example snippets on the Werkzeug and Jinja2
+website. Also for the fun of it I will publish one of the projects on
+github just to see how that works out. In general though, I will try to
+keep things low profile because I just feel more comfortable with that.</p>
+<p>Obviously, denied will stay the April's fool joke it was and not get
+further attention. The &quot;promised&quot; documentation will not come :) However
+I will probably blog about &quot;how to create your own microframework based
+on Werkzeug&quot; because right now people base their microframeworks on the
+standard library which I think is a terrible idea. One dependency might
+not be as good as no dependency, but with Tarek Ziade's tremendous work
+on packaging with Python that should not be a problem in the near
+future.</p>
+</div>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/flask/">flask</a> and 
+      <a href="/tags/python/">python</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

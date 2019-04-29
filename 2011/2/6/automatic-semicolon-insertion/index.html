@@ -1,0 +1,332 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>Dealing with JavaScript&#39;s Automatic Semicolon Insertion | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">Dealing with JavaScript's Automatic Semicolon Insertion</h1>
+
+  
+  <p class=date>written on Sunday, February 6, 2011
+  
+
+  <p>If you look at the grammar of ECMAScript (or JavaScript for that matter)
+you will quickly notice that it requires semicolons as marker for the end
+of certain statements.  However if you look a little further you will
+find this little gem:</p>
+<blockquote>
+Certain ECMAScript statements (empty statement, variable statement,
+expression statement, <cite>do</cite>-<cite>while</cite> statement, <cite>continue</cite> statement,
+<cite>break</cite> statement, <cite>return</cite> statement, and <cite>throw</cite> statement) must be
+terminated with semicolons. Such semicolons may always appear
+explicitly in the source text. For convenience, however, such
+semicolons may be omitted from the source text in certain situations.
+These situations are described by saying that semicolons are
+automatically inserted into the source code token stream in those
+situations.</blockquote>
+<p>So how are these semicolons inserted for you?  By following these rules
+(paraphrased and simplified from ECMA-262 3rd edition, 7.9.1):</p>
+<ul>
+<li><p class="first">When, as the program is parsed, a token (called the offending token)
+is encountered that is not allowed by any production of the grammar,
+then a semicolon is automatically inserted before the offending token
+if one or more of the following conditions is true:</p>
+<ol class="arabic simple">
+<li>The offending token is separated from the previous token by
+at least one <cite>LineTerminator</cite>.</li>
+<li>The offending token is <tt class="docutils literal">}</tt>.</li>
+</ol>
+</li>
+<li><p class="first">When the end of the input stream of tokens is encountered and the
+parser is unable to parse the input token stream as a single complete
+program, then a semicolon is automatically inserted at the end of
+the input stream.</p>
+</li>
+<li><p class="first">A token is a restricted token when it is allowed by some production
+of the grammar, but the production is a <em>restricted production</em> and
+the token would be the first token for a terminal or nonterminal
+immediately following the annotation “[no <cite>LineTerminator</cite> here]”
+within the production.</p>
+<p>If furthermore the restricted token is separated from the previous
+token by at least one <cite>LineTerminator</cite>, then a semicolon is
+automatically inserted before the restricted token.</p>
+</li>
+</ul>
+<p>There is an additional overriding condition on the above rules: a
+semicolon is never inserted automatically if the semicolon would then be
+parsed as an empty statement or that semicolon would become one of the two
+semicolons in the header of a <cite>for</cite> statement.</p>
+<p>What is a restricted production?  The following syntax rules:</p>
+<pre class="literal-block">
+PostfixExpression ::=
+    LeftHandSideExpression [no LineTerminator here] &quot;++&quot;
+    LeftHandSideExpression [no LineTerminator here] &quot;--&quot;
+ContinueStatement ::=   &quot;continue&quot;  [no LineTerminator here]  Identifieropt ;
+BreakStatement ::=      &quot;break&quot;     [no LineTerminator here]  Identifieropt ;
+ReturnStatement ::=     &quot;return&quot;    [no LineTerminator here]  Expressionopt ;
+ThrowStatement ::=      &quot;throw&quot;     [no LineTerminator here]  Expression ;
+</pre>
+<p>Alright. But what does this actually mean?</p>
+<div class="section" id="virtual-semicolons-in-action">
+<h2>Virtual Semicolons in Action</h2>
+<p>The specification also lists a few examples of how semicolons are inserted
+into code where semicolons are missing (7.9.2):</p>
+<div class="highlight"><pre><span></span><span class="cm">/* this */</span>
+<span class="k">return</span>
+<span class="nx">a</span> <span class="o">+</span> <span class="nx">b</span>
+
+    <span class="cm">/* becomes this: */</span>
+    <span class="k">return</span><span class="p">;</span>
+    <span class="nx">a</span> <span class="o">+</span> <span class="nx">b</span><span class="p">;</span>
+
+<span class="cm">/* this */</span>
+<span class="nx">a</span> <span class="o">=</span> <span class="nx">b</span>
+<span class="o">++</span><span class="nx">c</span>
+
+    <span class="cm">/* becomes this */</span>
+    <span class="nx">a</span> <span class="o">=</span> <span class="nx">b</span><span class="p">;</span>
+    <span class="o">++</span><span class="nx">c</span><span class="p">;</span>
+
+<span class="cm">/* this */</span>
+<span class="nx">a</span> <span class="o">=</span> <span class="nx">b</span> <span class="o">+</span> <span class="nx">c</span>
+<span class="p">(</span><span class="nx">d</span> <span class="o">+</span> <span class="nx">e</span><span class="p">).</span><span class="nx">print</span><span class="p">()</span>
+
+    <span class="cm">/* becomes this */</span>
+    <span class="nx">a</span> <span class="o">=</span> <span class="nx">b</span> <span class="o">+</span> <span class="nx">c</span><span class="p">(</span><span class="nx">d</span> <span class="o">+</span> <span class="nx">e</span><span class="p">).</span><span class="nx">print</span><span class="p">();</span>
+</pre></div>
+<p>Except for the return example this seems straight forward and if you are
+avoiding linebreaks after the return statement you should be fine.  The
+last example stays a function call because the assignment by itself is a
+valid sentence.  If however one would add a plus after <cite>c</cite>, the expression
+in parentheses would not be the argument for a function call <a class="footnote-reference" href="#update" id="id1">[1]</a>.</p>
+<p>Furthermore because automatic semicolon insertion is there and you can't
+get rid of it, no harm in not setting semicolons.  Right?  After all,
+worst case: you forgot one and JavaScript inserts one for you.  That
+however is actually not entirely true unfortunately as there are a few
+cases where things can break.  So the rest of this blog article only
+covers the cases where adding semicolons would have avoided a problem.  I
+am not talking about cases where changes in whitespace would be the
+solution to a problem (like removing a newline after the <tt class="docutils literal">return</tt>
+keyword which is a well known solution to the most common automatic
+semicolon insertion problem).</p>
+</div>
+<div class="section" id="array-literals-versus-property-operators">
+<h2>Array Literals versus Property Operators</h2>
+<p>Like Python, JavaScript has array literals (<tt class="docutils literal">[1, 2, 3, 4]</tt>) and uses a
+very similar syntax to access items of objects and arrays
+(<tt class="docutils literal">foo[index]</tt>).  Unfortunately that particular little pseudo-ambiguity
+becomes a problem when you forget to place semicolons.  Take the following
+piece of JavaScript code as example:</p>
+<div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">name</span> <span class="o">=</span> <span class="s2">&quot;World&quot;</span>
+<span class="p">[</span><span class="s2">&quot;Hello&quot;</span><span class="p">,</span> <span class="s2">&quot;Goodbye&quot;</span><span class="p">].</span><span class="nx">forEach</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">value</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nb">document</span><span class="p">.</span><span class="nx">write</span><span class="p">(</span><span class="nx">value</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span> <span class="o">+</span> <span class="nx">name</span> <span class="o">+</span> <span class="s2">&quot;&lt;br&gt;&quot;</span><span class="p">)</span>
+<span class="p">})</span>
+</pre></div>
+<p>That is not a syntax error, but it will fail with an odd error.  Why is
+that?  The problem is that JavaScript will insert semicolons after the
+<tt class="docutils literal">document.write()</tt> call and after the <tt class="docutils literal">.forEach()</tt> call, but not
+before the array literal.  In fact, it will attempt to use the array
+literal as indexer operator to the string from the line before.  We can
+easily verify that by rewriting the code a bit:</p>
+<div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">name</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;Goodbye&quot;</span><span class="o">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]}</span>
+<span class="p">[</span><span class="s2">&quot;Hello&quot;</span><span class="p">,</span> <span class="s2">&quot;Goodbye&quot;</span><span class="p">].</span><span class="nx">forEach</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">value</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nb">document</span><span class="p">.</span><span class="nx">write</span><span class="p">(</span><span class="nx">value</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span> <span class="o">+</span> <span class="nx">name</span> <span class="o">+</span> <span class="s2">&quot;&lt;br&gt;&quot;</span><span class="p">)</span>
+<span class="p">})</span>
+</pre></div>
+<p>This will print the following output:</p>
+<pre class="literal-block">
+1 undefined
+2 undefined
+3 undefined
+</pre>
+<p>If you add a semicolon after the assignment to <cite>name</cite> it would print this
+instead:</p>
+<pre class="literal-block">
+Hello [object Object]
+Goodbye [object Object]
+</pre>
+<p>If you are ever in that situation where you use <tt class="docutils literal">.forEach</tt> or something
+similar on an array literal in a new line you will need a semicolon in the
+line before.  If you are all about consistency, that's a situation where
+you will have to use a semicolon to use your code.  Normally programming
+languages would allow you to put things into parentheses to avoid such
+ambiguities, but not so in JavaScript, because the same problem exists
+with parentheses.</p>
+</div>
+<div class="section" id="function-calls-versus-grouping">
+<h2>Function Calls versus Grouping</h2>
+<p>Same problem exists with function calls and parentheses for expression
+grouping unfortunately.  That's especially fun when you are concatenating
+JavaScript files and forget to add semicolons in between.  Imagine you
+have a JavaScript file <cite>counter.js</cite> with this content:</p>
+<div class="highlight"><pre><span></span><span class="nx">namespace</span><span class="p">.</span><span class="nx">makeCounter</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">counter</span> <span class="o">=</span> <span class="mi">0</span>
+  <span class="k">return</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="nx">counter</span><span class="o">++</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+<p>And then you have a file called <cite>complex.js</cite> which declares some complex
+library inside a closure:</p>
+<div class="highlight"><pre><span></span><span class="p">(</span><span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="nx">namespace</span><span class="p">.</span><span class="nx">exportedObject</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+    <span class="p">...</span>
+  <span class="p">}</span>
+<span class="p">})()</span>
+</pre></div>
+<p>So what happens when you concatenate the files with just a newline is that
+the following will happen: <cite>namespace.makeCounter</cite> is called with the
+anonymous function from <cite>complex.js</cite> in parentheses and the return value
+(which happens to be another function) will then be called without
+arguments.</p>
+<p>After that <cite>namespace.exportedObject</cite> will not be assigned at all and
+<cite>namespace.makeCounter</cite> will be <tt class="docutils literal">0</tt> instead of a function.  Again, this
+problem would not be a problem if one would have used a semicolon after
+the function expression in <cite>counter.js</cite>.</p>
+<p>That's also especially annoying when adding parentheses around an
+expression at the begin of a line.  That might cause the line above to
+suddenly become a function call:</p>
+<div class="highlight"><pre><span></span><span class="cm">/* this works */</span>
+<span class="kd">var</span> <span class="nx">foo</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">+</span> <span class="mi">2</span>
+<span class="nx">something</span><span class="p">.</span><span class="nx">method</span><span class="p">(</span><span class="nx">foo</span><span class="p">)</span> <span class="o">+</span> <span class="mi">42</span>
+
+<span class="cm">/* this does not work, will try to call 2(...) */</span>
+<span class="kd">var</span> <span class="nx">foo</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">+</span> <span class="mi">2</span>
+<span class="p">(</span><span class="nx">something</span><span class="p">.</span><span class="nx">method</span><span class="p">(</span><span class="nx">foo</span><span class="p">)</span> <span class="o">+</span> <span class="mi">42</span><span class="p">).</span><span class="nx">print</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="section" id="consistency-and-simplicity">
+<h2>Consistency and Simplicity</h2>
+<p>If we ignore for a moment that the ambiguity between the division operator
+and the regular expression literal in JavaScript is a little bit tricky,
+JavaScript as a language is easy to parse.  It has a grammar which you can
+drop into your favorite parsing tool and it should be able to generate
+yourself a parser.  However with the extra rule of these weird semicolons
+it becomes a lot harder to implement.</p>
+<p>The logical conclusion here is that people will get it wrong.  For
+instance JavaScript says that if there is a newline in the multiline
+comment (<tt class="docutils literal">/* ... */</tt>) it counts as a <cite>LineTerminator</cite>.  At least one
+JavaScript engine is ignoring that.  Also JavaScript engines are actively
+breaking ECMA compatibility to cover some real world cases and are
+introducing virtual semicolons in places where they should not be allowed
+(<a class="reference external" href="https://bugzilla.mozilla.org/show_bug.cgi?id=238945">Mozilla Bug #238945</a>).</p>
+<p>Why would this be relevant?  Because there are a lot of tools that are
+operating on JavaScript source:</p>
+<ul>
+<li><p class="first">First and foremost there are different browsers implementing
+JavaScript.  Because automatic semicolon insertion has shown to be
+handled differently in browsers it wouldn't be too unlikely that you
+will encounter some differences there.  Though I would argue that the
+chances that current browsers differ in interpretation will be low.</p>
+<p>However there are certainly ECMAScript implementations out there that
+are less in sync with how browsers are interpreting it (Flash, various
+scripting languages like Unity Script, .NET's ECMA script
+implementation and many more.)</p>
+</li>
+<li><p class="first">Documentation tools will have to parse your JavaScript to figure out
+where comments and function signatures are.  While for most of these
+tools some fuzziness is okay and semicolons shouldn't be much of a
+problem some edge cases might throw the parser into a state where it
+cannot continue parsing.  For instance because it expects an
+expression between a property operator (<tt class="docutils literal"><span class="pre">foo[(expression</span> here)]</tt>)
+when the programmer was writing an array literal.</p>
+</li>
+<li><p class="first">Many i18n libraries are parsing JavaScript code to find strings marked
+as translatable.  The “parser” I wrote for  <a class="reference external" href="http://babel.edgewall.org/">Babel</a> for instance is basically just trying
+to infer all that from the tokens instead of properly parsing the
+code.  This does give some wrong matches from time to time but I was
+too lazy to write a proper JavaScript parser from scratch for that.</p>
+</li>
+<li><p class="first">Compression libraries have to parse JavaScript to figure out what is
+a local identifier, what is a global one etc.  <a class="reference external" href="http://dean.edwards.name/packer/">Packer</a> for instance destroys code that
+does not have semicolons after function expressions:</p>
+<div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">x</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="cm">/* blafasel */</span>
+<span class="p">}</span>
+<span class="kd">var</span> <span class="nx">y</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="cm">/* blafasel */</span>
+<span class="p">}</span>
+</pre></div>
+<p>Will be compressed into invalid JavaScript:</p>
+<div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">x</span><span class="o">=</span><span class="kd">function</span><span class="p">(){}</span><span class="kd">var</span> <span class="nx">y</span><span class="o">=</span><span class="kd">function</span><span class="p">(){}</span>
+</pre></div>
+</li>
+</ul>
+<p><a class="reference external" href="http://aresemicolonsnecessaryinjavascript.com/">Are Semicolons Necessary in Javascript?</a>  Despite popular
+belief the answer is “sometimes” and not “no”.  But to save yourself time
+and troubles, just place them all the time.  Not only will it save
+yourself some headaches, your code will also look more consistent.
+Because there will be situations where a semicolon becomes necessary to
+resolve ambiguities.</p>
+<table class="docutils footnote" frame="void" id="update" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id1">[1]</a></td><td>This example was incorrect earlier.  I since fixed it and
+updated the section about function calls to also cover the mistake I
+made.  This was pointed out via mail and Twitter by <a class="reference external" href="http://twitter.com/cdleary">Chris Leary</a>.  Another reason to explicitly set
+semicolons :-)</td></tr>
+</tbody>
+</table>
+</div>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/javascript/">javascript</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

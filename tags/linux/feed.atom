@@ -1,0 +1,608 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Armin Ronacher's Thoughts and Writings</title>
+  <id>http://lucumr.pocoo.org/feed.atom</id>
+  <updated>2014-05-12T00:00:00Z</updated>
+  <link href="http://lucumr.pocoo.org/" />
+  <link href="http://lucumr.pocoo.org/feed.atom" rel="self" />
+  <subtitle type="text">Armin Ronacher's personal blog about programming, games and random thoughts that come to his mind.</subtitle>
+  <generator>Werkzeug</generator>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Everything you did not want to know about Unicode in Python 3</title>
+    <id>http://lucumr.pocoo.org/2014/5/12/everything-about-unicode</id>
+    <updated>2014-05-12T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2014/5/12/everything-about-unicode" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Readers of this blog on my twitter feed know me as a person that likes to
+rant about Unicode in Python 3 a lot.  This time will be no different.
+I'm going to tell you more about how painful &amp;quot;doing Unicode right&amp;quot; is and
+why.  &amp;quot;Can you not just shut up Armin?&amp;quot;.  I spent two weeks fighting with
+Python 3 again and I need to vent my frustration somewhere.  On top of
+that there is still useful information in those rants because it teaches
+you how to deal with Python 3.  Just don't read it if you get annoyed by
+me easily.&lt;/p&gt;
+&lt;p&gt;There is one thing different about this rant this time.  It won't be
+related to WSGI or HTTP or any of that other stuff at all.  Usually I'm
+told that I should stop complaining about the Python 3 Unicode system
+because I wrote code nobody else writes (HTTP libraries and things of that
+sort) I decided to write something else this time: a command line
+application.  And not just the app, I wrote a handy little library called
+&lt;a class=&quot;reference external&quot; href=&quot;http://click.pocoo.org/&quot;&gt;click&lt;/a&gt; to make this easier.&lt;/p&gt;
+&lt;p&gt;Note that I'm doing what about every newby Python programmer does: writing
+a command line application.  The &amp;quot;Hello World&amp;quot; of Python programs.  But
+unlike the newcomer to Python I wanted to make sure the application is as
+stable and Unicode supporting as possible for both Python 2 and Python 3
+and make it possible to unittest it.  So this is my report on how that
+went.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;what-we-want-to-do&quot;&gt;
+&lt;h2&gt;What we want to do&lt;/h2&gt;
+&lt;p&gt;In Python 3 we're doing Unicode right as developers.  Apparently.  I
+suppose what means is that all text data is Unicode and all non text data
+is bytes.  In this wonderful world of everything being black and white,
+the &amp;quot;Hello World&amp;quot; example is pretty straightforward.  So let's write some
+helpful shell utilties.&lt;/p&gt;
+&lt;p&gt;Let's say we want to implement a simple &lt;tt class=&quot;docutils literal&quot;&gt;cat&lt;/tt&gt;  In other terms, these are
+the applications we want to write in Python 2 terms:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;sys&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;shutil&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;argv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:]:&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stdin&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;-&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;rb&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;IOError&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stderr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;cat.py: &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;: &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;continue&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;with&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;shutil&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;copyfileobj&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stdout&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Obviously neither commands are particularly great as they do not handle
+any command line options or anything but at least they roughly work.  So
+that's what we start out with.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;unicode-in-unix&quot;&gt;
+&lt;h2&gt;Unicode in Unix&lt;/h2&gt;
+&lt;p&gt;In Python 2 the above code is dead simple because you implicitly work with
+bytes everywhere.  The command line arguments are bytes, the filenames are
+bytes (ignore Windows users for a moment) and the file contents are bytes
+too.  Purists will point out that this is incorrect and really that's
+where the problem is coming from, but if you start thinking about it more,
+you will realize that this is an unfixable problem.&lt;/p&gt;
+&lt;p&gt;UNIX is bytes, has been defined that way and will always be that way.  To
+understand why you need to see the different contexts in which data is
+being passed through:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;the terminal&lt;/li&gt;
+&lt;li&gt;command line arguments&lt;/li&gt;
+&lt;li&gt;the operating system io layer&lt;/li&gt;
+&lt;li&gt;the filesystem driver&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;That btw, is not the only thing this data might be going through but let's
+go with this for the moment.  In how many of the situations do we know an
+encoding?  The answer is: in none of them.  The closest we have to
+understanding an encoding is that the terminal exports locale information.
+This information can be used to show translations but also to understand
+what encoding text information has.&lt;/p&gt;
+&lt;p&gt;For instance an &lt;tt class=&quot;docutils literal&quot;&gt;LC_CTYPE&lt;/tt&gt; of &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;en_US.utf-8&lt;/span&gt;&lt;/tt&gt; tells an application that
+the system is running US English and that most text data is &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;utf-8&lt;/span&gt;&lt;/tt&gt;.  In
+practice there are more variables but let's assume that this is the only
+one we need to look at.  Note that &lt;tt class=&quot;docutils literal&quot;&gt;LC_CTYPE&lt;/tt&gt; does not say that all data
+now is &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;utf-8&lt;/span&gt;&lt;/tt&gt;.  It instead informs the application how text characters
+should be classified and what case conversion rules should be applied.&lt;/p&gt;
+&lt;p&gt;This is important because of the &lt;tt class=&quot;docutils literal&quot;&gt;C&lt;/tt&gt; locale.  The &lt;tt class=&quot;docutils literal&quot;&gt;C&lt;/tt&gt; locale is the
+only locale that POSIX actually specifies and it says: encoding is ASCII
+and all responses from command line tools in regards to languages are like
+they are defined in the POSIX spec.&lt;/p&gt;
+&lt;p&gt;In the above case of our &lt;tt class=&quot;docutils literal&quot;&gt;cat&lt;/tt&gt; tool there is no other way
+to treat this data as if it was bytes.  The reason for this is, that there
+is no indication on the shell what the data is.  For instance if you
+invoke &lt;tt class=&quot;docutils literal&quot;&gt;cat hello.txt&lt;/tt&gt; the terminal will pass &lt;tt class=&quot;docutils literal&quot;&gt;hello.txt&lt;/tt&gt; encoded in
+the encoding of the terminal to your application.&lt;/p&gt;
+&lt;p&gt;But now imagine the other case: &lt;tt class=&quot;docutils literal&quot;&gt;echo *&lt;/tt&gt;.  The shell will now pass all
+the filenames of the current directory to your application.  Which
+encoding are they in?  In whatever encoding the filenames are in.  There
+is no filename encoding!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;unicode-madness&quot;&gt;
+&lt;h2&gt;Unicode Madness?&lt;/h2&gt;
+&lt;p&gt;Now a Windows person will probably look at this and say: what the hell are
+the UNIX people doing.  But it's not that dire or not dire at all.  The
+reason this all works is because some clever people designed the system to
+be backwards compatible.  Unlike Windows where all APIs are defined twice,
+on POSIX the best way to deal with all of this is to assume it's a byte
+mess that for display purposes is decoded with an encoding hint.&lt;/p&gt;
+&lt;p&gt;For instance let's take the case of the &lt;cite&gt;cat&lt;/cite&gt; command above.  As you might
+have noticed there is an error message for files it cannot open because
+they either don't exist or because they are protected or whatever else.
+In the simple case above let's assume the file is encoded in latin1
+garbage because it came from some external drive from 1995.  The terminal
+will get our standard output and will try to decode it as utf-8 because
+that's what it thinks it's working with.  Because that string is latin1
+and not the right encoding it will now not decode properly.  But fear not,
+nothing is crashing, because your terminal will just ignore the things it
+cannot deal with.  It's clever like this.&lt;/p&gt;
+&lt;p&gt;How does it look like for GUIs?  They have two versions of each.  When a
+GUI like Nautilus lists all files it makes a symbol for each file.  It
+associates the internal bytes of that filename with the icon for double
+clicking and secondly it attempts to make a filename it can show for
+display purposes which might be decoded from something.  For instance it
+will attempt decoding from utf-8 with replacing decoding errors with
+question marks.  Your filename might not be entirely readable but you can
+still open the file.  Success!&lt;/p&gt;
+&lt;p&gt;Unicode on UNIX is only madness if you force it on everything.  But that's
+not how Unicode on UNIX works.  UNIX does not have a distinction between
+unicode and byte APIs.  They are one and the same which makes them easy to
+deal with.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-c-locale&quot;&gt;
+&lt;h2&gt;The C Locale&lt;/h2&gt;
+&lt;p&gt;Nowhere does this show up as much as with the &lt;tt class=&quot;docutils literal&quot;&gt;C&lt;/tt&gt; locale.  The &lt;tt class=&quot;docutils literal&quot;&gt;C&lt;/tt&gt;
+locale is the escape hatch of the POSIX specification to enforce everybody
+to behave the same.  A POSIX compliant operating system needs to support
+setting &lt;tt class=&quot;docutils literal&quot;&gt;LC_CTYPE&lt;/tt&gt; to &lt;tt class=&quot;docutils literal&quot;&gt;C&lt;/tt&gt; and to force everything to be ASCII.&lt;/p&gt;
+&lt;p&gt;This locale is traditionally picked in a bunch of different situations.
+Primarily you will find this locale for any program launched from cron,
+your init system, subprocesses with an empty environment etc.  The &lt;tt class=&quot;docutils literal&quot;&gt;C&lt;/tt&gt;
+locale restores a sane &lt;tt class=&quot;docutils literal&quot;&gt;ASCII&lt;/tt&gt; land on environments where you otherwise
+could not trust anything.&lt;/p&gt;
+&lt;p&gt;But the word ASCII implies that this is an 7bit encoding.  This is not a
+problem because your operating system is dealin in bytes!  Any 8 bit byte
+based content can pass through just fine, but you are following the
+contract with the operating system that any character processing will be
+limited to the first 7 bit.  Also any message your tool generates out of
+it's own translations will be ASCII and the language will be English.&lt;/p&gt;
+&lt;p&gt;Note that the POSIX spec does not say your application should die in
+flames.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;python-3-dies-in-flames&quot;&gt;
+&lt;h2&gt;Python 3 Dies in Flames&lt;/h2&gt;
+&lt;p&gt;Python 3 takes a very difference stance on Unicode than UNIX does.  Python
+3 says: everything is Unicode (&lt;em&gt;by default, except in certain situations,
+and except if we send you crazy reencoded data, and even then it's
+sometimes still unicode, albeit wrong unicode&lt;/em&gt;).  Filenames are Unicode,
+Terminals are Unicode, stdin and out are Unicode, there is so much
+Unicode!  And because UNIX is not Unicode, Python 3 now has the stance
+that it's right and UNIX is wrong, and people should really change the
+POSIX specification to add a &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;C.UTF-8&lt;/span&gt;&lt;/tt&gt; encoding which is Unicode.  And
+then filenames are Unicode, and terminals are Unicode and never ever will
+you see bytes again although obviously everything still is bytes and will
+fail.&lt;/p&gt;
+&lt;p&gt;And it's not just me saying this.  These are bugs in Python related to
+this braindead idea of doing Unicode:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://bugs.python.org/issue13643#msg149941&quot;&gt;ASCII is a bad filesystem default encoding&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://bugs.python.org/issue19977&quot;&gt;Use surrogateescape as default error handler&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://bugs.python.org/issue19846&quot;&gt;Python 3 raises Unicode errors in the C locale&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://bugs.python.org/issue21398&quot;&gt;LC_CTYPE=C:  pydoc leaves terminal in an unusable state&lt;/a&gt; (this is relevant to Click
+because the pager support is provided by the stdlib pydoc module)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;But then if you Google around you will find so much more.  Just check how
+many people failed to install their pip packages because the changelog had
+umlauts in it.  Or because their home folder has an accent in it.  Or
+because their SSH session negotates ASCII, or because they are connecting
+from Putty.  The list goes on and one.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;python-3-cat&quot;&gt;
+&lt;h2&gt;Python 3 Cat&lt;/h2&gt;
+&lt;p&gt;Now let's start fixing cat for Python 3.  How do we do this?  Well first
+of all we now established that we need to deal with bytes because someone
+might echo something which is not in the encoding the shell says.  So at
+the very least the file contents need to be bytes.  But then we also need
+to open the standard output to support bytes which it does not do by
+default.  We also need to deal with the case separately where the Unicode
+APIs crap out on us because the encoding is &lt;tt class=&quot;docutils literal&quot;&gt;C&lt;/tt&gt;.  So here it is, feature
+compatible &lt;tt class=&quot;docutils literal&quot;&gt;cat&lt;/tt&gt; for Python 3:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;sys&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;shutil&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;_is_binary_reader&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stream&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;default&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;kc&quot;&gt;False&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;isinstance&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stream&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;read&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;bytes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;Exception&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;default&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;_is_binary_writer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stream&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;default&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;kc&quot;&gt;False&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;stream&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;write&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;Exception&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;stream&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;write&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;False&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;Exception&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;default&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;True&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;get_binary_stdin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# sys.stdin might or might not be binary in some extra cases.  By&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# default it&amp;#39;s obviously non binary which is the core of the&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# problem but the docs recomend changing it to binary for such&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# cases so we need to deal with it.  Also someone might put&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# StringIO there for testing.&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;is_binary&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_is_binary_reader&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stdin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;False&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;is_binary&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stdin&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;buf&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;getattr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stdin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;buffer&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buf&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;None&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_is_binary_reader&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;True&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buf&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;raise&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;RuntimeError&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Did not manage to get binary stdin&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;get_binary_stdout&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_is_binary_writer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stdout&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;False&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stdout&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;buf&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;getattr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stdout&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;buffer&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buf&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;None&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_is_binary_writer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;True&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buf&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;raise&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;RuntimeError&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Did not manage to get binary stdout&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;filename_to_ui&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# The bytes branch is unecessary for *this* script but otherwise&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# necessary as python 3 still supports addressing files by bytes&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# through separate APIs.&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;isinstance&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;bytes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;value&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;getfilesystemencoding&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;replace&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;value&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;utf-8&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;surrogateescape&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; \
+            &lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;utf-8&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;replace&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;binary_stdout&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;get_binary_stdout&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;argv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:]:&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;-&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;rb&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;IOError&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;nb&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;cat.py: &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;: &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;filename_to_ui&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stderr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;continue&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;get_binary_stdin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;with&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;shutil&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;copyfileobj&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;binary_stdout&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;And this is not the worst version.  Not because I want to make things
+extra complicated but because it is complicated now.  For instance what's
+not done in this example is to forcefully flush the text stdout before
+fetching the binary one.  In this example it's not necessary because print
+calls here go to stderr instead of stdout, but if you would want to print
+to stdout instead, you would have to flush.  Why?  Because stdout is a
+buffer on top of another buffer and if you don't flush it forefully you
+might get output in wrong order.&lt;/p&gt;
+&lt;p&gt;And it's not just me.  For instance see &lt;a class=&quot;reference external&quot; href=&quot;https://github.com/twisted/twisted/blob/log-booyah-6750-4/twisted/python/compat.py&quot;&gt;twisted's compat module&lt;/a&gt;
+for the same mess in slightly different color.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;dancing-the-encoding-dance&quot;&gt;
+&lt;h2&gt;Dancing The Encoding Dance&lt;/h2&gt;
+&lt;p&gt;To understand the live of a filename parameter to the shell, this is btw
+now what happens on Python 3 worst case:&lt;/p&gt;
+&lt;ol class=&quot;arabic simple&quot;&gt;
+&lt;li&gt;the shell passes the filename as bytes to the script&lt;/li&gt;
+&lt;li&gt;the bytes are being decoded from the expected encoding by Python
+before they ever hit your code.  Because this is a lossy process,
+Python 3 applies an special error handler that encodes encoding errors
+as surrogates into the string.&lt;/li&gt;
+&lt;li&gt;the python code then encounters a file not existing error and needs to
+format an error message.  Because we write to a text stream we cannot
+write surrogates out as they are not valid unicode.  Instead we now&lt;/li&gt;
+&lt;li&gt;encode the unicode string with the surrogates to utf-8 and tell it to
+handle the surrogate escapes as it.&lt;/li&gt;
+&lt;li&gt;then we decode from utf-8 and tell it to ignore errors.&lt;/li&gt;
+&lt;li&gt;the resulting string now goes back out to our text only stream
+(stderr)&lt;/li&gt;
+&lt;li&gt;after which the terminal will decode our string for displaying
+purposes.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Here is what happens on Python 2:&lt;/p&gt;
+&lt;ol class=&quot;arabic simple&quot;&gt;
+&lt;li&gt;the shell passes the filename as bytes to the script.&lt;/li&gt;
+&lt;li&gt;the shell decodes our string for displaying purposes.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;And because no string handling happens anywhere there the Python 2 version
+is just as correct if not more correct because the shell then can do a
+better job at showing the filename (for instance it could highlight the
+encoding errors if it woudl want.  In case of Python 3 we need to handle
+the encoding internally so that's no longer possible to detect for the
+shell).&lt;/p&gt;
+&lt;p&gt;Note that this is not making the script less correct.  In case you would
+need to do actual string handling on the input data you would switch to
+Unicode handling in 2.x or 3.x.  But in that case you also want to support
+a &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;--charset&lt;/span&gt;&lt;/tt&gt; parameter on your script explicitly so the work is pretty
+much the same on 2.x and 3.x anyways.  Just that it's worse because for
+that to work on 3.x you need to construct the binary stdout first which is
+unnecessary on 2.x.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;but-you-re-wrong-armin&quot;&gt;
+&lt;h2&gt;But You're Wrong Armin&lt;/h2&gt;
+&lt;p&gt;Clearly I'm wrong.  I have been told so far that:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;I only feel it's painful because I don't think like a beginner and
+the new Unicode system is so much easier for beginners.&lt;/li&gt;
+&lt;li&gt;I don't consider Windows users and how much more correct this new text
+model is for Windows users.&lt;/li&gt;
+&lt;li&gt;The problem is not Python, the problem is the POSIX specification.&lt;/li&gt;
+&lt;li&gt;The linux distributions really need to start supporting &lt;tt class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;C.UTF-8&lt;/span&gt;&lt;/tt&gt;
+because they are stuck in the past.&lt;/li&gt;
+&lt;li&gt;The problem is SSH because it passes incorrect encodings.  This is a
+problem that needs to be fixed in SSH.&lt;/li&gt;
+&lt;li&gt;The real problem with lots of unicode errors in Python 3 is that
+people just don't pass explicit encodings and instead assume that
+Python 3 does the right thing to figure it out (which it really can't
+so you should pass explicit encodings).  Then there would be no
+problems.&lt;/li&gt;
+&lt;li&gt;I work with &amp;quot;boundary code&amp;quot; so obviously that's harder on Python
+3 now (duh).&lt;/li&gt;
+&lt;li&gt;I should spend my time fixing Python 3 instead of complaining on
+Twitter and my blog.&lt;/li&gt;
+&lt;li&gt;You're making problems where there are none.  Just let everybody fix
+their environment and encodings everywhere and everything is fine.
+It's a user problem.&lt;/li&gt;
+&lt;li&gt;Java had this problem for ages, it worked just fine for developers.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;You know what?  I did stop complaining while I was working with HTTP for a
+while, because I buy the idea that a lot of the problems with HTTP/WSGI
+are something normal people don't need to deal with.  But you know what?
+The same problem appears in simple Hello World style scenarios.  Maybe I
+should give up trying to achieve a high quality of Unicode support in my
+libraries and just live with broken stuff.&lt;/p&gt;
+&lt;p&gt;I can bring up counter arguments for each of the point above, but
+ultimately it does not matter.  If Python 3 was the only Python language I
+would use, I would eat up all the problems and roll with it.  But it's
+not.  There is a perfectly other language available called Python 2, it
+has the larger user base and that user base is barely at all migrating
+over.  At the moment it's just very frustrating.&lt;/p&gt;
+&lt;p&gt;Python 3 might be large enough that it will start to force UNIX to go the
+Windows route and enforce Unicode in many places, but really, I doubt it.&lt;/p&gt;
+&lt;p&gt;The much more likely thing to happen is that people stick to Python 2 or
+build broken stuff on Python 3.  Or they go with Go.  Which uses an even
+simpler model than Python 2: everything is a byte string.  The assumed
+encoding is UTF-8.  End of the story.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Things are not as easy as they seem</title>
+    <id>http://lucumr.pocoo.org/2011/1/1/things-are-not-as-easy-as-they-seem</id>
+    <updated>2011-01-01T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2011/1/1/things-are-not-as-easy-as-they-seem" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Every year around Christmas there is one event that I am always looking
+forward to: the chaos communication congress in Germany which is
+broadcasted live over the internet.&lt;/p&gt;
+&lt;p&gt;This year that congress was called 27c3 and one of the talks there was
+entitled “Desktop on the Linux… (and BSD, of course)” and delivered by a
+raging man condemning everything about the desktop development in the last
+few years.  It's not uncommon to see talks where people try to claim that
+everybody but themselves are wrong and misguided.  The interesting thing
+this time was that &lt;a class=&quot;reference external&quot; href=&quot;http://0pointer.de/blog&quot;&gt;Lennart Poettering&lt;/a&gt; was in
+the audience and at a specific point started to domination the talk.  Now
+it is seen as rude if the presenter does not get a chance to hold his
+talk, but this time this was entirely justified.  Every single point made
+by the talk was either partially or completely wrong and this actually
+made the talk fun to watch because it showed greatly how our world is more
+complex than some people want to acknowledge.&lt;/p&gt;
+&lt;p&gt;This talk for me was a prime example of what might be wrong with Open
+Source development and an idea of how to improve it.  But before I want to
+do that, I want to share a little story with you.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;primes-and-circles&quot;&gt;
+&lt;h2&gt;Primes and Circles&lt;/h2&gt;
+&lt;p&gt;The story is about prime numbers.  Now I really suck at mathematics, so
+bear with me when this story does not make too much sense or is not told
+properly.  However even with the little bit of knowledge about mathematics
+I can understand how prime numbers are defined:&lt;/p&gt;
+&lt;blockquote&gt;
+A prime number (or a prime) is a natural number that has exactly two
+distinct natural number divisors: 1 and itself.&lt;/blockquote&gt;
+&lt;p&gt;It's a wonderful definition in that it is a single sentence of clearly
+written English and everybody can interpret it.  And with that definition
+you can easily probe the first few prime numbers.  1 is not a prime
+because from that definition it does not have two natural number
+divisors.  It only has one and that is the number one itself.  The first
+prime is 2 because the only natural divisors are 2 and 1 and nothing else.
+The next is 3, the following is 5 and so on.&lt;/p&gt;
+&lt;p&gt;Now unfortunately for our little minds, prime numbers don't have a clear
+pattern.  It's not even that all prime numbers are odd because there is
+one prime number (two) that is even.  Leonard Euler said this about the
+pattern of prime numbers:&lt;/p&gt;
+&lt;blockquote&gt;
+Mathematicians have tried in vain to this day to discover some order
+in the sequence of prime numbers, and we have reason to believe that
+it is a mystery into which the mind will never penetrate.&lt;/blockquote&gt;
+&lt;p&gt;Now with everything that the mind cannot fully understand there will
+always be people that think to know better.  In case of the prime numbers
+we have a person called Peter Plichta who thinks to know better.  He
+“discovered” that if you put the prime numbers on rings of 24 items each,
+that prime numbers will all be on certain positions on the ring.  However
+that by itself is not very interesting.  That's because prime numbers in
+the senary system (to the base 6) will always have 5 or 1 as last digit,
+besides the first two.&lt;/p&gt;
+&lt;p&gt;Why is that the case?  That's a surprisingly simple proof.  Remember how
+numbers are represented in a system of a specific base.  In senary a
+number is of the following form:&lt;/p&gt;
+&lt;blockquote class=&quot;math&quot;&gt;&lt;img src=&quot;/static/_math/f3a4f4c8de4cef6c275f507ab10afbec34791762.png&quot; alt=&quot;x = a_{0} \cdot 6^{0} + a_{1} \cdot 6^{1} + a_{2} \cdot 6^{2} + ...
++ a_{n} \cdot 6^{n}&quot;&gt;&lt;/blockquote&gt;&lt;p&gt;With that it is easy to factorize this expression:&lt;/p&gt;
+&lt;blockquote class=&quot;math&quot;&gt;&lt;img src=&quot;/static/_math/dbea5415ccca087f40293b96e58cc76b3ab6fbd8.png&quot; alt=&quot;x = a_{0} + 6 \cdot (a_{1} + a_{2} \cdot 6 + a_{3} \cdot 6^{2} + ...)&quot;&gt;&lt;/blockquote&gt;&lt;p&gt;And because what we have in the parentheses there will always be a
+natural number we can simplify it to this (&lt;em&gt;k&lt;/em&gt; is an integer):&lt;/p&gt;
+&lt;blockquote class=&quot;math&quot;&gt;&lt;img src=&quot;/static/_math/1164206defa09861dc8989c09f841ebc7142267b.png&quot; alt=&quot;x = a_{0} + 6k&quot;&gt;&lt;/blockquote&gt;&lt;p&gt;And because of that if &lt;span class=&quot;math&quot;&gt;&lt;img src=&quot;/static/_math/e6f4482a73e22b0b39ae6a7e8b5e21d1e92949f5.png&quot; alt=&quot;a_{0}&quot; style=&quot;vertical-align: 4px&quot;&gt;&lt;/span&gt; is divisible by 2 or 3, then
+&lt;span class=&quot;math&quot;&gt;&lt;img src=&quot;/static/_math/ec7cef5948bf95a8ef4643545190f739baf8a727.png&quot; alt=&quot;a_{0} + 6k&quot; style=&quot;vertical-align: 4px&quot;&gt;&lt;/span&gt; is divisble by 2 or 3 (because 6 is).  Now obviously
+that does not work for 2 and 3 and if you want to plot them on a ring of
+24 numbers and then another ring of another 24 rings and so on.&lt;/p&gt;
+&lt;p&gt;Now that imperfection is not helpful for Plichta and he tries to solve the
+problem by declaring 1 a prime and to declare 2 and 3 as not being prime.
+On top of that, he needs another prime to close the circle and declares -1
+a prime number.&lt;/p&gt;
+&lt;p&gt;This does not solve any problems at all.  The main problem with primes is
+not that 2 or 3 would not fit nice into a plot in the senary system but
+that we cannot predict the holes between prime numbers.  Maybe Plichta has
+some more behind his sleeves but when you try to read his book it's more a
+story of a wicked mind than a scientific book.  And it appears that he has
+the idea that nobody takes him serious because of a big conspiracy.&lt;/p&gt;
+&lt;p&gt;And this is totally where the simple rules of prime numbers end.
+Everything else about them is complex and why past anything I could
+understand in my little mind.  A lot of things around prime numbers are
+unsolved and if you want to make yourself a name, that's a place where
+things are yet to be discovered.&lt;/p&gt;
+&lt;p&gt;However it looks a lot like people want really simple solutions,
+independently of how clever they are.  Plichta is probably an intelligent
+man, at least he got a couple of patents registered on his name.  However
+he seems to be that he's obsessed with the idea that simple solutions
+exist.  They certainly exist in a couple of fields — that however does not
+mean that every solution is simple or might even exist.  There are still
+people out there that are looking for the possibility of the mathematical
+problem of &lt;a class=&quot;reference external&quot; href=&quot;http://en.wikipedia.org/wiki/Squaring_the_circle&quot;&gt;squaring the circle&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;If things are easy to understand (the concept of prime numbers,
+constructing a square with the same area as a circle) everybody has an
+opinion on that — independently of if they know what the hell they are
+doing.  This went as far as one mathematician trying to pass a bill in the
+state of Indiana to declare π = 4.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;simple-solutions-versus-the-complex-world&quot;&gt;
+&lt;h2&gt;Simple Solutions versus the Complex World&lt;/h2&gt;
+&lt;p&gt;Unfortunately our world is not nearly as simple as people think it is, and
+this brings me back to the problem of Open Source.&lt;/p&gt;
+&lt;p&gt;If you look at the development of Linux on the desktop there are a couple
+of new developments in recent years that attempted to solve a whole bunch
+of problems.  Pulse Audio was developed to solve the problem of multiple
+independent audio sources, D-Bus was developed to provide a standard
+inter-process communication tool, HAL was an attempt to hide the ugly
+hardware layer from higher level applications, Wayland is in the process
+of replacing the X11 infrastructure which is just not up to date for
+todays tasks.&lt;/p&gt;
+&lt;p&gt;Now whenever someone attempted to replace an existing piece of technology
+there will be a lot of people instantly complaining that it worked better
+before.  But only in the open source community this might become an actual
+problem.  And here is why:&lt;/p&gt;
+&lt;p&gt;If Apple decides to deprecate Carbon, a whole bunch of developers will
+complain.  However Apple will not step back from that plan and after a few
+painful months for developers, Apple will end up with an ultimately better
+system.  In the Open Source world, this does not work.  If people
+complain, the developer motivation will vanish and the system will stay in
+a semi broken state where the new technology is not yet at the point where
+it could replace the old one and the old one will continue to not solve
+the specific use case the developer of the new solution had in mind.&lt;/p&gt;
+&lt;p&gt;And because everybody can easily complain that the old solution worked for
+them and the new one does not, because they only have their specific use
+case in mind.  Let's take GDM as example, because this is what the talk at
+27c3 was complaining about initially.  GDM since a few versions will use a
+small gnome session and start a few applications for you that might seem
+unnecessary (it will load your audio stack, the network manager daemon,
+console kit, bluetooth and more).  However there are good reasons people
+are doing that.  And if you plan on starting a Gnome session later on
+there is not even a downside in doing that.  Of course at the talk the
+presenter got applauded for hating Gnome in general which is just sad.&lt;/p&gt;
+&lt;p&gt;The reasons for starting all these services is that GDM is much more than
+just an application responsible for starting an X session for you after it
+authenticates you.  If you are a handicapped person you might need a
+screen reader, the audio stack for audio output of the labels and input
+fields.  The Bluetooth stack might be necessary to enable Bluetooth audio
+devices for that exact purpose and much more.  The power manager applet is
+necessary because you might want to properly suspend your notebook when
+it's idle on the login screen or running low on battery.&lt;/p&gt;
+&lt;p&gt;Clearly it went a lot of work into the design of GDM and how it operates.
+The same is true for Pulse Audio.  Of course such a complex system will
+not work instantly, but unfortunately that's how Open Source software
+development works.  We tend to share our improvements much earlier with
+other people than competing proprietary software vendors.  The advantage
+is that we can share that much earlier with other people, the downside is
+that many developers will be exposed to not working software and start
+complaining instantly.&lt;/p&gt;
+&lt;p&gt;If your horizon is not very large you will of course miss out
+understanding why certain changes are necessary.  The sad part is that
+it's so incredible easy to become a part of the hating crowd.&lt;/p&gt;
+&lt;p&gt;X11 is the prime example of how requirements changed over time.  Back in
+the days it made a lot of sense to have network connectivity in the
+protocol.  However it turns out, this was not such a clever idea all along
+because you don't just need the graphics system and input devices over the
+network, but also audio, clipboard and more.  And the design of the past
+days no longer works well for today's standards.  Also X11 restricts the
+application in how it renders parts of the window in that window
+decorations were meant to be controlled by the window decorator and not
+the actual applications.  This makes it impossible to make more radical
+changes to the way applications are designed on the desktop.  Fortunately
+GTK nowadays can draw window decorations itself without the help of the
+window decorator.  But I am pretty sure this change did not go without a
+lot of discussions and flamewars either (“Applications are not mean to
+draw the window decorations”).&lt;/p&gt;
+&lt;p&gt;The presenter also pointed out that Gnome's applets were a bad idea and
+the old method worked so much better.  However what he was missing was
+that while the old system was easier, it was completely opaque from the
+rest of the user experience making it impossible to let the applet respond
+to key commands, focus, or many other aspects of the user experience.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;from-simple-to-complex&quot;&gt;
+&lt;h2&gt;From Simple to Complex&lt;/h2&gt;
+&lt;p&gt;Whenever you look at something that seems unnecessarily complex it's an
+interesting experience reimplementing it the easiest way possible.  Over
+time you will realize why things are often more complex than you thought
+they would be.  I certainly made that experience more than once and I
+always feel a little bad afterwards because I was dismissing the original
+developer's implementation as too complex.  Of course, sometimes things
+&lt;em&gt;are&lt;/em&gt; much more complex then they have to be.  But finding out when things
+are too complex or not is not a straightforward process and cannot be
+answered easily.&lt;/p&gt;
+&lt;p&gt;The point here is that what holds back Linux on the desktop is (besides
+the incredible stupid hatred over Mono and other technologies with a
+corporate background) that people will dismiss new and bold advances as
+unnecessary and stupid.&lt;/p&gt;
+&lt;p&gt;Prime numbers are not straightforward; so isn't audio processing,
+internationalization, font rendering, window managing, networking and
+pretty much everything else.  Before we had Pulse Audio, sound on the
+Linux desktop was not unsolved.  It did work for a couple of setups in one
+way, but it was neither a clear nor consistent experience.  When it comes
+to drawing desktops it is certainly true that Linux was the first
+operating system that had rotating cubes, but it is currently far from the
+window drawing experience of OS X and Windows and its drawing system as a
+large hack instead of nice design.&lt;/p&gt;
+&lt;p&gt;Plichta's concept of prime numbers works well for small prime numbers and
+when you make a few modifications to make them suit your limited horizon.
+But it falls flat on the floor when presented with data from the real
+world.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;we-need-more-dialog&quot;&gt;
+&lt;h2&gt;We need more Dialog&lt;/h2&gt;
+&lt;p&gt;I think what the Open Source community really needs (especially the Linux
+Desktop community) would be an open dialog.  The presenter of the talk
+would probably have done good when starting a discussion with the people
+behind the projects he dismissed instead of raging about how bad
+everything is and how much better it used to be.  Maybe he would have been
+right at times, but if you start out like that, nobody will listen to you
+which is a terrible loss for everybody.&lt;/p&gt;
+&lt;p&gt;I love getting feedback and I love healthy discussions.  And even more
+than that: I love sharing why things work in a certain way.  I love it so
+much that I added a chapter to the Flask documentation that explains
+things in the code base that might appear surprising to an outsider.  But
+that does not mean the design is flawless or could not be improved.
+Unfortunately I made that mistake myself often enough that instead of
+discussing things with other developers I went ahead and just hated them
+for designing their libraries in certain ways without asking them why they
+did it that way.  And if it would have turned out that they were wrong
+there is often still time to improve on that.&lt;/p&gt;
+&lt;p&gt;I love how the Python web community partially gets this right.  Pylons,
+TurboGears and BFG for instance merged into a new superproject called
+Pyramid which took some unpopular decisions to design an ultimately better
+system.  Not only did it base itself on one of the most controversial
+components (Zope) but it also went into the direction of complete
+backwards incompatibility to clean up with the past.  And I applaud them
+for that courageous step.&lt;/p&gt;
+&lt;p&gt;I don't think we will have many more frameworks merging in the same way
+due to changes in philosophy I'm afraid, but of course who knows what
+might happen.  Either way it's an amazing example of how dialog can result
+in better systems.&lt;/p&gt;
+&lt;p&gt;We all make mistakes and that's what makes us human.  But why not try to
+improve in the new year?  Next time you are about to start telling other
+people how overcomplicated things are and that there absolutely must be an
+easier solution and that you have it, think about if you aren't missing
+something.&lt;/p&gt;
+&lt;p&gt;And with that I wish you a wonderful, successful and healthy 2011.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+</feed>
+

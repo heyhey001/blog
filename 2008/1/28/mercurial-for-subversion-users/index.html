@@ -1,0 +1,186 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>Mercurial for Subversion Users | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">Mercurial for Subversion Users</h1>
+
+  
+  <p class=date>written on Monday, January 28, 2008
+  
+
+  <p>More and more projects are switching over to <a class="reference external" href="http://www.selenic.com/mercurial/">mercurial</a> or similar DVCS. Great as
+mercurial is, it's hard to get started if you are used to subversion
+because the concept behind Subversion (svn) and mercurial (hg) is
+fundamentally different. This article should help you understand how
+mercurial and similar systems work and how you can use it to contribute
+patches to the pocoo projects.</p>
+<p>If you compare Subversion to mercurial you won't find that many
+similarities beside the command arguments. Subversion works like FTP
+whereas mercurial is bittorrent. In Subversion the server is special: it
+keeps all the revision log and all the operations require a connection
+to this server. In mercurial I can take down the central repository if
+there is one an all developers will still be able to exchange changes.
+All the revision information is available to anyone and there is
+absolutely no difference between server and clients.</p>
+<p>This fundamental design decision means that there are dozens of separate
+branches of the code. hg makes it easy to merge and branch and it's
+developed exactly for that. In Subversion branching and merging is
+painful an often people just don't branch and don't commit there changes
+until the testsuite etc. passes again which of course results in huge
+changesets. But let's step right into it!</p>
+<p>The first thing in Subversion you do is either creating a repository on
+the server or checking it out on the client. In hg there is no
+difference between server and client so the process of creating a
+repository is available to everybody. Creating a repository is just as
+simple as typing &quot;hg init name_of_the_repository&quot;. If that folder does
+not exist yet it will create an empty folder and initialize it as root
+of the repository, otherwise it will create the repository in the name
+of that folder.</p>
+<p>The process of checking out is a bit different from Subversion because
+it's effectively the same as creating a branch. Say you want to check
+out the current Pygments version to do some changes. The first thing you
+will do is looking for a way to access this repository. There are three
+very common ways to access it: filesystem, HTTP or SSH. Pygments is
+available as SSH and HTTP, but for non core developers only HTTP is
+available. Interestingly quite a few people have problems locating the
+checkout URL which is not very surprising because hgweb handles that.
+hgweb is the standard mercurial web interface which doesn't only provide
+a way to look at the changesets and tree but also handles patch
+exchange. In the case of Pygments this command should give you a fresh
+checkout in a few seconds into the new folder &quot;pygments&quot;:</p>
+<pre class="literal-block">
+hg clone http://dev.pocoo.org/hg/pygments-main pygments
+</pre>
+<p>One thing you will notice is that it's incredible fast and even though
+the repository contains the whole history the checkout is pretty small.
+By the time I'm writing this blog post the pygments sourcecode including
+the unittests and example sourcecode without the revision history is
+2.5MB. A complete mercurial checkout is only 5MB even though it includes
+486 changesets.</p>
+<p>After you got your very own repository by cloning the pygments one you
+will notice that all the subversion-like commands (&quot;hg ci&quot;, &quot;hg add&quot;,
+&quot;hg up&quot;, ...) work locally only. You check into your local version of
+the repository and hg up won't incorporate remote changes. One of the
+things that happen on hg clone is that mercurial will set the path to
+the repository you cloned from into the hgrc of the newly created
+repository. This file (&quot;.hg/hgrc&quot;) is used to store per-repository
+configuration like the path of remote repositories, the name used for
+checkins, plugins that are only enabled for this repository and more.
+Executing &quot;hg pull&quot; will automatically pull changes from this remote
+repository and put them into the current repository as second branch. To
+see what &quot;hg pull&quot; will pull from that remote repository you can execute
+&quot;hg incoming&quot; and it will print a list of changesets that are in the
+remote repository but not yet in the local one. After you have pulled
+you have to update the repository with &quot;hg up&quot; so that you can actually
+see the changes. If there were remote changes that require merging you
+have to &quot;hg merge&quot; them and &quot;hg ci&quot; the merge.</p>
+<p>Because this process is very common there are ways to simplify it. &quot;hg
+pull &amp;&amp; hg update&quot; can be written as &quot;hg pull -u&quot;. All the commands
+(pull, update, merge and checkin if required) can be handled in one go
+using &quot;hg fe&quot;. This command however is part of a plugin which is
+disabled by default. If you want to use it you have to add the following
+lines into the repository hgrc or your personal one:</p>
+<pre class="literal-block">
+[extensions]
+hgext.fetch=
+</pre>
+<p>The other important difference to subversion is how you push your
+changes back to the server. In open source projects usually only a small
+number of developers has access to the main repository and contributors
+create patches using &quot;diff&quot; or &quot;svn diff&quot; and mail it to one of the
+persons with commit rights or attach it to a ticket in the project's
+tracker. If you are a person with push privileges you can do &quot;hg push&quot;
+and it will push the changesets which are not yet on the server (you can
+look at them using &quot;hg outgoing&quot;). If you don't have push access you can
+create a bundle of changes and attach that to a ticket rather than a
+patch. A bundle stores multiple changesets in one file and it also
+preserves the correct author information and timestamps. Another way is
+mailing the changes to a different developer using the patchbomb
+extension (I won't cover that here, just google it up). Or you can let
+other people pull from your repository. Therefore you either have to
+configure your apache to server a hgweb instance or you just call &quot;hg
+serve&quot; and it will spawn a server on localhost:8000 everybody can pull
+from.</p>
+<p>Once the developer has decided to put your changes into the central
+repository and pushed them, your changes will appear there unaltered and
+with the same revision hashes. What will be different is the local
+number the changeset is given. If the revision was called deadbeef:42
+locally it could be called deadbeef:52 on the server because different
+changesets were applied first.</p>
+<p>All the commands that interact with remote repositories (&quot;hg pull&quot;, &quot;hg
+push&quot;, &quot;hg fe&quot;, ...) also take a different path than the default path
+from the hgrc as argument. This allows you to pull changes from
+repositories shared over the web.</p>
+<p>A cool example what mercurial allows you to do is our last ubuntuusers
+webteam meetup. There we used my notebook to store the central
+repository and everybody pushed the changes every once in a while to it.
+Additionally some people exchanged patches to not yet working features
+among each other so that the code on the central repo was seldom broken.
+When I left everybody had all the changes locally because they pulled
+and I could remove my notebook and everybody continued working on their
+way home. When we met again on IRC I copied my repo on the server and
+everybody pushed their local changes to it.</p>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/hg/">hg</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

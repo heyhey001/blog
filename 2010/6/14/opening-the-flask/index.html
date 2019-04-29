@@ -1,0 +1,246 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>Opening The Flask | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">Opening The Flask</h1>
+
+  
+  <p class=date>written on Monday, June 14, 2010
+  
+
+  <p>Howdy everybody. This is the first part of a multi-part blog post about
+creating web frameworks based on <a class="reference external" href="http://werkzeug.pocoo.org/">Werkzeug</a> and other existing code. This is
+obviously based on my <a class="reference external" href="http://flask.pocoo.org/">Flask</a> microframework.
+So it probably makes sense to head over to the documentation first to
+look at some example code. But before we get started, let's discuss
+first about why you should create your own frameworks.</p>
+<div class="section" id="why-create-your-own-framework">
+<h2>Why create your own Framework</h2>
+<p>It is quite unpopular these days to go with building your own framework;
+everybody quickly shouts &quot;reinventing the wheel&quot; and points you to one
+of the tons of existing web frameworks out there. But it is actually a
+really good idea to create a framework for an application and not go
+with a stock one. Why? Because you are a lot more flexible and your
+application might require something that does not exist yet. For an
+application I wrote in the past in the very early Django days the
+development process looked a lot like this:</p>
+<p>Step 1: download django, Step 2: get started and feel happy, Step 3:
+encounter problems in the framework design and start modifiying the
+core, Step 4: phase more and more Django code out and end up with a
+completely new package that everybody hates.</p>
+<p>Turns out: Django like every other framework out there is improving
+quickly, but often not in the areas you might be interested in. Then you
+start modifying it yourself and when Django improves sideways, you
+suddenly end up in the situation where it becomes nearly impossible to
+upgrade to a newer Django version or it's too painful. Obviously Django
+has greatly improved since then, but a few things continue to work
+differently than I want them to work. For one I personally don't like
+the template engine too much and also would love the ORM to ensure that
+objects with the same primary key are actually the same objects and
+queries sent less often. These are things that are very unlikely to
+change in Django and there are really good reasons why this will not
+change which are totally fine, but certainly not what I want.</p>
+<p>Another reason to roll your own framework is that you know everything
+and you can fix it quickly yourself.</p>
+</div>
+<div class="section" id="end-result">
+<h2>End Result</h2>
+<p>This is what should work at the end of the day:</p>
+<div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">yourflask</span> <span class="kn">import</span> <span class="n">YourFlask</span>
+<span class="n">app</span> <span class="o">=</span> <span class="n">YourFlask</span><span class="p">()</span>
+
+<span class="nd">@app.route</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">index</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;Hello World&#39;</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</pre></div>
+<p>Looks a lot like a simplified Flask version, which is exactly what it
+should be. Not yet as capable, but easier to dive in and to understand
+the concepts.</p>
+<p>In a nutshell: 1) create an application, 2) register functions on that
+application that listen on a specific path (or URL rule), 3) these
+functions return response objects or strings. We also pass the request
+object explicitly to the function for now because that's easier to
+understand and implement.</p>
+</div>
+<div class="section" id="the-code">
+<h2>The Code</h2>
+<p>The following code implements the full framework for this blog post.  As
+I said, it's a very simplified Flask but it is capable of producing
+simple web applications and to run the example from above:</p>
+<div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">werkzeug</span> <span class="kn">import</span> <span class="n">Request</span><span class="p">,</span> <span class="n">Response</span><span class="p">,</span> <span class="n">run_simple</span>
+<span class="kn">from</span> <span class="nn">werkzeug.exceptions</span> <span class="kn">import</span> <span class="n">HTTPException</span>
+<span class="kn">from</span> <span class="nn">werkzeug.routing</span> <span class="kn">import</span> <span class="n">Map</span><span class="p">,</span> <span class="n">Rule</span>
+
+<span class="k">class</span> <span class="nc">YourFlask</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">url_map</span> <span class="o">=</span> <span class="n">Map</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">views</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">def</span> <span class="nf">route</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">string</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">decorator</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
+            <span class="n">options</span><span class="p">[</span><span class="s1">&#39;endpoint&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="vm">__name__</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">views</span><span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="vm">__name__</span><span class="p">]</span> <span class="o">=</span> <span class="n">f</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">url_map</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">Rule</span><span class="p">(</span><span class="n">string</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">f</span>
+        <span class="k">return</span> <span class="n">decorator</span>
+
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">run_simple</span><span class="p">(</span><span class="s1">&#39;localhost&#39;</span><span class="p">,</span> <span class="mi">5000</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">make_response</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rv</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">rv</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">rv</span><span class="p">,</span> <span class="n">mimetype</span><span class="o">=</span><span class="s1">&#39;text/html&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">rv</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">environ</span><span class="p">,</span> <span class="n">start_response</span><span class="p">):</span>
+        <span class="n">request</span> <span class="o">=</span> <span class="n">Request</span><span class="p">(</span><span class="n">environ</span><span class="p">)</span>
+        <span class="n">adapter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">url_map</span><span class="o">.</span><span class="n">bind_to_environ</span><span class="p">(</span><span class="n">environ</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">endpoint</span><span class="p">,</span> <span class="n">values</span> <span class="o">=</span> <span class="n">adapter</span><span class="o">.</span><span class="n">match</span><span class="p">()</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_response</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">views</span><span class="p">[</span><span class="n">endpoint</span><span class="p">](</span><span class="n">request</span><span class="p">,</span> <span class="o">**</span><span class="n">values</span><span class="p">))</span>
+        <span class="k">except</span> <span class="n">HTTPException</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">e</span>
+        <span class="k">return</span> <span class="n">response</span><span class="p">(</span><span class="n">environ</span><span class="p">,</span> <span class="n">start_response</span><span class="p">)</span>
+</pre></div>
+<p>So how exactly does it work and what does it do? The following list is
+the summary of the above code:</p>
+<ul class="simple">
+<li>We create a class called <cite>YourFlask</cite> that implements a WSGI
+application and provides methods to register callback functions and
+binds them to a Werkzeug URL map.</li>
+<li>The <cite>route()</cite> method can be used as a decorator to register new view
+functions. It does this by accepting a string with the URL rule as
+first argument and accepts some more keyword arguments that are
+forwarded unchanged. The routing system uses an opaque string to
+identify functions. This is called the endpoint. In this example we
+will use the function name as endpoint (something Flask does as well
+for simple setups).</li>
+<li>The <cite>run()</cite> method just starts the internal development server that
+comes with Werkzeug. That's just a nice shortcut.</li>
+<li><cite>make_response()</cite> is called with the return value from the view
+function. If it's a string, we create a response object. That's just a
+nice shortcut.</li>
+<li>In the <cite>__call__()</cite> method we implement the full WSGI application.
+First a request object is created from the WSGI environment and then
+the URL map is used to create an adapter. This adapter is basically
+bound to the WSGI environment and can be used to match the current
+URL. If a match is found the endpoint and values are returned (the
+values are variable parts in the rule as dictionary). In case nothing
+matched, a <cite>NotFound</cite> exception is raised which incidentally is also
+an <cite>HTTPException</cite>. If all works out we look up the view function and
+pass it the values and the request object.</li>
+<li>The return value of the function is passed to our <cite>make_response()</cite>
+method so that we can ensure it's a response object.</li>
+<li>If an <cite>HTTPException</cite> is raised we catch it and use it as response
+object. It's not exactly a response object but close enough to one
+that we can do the same with it.</li>
+<li>Either way, the response is invoked as WSGI application and the
+application iterator is returned.</li>
+</ul>
+</div>
+<div class="section" id="where-wsgi-fits-in">
+<h2>Where WSGI fits in</h2>
+<p>So what we created is a WSGI application. How exactly does it work and
+where is the WSGI part? The majority of the pain is handled for us by
+Werkzeug. WSGI itself looks like this:</p>
+<ol class="arabic simple">
+<li>There is a thing that can be called. It's passed a WSGI
+environment (which is basically a dict with incoming data) and a
+function that is used to start the response.</li>
+<li>What the function returns is an iterable of data send back to the
+browser, it has to call the response starting function first.</li>
+</ol>
+<p>If you look close, we are doing that in our <cite>__call__()</cite> method. Well,
+it's not really visible but it happens. When we invoke the response
+thingy, internally Werkzeug will call the response starting function and
+all for us. We also use the WSGI environment when we create the request
+object.</p>
+<p>The request object itself gives us access to all the stuff that is
+incoming from the browser: where the request went, what values were
+transmitted, what browser is used, the cookies etc. We will focus on
+that with the next blog post.</p>
+</div>
+<div class="section" id="coming-up-next">
+<h2>Coming up Next</h2>
+<p>Now that all is working fine we should focus on these things next:</p>
+<ol class="arabic simple">
+<li>explore the concept of thread / context local objects to avoid
+passing the request object (not saying it's necessarily a good idea
+but crucial for understanding web frameworks in general. Even if you
+think Django does not use them, it does. The i18n and database
+system is powered by thread local objects).</li>
+<li>add support for a template engine and serving up static files</li>
+<li>add more helper functions for URL building, rendering templates
+and aborting requests with errors.</li>
+</ol>
+<p>Stay tuned :)</p>
+</div>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/flask/">flask</a> and 
+      <a href="/tags/python/">python</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

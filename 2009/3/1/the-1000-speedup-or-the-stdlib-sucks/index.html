@@ -1,0 +1,101 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>The 1000% Speedup, or, the stdlib sucks | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">The 1000% Speedup, or, the stdlib sucks</h1>
+
+  
+  <p class=date>written on Sunday, March 1, 2009
+  
+
+  <p>I hate the <a class="reference external" href="http://docs.python.org/dev/library">stdlib</a>. There! I said
+it. Why do I hate it? <cite>Cookie</cite>, <cite>cgi</cite>, <cite>urllib</cite>, n'uff said. Today I can
+add another module to the “I hate you” list.</p>
+<p>I noticed that <a class="reference external" href="http://werkzeug.pocoo.org/">Werkzeug</a>'s
+<cite>SharedDataMiddleware</cite> was just delivering 50 requests a second. I tried
+around a bit but nothing changed. Until I removed the call to
+<cite>mimetypes.guess_type</cite>. Suddenly I got 500 requests the second instead
+of the previous 50.</p>
+<p>How badly implemented can that function be I was asking myself.  So I
+had a look:</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">guess_type</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="n">init</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">guess_type</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">strict</span><span class="p">)</span>
+</pre></div>
+<p>WTF? And then it hit me. <cite>init()</cite> was loading the mimetype database and
+monkey patching the module so that <cite>guess_type()</cite> was replaced by a new
+function. Actually a method of the mimetype database.</p>
+<p>And I was importing <cite>guess_type</cite> as follows:</p>
+<div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mimetypes</span> <span class="kn">import</span> <span class="n">guess_type</span>
+</pre></div>
+<p>So on every call the database was reloaded.  GNAAAaa.  So check out <a class="reference external" href="http://www.google.com/codesearch?hl=en&amp;sa=N&amp;q=%22from+mimetypes+import+guess_type%22">If
+you're doing the same mistake</a>.
+If yes, change it to the following import:</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mimetypes</span>
+</pre></div>
+<p>And now I file a ticket in the Python bug tracker <a class="reference external" href="http://bugs.python.org/issue5401">ticket filed</a>. -.-</p>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/python/">python</a> and 
+      <a href="/tags/rant/">rant</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

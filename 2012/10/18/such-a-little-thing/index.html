@@ -1,0 +1,503 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>Such a Little Thing: The Semicolon in Rust | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">Such a Little Thing: The Semicolon in Rust</h1>
+
+  
+  <p class=date>written on Thursday, October 18, 2012
+  
+
+  <p>I was very happy to see <a class="reference external" href="http://www.rust-lang.org/">Rust</a> 0.4 being
+released yesterday.  It's the first language in a really long time that
+genuinely interests me.  It might be the next language besides C, C# and
+Python that I would really enjoy.  The language design strikes such an
+exciting balance between doing new things and staying familiar enough to
+feel easy to pick up.</p>
+<p>One of the exciting things of Rust is how it learns from other languages
+before in an experimental way.  The language is designed and overthrown as
+it's being used and seeing the process unfold is very reminiscent of how
+Python's early days must have looked like.</p>
+<p>One of the surprising features of Rust is how it deals with statement
+termination and it has not been without criticism.  Personally: I am
+absolutely in love with how it does it but I have seen some people being
+very opposed to it.  So here is me explaining why I think it's the best
+thing since sliced bread.</p>
+<div class="section" id="what-ruby-does-that-python-lacks">
+<h2>What Ruby does that Python Lacks</h2>
+<p>Before we can get to that, we need to do a detour into the dynamic
+language camp, mostly into the Ruby and Python camps.  The languages seem
+familiar on the surface but they are actually very far apart.  In fact,
+the languages could not be different in many ways.  One of the most
+striking differences is how Ruby and Python deal with methods and
+statements versus expressions.</p>
+<p>In Python everything is an object and that includes functions.  In fact
+calling it a function would be wrong, Python programmers like to call them
+callables.  The reason for that is that there are a lot of things you can
+call but they behave differently in their lowlevel implementations.
+That's something you will not notice as a Python novice but it certainly
+shows up at times, especially when it comes to changing the implementation
+and exposing unintended side effects.</p>
+<p>For instance <tt class="docutils literal">str()</tt> in Python used to be a function and was later
+converted into a type.  <tt class="docutils literal">dir()</tt> in Python is a builtin function whereas
+<tt class="docutils literal">quit()</tt> is an instance of a quitter type.  <tt class="docutils literal">cgi.escape()</tt> is a
+“function”.  On the surface they all work exactly the same, but really the
+only thing they have in common is that you can call them.</p>
+<p>In Ruby there are no functions, instead there are objects that have
+methods.  The idea is that instead of invoking a method on an object you
+send a message to an object, at least that is the original design.  Not
+having functions has some profound implications.  The most obvious one is
+that without first class functions, functional programming works
+differently.  Ruby developers will generally tell you that functional
+programming works better in Ruby than it does in Python and will point out
+that blocks are preferable over anonymous functions.  What are blocks?
+They are basically syntactic sugar to create an object (called a <tt class="docutils literal">Proc</tt>)
+with a method called <tt class="docutils literal">call</tt> that can be invoked.  This proc is then
+passed to a function in a special parameter.</p>
+<p>Let's talk a bit more practice here.  Given a list of four numbers, here
+is how you would calculate the power of two for each item.</p>
+<p>First in Python:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">power_it</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+<span class="gp">... </span> <span class="k">return</span> <span class="n">x</span> <span class="o">**</span> <span class="mi">2</span>
+<span class="gp">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">map</span><span class="p">(</span><span class="n">power_it</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
+<span class="go">[1, 4, 9, 16]</span>
+</pre></div>
+<p>Then in Ruby:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt; </span><span class="o">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="o">].</span><span class="n">map</span> <span class="p">{</span> <span class="o">|</span><span class="n">x</span><span class="o">|</span> <span class="n">x</span> <span class="o">**</span> <span class="mi">2</span> <span class="p">}</span>
+<span class="go">=&gt; [1, 4, 9, 16]</span>
+</pre></div>
+<p>The Python version is obviously not the way you would write that in
+Python.  Making a function like this is not very useful.  Instead what you
+do in Python is either using a list comprehension (avoiding the problem)
+or to use the <tt class="docutils literal">lambda</tt> keyword that allows you to create an unnamed
+function that has a single expression as body.  Let's ignore that for a
+moment though.  The example above shows something very interesting: it
+shows how different the languages treat expressions.</p>
+<p>In Python there are statements and expressions.  The syntax allows for
+statements to contain other statements and expressions to contain other
+expressions.  If an expression is used in the spot where a statement is
+expected it's wrapped in what the grammar calls an “expression statement”.
+The purpose of the expression statement is to throw away the resulting
+value of the expression.  This is obvious in both the syntax
+representation as well as the bytecode.</p>
+<p>Take this very benign example:</p>
+<div class="highlight"><pre><span></span><span class="n">foo</span><span class="p">()</span>
+</pre></div>
+<p>On a syntax level this is the representation:</p>
+<div class="highlight"><pre><span></span><span class="n">Module</span><span class="p">(</span><span class="n">body</span><span class="o">=</span><span class="p">[</span><span class="n">Expr</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">Call</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">Name</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s1">&#39;foo&#39;</span><span class="p">,</span> <span class="n">ctx</span><span class="o">=</span><span class="n">Load</span><span class="p">()),</span>
+                             <span class="n">args</span><span class="o">=</span><span class="p">[],</span> <span class="n">keywords</span><span class="o">=</span><span class="p">[],</span>
+                             <span class="n">starargs</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="bp">None</span><span class="p">))])</span>
+</pre></div>
+<p>The call appears on module level, a module has multiple statements in the
+body.  In this case it calls the name “foo” (which is loaded) with no
+arguments or keyword arguments of any sort.  Since it's an expression it
+is wrapped in an <tt class="docutils literal">Expr</tt> node.  This allows an expression to be used
+there and also then tells the code generator to throw away the result.
+This would be the bytecode for it:</p>
+<pre class="literal-block">
+2           0 LOAD_GLOBAL              0 (foo)
+            3 CALL_FUNCTION            0
+            6 POP_TOP
+</pre>
+<p>It tells the interpreter: load the value for the global variable “foo”,
+then call it without arguments, then throw away the return value.</p>
+<p>This is very different from Ruby.  In Ruby many statements are implemented
+in a way that they are either expressions or at least behave in such a
+way.  The language also very often does not throw away values like Python
+does.  This is helpful because for instance methods return the value of
+the last expression when they return.  Ruby follows that design mantra to
+ridiculous ways.  For instance the following example defines a variable
+called <tt class="docutils literal">foo</tt> and an empty class <tt class="docutils literal">Bar</tt> where <tt class="docutils literal">foo</tt> contains the last
+expression within <tt class="docutils literal">Bar</tt>'s body:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt; </span><span class="n">foo</span> <span class="o">=</span> <span class="k">class</span> <span class="nc">Bar</span>
+<span class="gp">&gt;&gt; </span>  <span class="mi">42</span>
+<span class="gp">&gt;&gt; </span><span class="k">end</span>
+<span class="go">=&gt; 42</span>
+<span class="gp">&gt;&gt; </span><span class="n">foo</span>
+<span class="go">=&gt; 42</span>
+</pre></div>
+<p>(Notice also how the assignment is also an expression that returns the
+value that was assigned in the expression)</p>
+<p>Neat idea huh?  But there is also a problem with that, and that's that you
+could return something as a side effect.  For instance imagine you have a
+function that acts as a setter in ruby:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt; </span><span class="k">class</span> <span class="nc">Foo</span>
+<span class="gp">&gt;&gt; </span> <span class="k">def</span> <span class="nf">set_x</span> <span class="n">val</span>
+<span class="gp">&gt;&gt; </span>  <span class="vi">@x</span> <span class="o">=</span> <span class="n">val</span>
+<span class="gp">&gt;&gt; </span> <span class="k">end</span>
+<span class="gp">&gt;&gt; </span><span class="k">end</span>
+<span class="go">=&gt; nil</span>
+<span class="gp">&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="no">Foo</span><span class="o">.</span><span class="n">new</span>
+<span class="go">=&gt; #&lt;Foo:0x007fcaa09b1500&gt;</span>
+<span class="gp">&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">set_x</span> <span class="mi">42</span>
+<span class="go">=&gt; 42</span>
+</pre></div>
+<p>The setter now returns the value as a side-effect.  Since you can just
+ignore that in Ruby it's generally not a problem, but people might now
+start to rely on that.  Very often people are countering that problem by
+writing <tt class="docutils literal">nil</tt> at the end of the function to prevent the unintended
+result:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt; </span><span class="k">class</span> <span class="nc">Foo</span>
+<span class="gp">&gt;&gt; </span> <span class="k">def</span> <span class="nf">set_x</span> <span class="n">val</span>
+<span class="gp">&gt;&gt; </span>  <span class="vi">@val</span> <span class="o">=</span> <span class="n">val</span>
+<span class="gp">&gt;&gt; </span>  <span class="kp">nil</span>
+<span class="gp">&gt;&gt; </span> <span class="k">end</span>
+<span class="gp">&gt;&gt; </span><span class="k">end</span>
+<span class="go">=&gt; nil</span>
+<span class="gp">&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="no">Foo</span><span class="o">.</span><span class="n">new</span>
+<span class="go">=&gt; #&lt;Foo:0x007feab11af4e8&gt;</span>
+<span class="gp">&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">set_x</span> <span class="mi">42</span>
+<span class="go">=&gt; nil</span>
+</pre></div>
+<p>I can already see the argument that is brought up against that example
+from people doing more Ruby than me which is that nobody writes setters in
+Ruby.  That is correct since ruby as special callback methods for setting
+attributes.  The reason I did not use them is because they have their own
+semantics attached where the return value of the setter is ignored and
+overridden with the right hand of the assignment:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt; </span><span class="k">class</span> <span class="nc">Foo</span>
+<span class="gp">&gt;&gt; </span> <span class="k">def</span> <span class="nf">x</span><span class="o">=</span> <span class="n">val</span>
+<span class="gp">&gt;&gt; </span>  <span class="vi">@x</span> <span class="o">=</span> <span class="n">val</span>
+<span class="gp">&gt;&gt; </span>  <span class="kp">nil</span>
+<span class="gp">&gt;&gt; </span> <span class="k">end</span>
+<span class="gp">&gt;&gt; </span><span class="k">end</span>
+<span class="go">=&gt; nil</span>
+<span class="gp">&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="no">Foo</span><span class="o">.</span><span class="n">new</span>
+<span class="go">=&gt; #&lt;Foo:0x007fa17b92ff80&gt;</span>
+<span class="gp">&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="mi">42</span>
+<span class="go">=&gt; 42</span>
+</pre></div>
+</div>
+<div class="section" id="blocks-are-not-functions">
+<h2>Blocks are not Functions</h2>
+<p>So let's stick with Ruby for a bit.  Often it's argued that blocks are
+basically just anonymous functions.  That however is not the case because
+they do more things than just functions, and that's important due to how
+the language works.  Notice how we did not use <tt class="docutils literal">return</tt> anywhere in the
+above examples despite the fact that ruby has <tt class="docutils literal">return</tt>.  That's because
+<tt class="docutils literal">return</tt> is doing something else than just returning the last value when
+used within a block.  A <tt class="docutils literal">return</tt> within a block returns from the calling
+scope (which is pretty crazy if you think about it):</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt; </span><span class="k">def</span> <span class="nf">foo</span>
+<span class="gp">&gt;&gt; </span> <span class="o">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="o">].</span><span class="n">each</span> <span class="p">{</span> <span class="o">|</span><span class="n">x</span><span class="o">|</span> <span class="nb">puts</span> <span class="n">x</span><span class="p">;</span> <span class="k">return</span> <span class="mi">42</span><span class="p">;</span> <span class="p">}</span>
+<span class="gp">&gt;&gt; </span><span class="k">end</span>
+<span class="go">=&gt; nil</span>
+<span class="gp">&gt;&gt; </span><span class="n">foo</span>
+<span class="go">1</span>
+<span class="go">=&gt; 42</span>
+</pre></div>
+<p>How does it do that?  It users interpreter internal magic by setting a
+jump point before the invocation.  That also means the block behaves
+differently when returned from the function:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt; </span><span class="k">def</span> <span class="nf">foo</span>
+<span class="gp">&gt;&gt; </span> <span class="no">Proc</span><span class="o">.</span><span class="n">new</span> <span class="p">{</span> <span class="k">return</span> <span class="mi">42</span> <span class="p">}</span>
+<span class="gp">&gt;&gt; </span><span class="k">end</span>
+<span class="go">=&gt; nil</span>
+<span class="gp">&gt;&gt; </span><span class="nb">p</span> <span class="o">=</span> <span class="n">foo</span>
+<span class="go">=&gt; #&lt;Proc:0x007ff25b0efda8@(irb):10&gt;</span>
+<span class="gp">&gt;&gt; </span><span class="nb">p</span><span class="o">.</span><span class="n">call</span>
+<span class="go">LocalJumpError: unexpected return</span>
+<span class="go">    from (irb):10:in `block in foo&#39;</span>
+<span class="go">    from (irb):13:in `call&#39;</span>
+</pre></div>
+<p>So it's pretty clear that blocks are a whole different beast and pretty
+much require the fact that the last expression is the return value from
+the block since <tt class="docutils literal">return</tt> is there to have other purposes.  Why does
+<tt class="docutils literal">return</tt> return from the calling method and not the block?  That's
+because of how iteration works in Ruby.  Iteration is implemented exactly
+the other way round compared to Python.  In Python iteration works by
+creating an iterator that can be called to produce more values until an
+exception is raised.  If needs be that iterator keeps a interpreter frame
+alive in a suspended state (called generators in Python).</p>
+<p>In Ruby iteration is implemented by letting something call a block
+repeatedly until the end of the iteration.  The interpreter provides jump
+points in order to implement skipping or breaking the iteration.  A
+<tt class="docutils literal">continue</tt> is implemented as a form of jumping to the end of the block,
+a <tt class="docutils literal">break</tt> is implemented by jumping past the call to the iterator
+function.  Without the <tt class="docutils literal">return</tt> it would be very awkward to return
+something from the function.  Imagine a function that returns the first
+even item from a list:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt; </span><span class="k">def</span> <span class="nf">find_even</span> <span class="n">iterable</span>
+<span class="gp">&gt;&gt; </span> <span class="n">iterable</span><span class="o">.</span><span class="n">each</span> <span class="p">{</span> <span class="o">|</span><span class="n">x</span><span class="o">|</span> <span class="k">return</span> <span class="n">x</span> <span class="k">if</span> <span class="n">x</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">}</span>
+<span class="gp">&gt;&gt; </span><span class="k">end</span>
+<span class="go">=&gt; nil</span>
+<span class="gp">&gt;&gt; </span><span class="n">find_even</span> <span class="o">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="o">]</span>
+<span class="go">=&gt; 6</span>
+</pre></div>
+<p>Imagine the non-local return was not available, you would have to rewrite
+it like this:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt; </span><span class="k">def</span> <span class="nf">find_even</span> <span class="n">iterable</span>
+<span class="gp">&gt;&gt; </span> <span class="n">done</span> <span class="o">=</span> <span class="kp">false</span>
+<span class="gp">&gt;&gt; </span> <span class="n">rv</span> <span class="o">=</span> <span class="kp">nil</span>
+<span class="gp">&gt;&gt; </span> <span class="n">iterable</span><span class="o">.</span><span class="n">each</span> <span class="p">{</span> <span class="o">|</span><span class="n">x</span><span class="o">|</span>
+<span class="gp">&gt;&gt; </span>  <span class="k">if</span> <span class="n">x</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span>
+<span class="gp">&gt;&gt; </span>   <span class="n">done</span> <span class="o">=</span> <span class="kp">true</span>
+<span class="gp">&gt;&gt; </span>   <span class="n">rv</span> <span class="o">=</span> <span class="n">x</span>
+<span class="gp">&gt;&gt; </span>   <span class="k">break</span>
+<span class="gp">&gt;&gt; </span>  <span class="k">end</span>
+<span class="gp">&gt;&gt; </span> <span class="p">}</span>
+<span class="gp">&gt;&gt; </span> <span class="n">rv</span>
+<span class="gp">&gt;&gt; </span><span class="k">end</span>
+</pre></div>
+</div>
+<div class="section" id="back-to-rust">
+<h2>Back to Rust</h2>
+<p>Now what does any of this have to do with Rust?  Quite a lot actually.  If
+you have not paid much attention to Rust here is a very short primer of
+what the language is about: compile time verification of a lot of things.
+The language is designed to catch many errors at compile time.  It's
+operating on a similar low level than C or C++ do so you get direct access
+to memory if you want, but it will still verify at compile time that you
+are never dealing with uninitialized memory by accident.</p>
+<p>The way it does that is by using different pointer types with different
+associated semantics.  You have pointers where the compiler determines
+statically that at any point in time there is only one owner, there are
+pointers with limited garbage collection and there are pointers that are
+lent memory temporarily.  There is a lot more to the language, but that's
+the most important aspect of it if you have no idea of the language
+otherwise.</p>
+<p>This has a lot of implications of how the language works.  For instance
+it's quite easy to give a loan to memory if you can guarantee that a
+caller will only temporarily use the memory (for the duration of the
+call).  All you need to do is to verify that the value never persists for
+longer than the duration of the call.  If you think about it: that's how
+iteration in ruby works as well.  You have a block that closes over some
+variables and that closure lives for as long as the iteration is ongoing.</p>
+<p>Rust in fact models it's iteration model very close to ruby and even uses
+some of the same syntax.  The iteration protocol however itself works
+slightly different by utilizing the return value to indicate a break or
+continue.</p>
+<p>In accordance with Rust's memory model there are different “blocks”
+(called closures) as well.  Here is also where Rust diverges from Ruby.
+In Ruby a block is a syntactical suffix to a method invocation, in Rust a
+closure is a syntactical construct that can stand on itself.  Closures can
+either be store on the stack (perfect for things like iteration) or be
+tracked by the garbage collector or unique in which case only one variable
+at the time can own the memory.</p>
+<p>In this example I'm only talking about stack stored closures which are
+special in a number of ways.  The first and most obvious one is that the
+syntax looks slightly different (basically like ruby blocks) but also that
+they can only be passed around, not stored.  They additionally also have
+compiler support which I will come to later.</p>
+<p>As mentioned, the syntax for closures is ruby inspired:</p>
+<div class="highlight"><pre><span></span><span class="sr">/* a closure that takes a variable, creates the power of two and</span>
+<span class="sr">   returns it */</span>
+<span class="o">|</span><span class="ss">x</span><span class="p">:</span> <span class="n">int</span><span class="o">|</span> <span class="o">-&gt;</span> <span class="n">int</span> <span class="p">{</span> <span class="n">x</span> <span class="o">**</span> <span class="mi">2</span> <span class="p">}</span>
+</pre></div>
+<p>Since Rust has powerful type inference the type annotations can be ignored
+in places where such a closure is passed as a callback to something else.
+For instance the map example from above in Rust looks very much like Ruby:</p>
+<div class="highlight"><pre><span></span><span class="n">let</span> <span class="n">powers</span> <span class="o">=</span> <span class="o">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="o">].</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="n">x</span><span class="o">|</span> <span class="p">{</span> <span class="n">x</span> <span class="o">**</span> <span class="mi">2</span> <span class="p">});</span>
+</pre></div>
+<p>In fact, you can even leave out the braces if they only contain a single
+expression:</p>
+<div class="highlight"><pre><span></span><span class="n">let</span> <span class="n">powers</span> <span class="o">=</span> <span class="o">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="o">].</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="n">x</span><span class="o">|</span> <span class="n">x</span> <span class="o">**</span> <span class="mi">2</span><span class="p">);</span>
+</pre></div>
+<p>Looks like it can only hold an expression, but in fact in Rust — like in
+Ruby — almost everything is an expression.  For instance you could do this
+if you want:</p>
+<div class="highlight"><pre><span></span><span class="n">let</span> <span class="n">powers</span> <span class="o">=</span> <span class="o">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="o">].</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="n">x</span><span class="o">|</span> <span class="p">{</span>
+    <span class="n">let</span> <span class="n">power</span> <span class="o">=</span> <span class="n">x</span> <span class="o">*</span> <span class="mi">2</span><span class="p">;</span>
+    <span class="n">power</span>
+<span class="p">})</span>
+</pre></div>
+<p>Like in Ruby, the last expression returns.  But it comes with a twist.
+Notice how there is a lack of semicolon at the end?</p>
+</div>
+<div class="section" id="the-semicolon">
+<h2>The Semicolon!</h2>
+<p>Now we finally arrive where I wanted to go all the time: the semicolon in
+Rust.  So Rust shares with Ruby that almost everything is an expression,
+but Rust also has static typing with type inference.  That can very much
+be asking for trouble due to unintended side effects of the last
+expression.  For instance remember how the assignment in Ruby leaks the
+right hand side in the expression?  That would be quite annoying in Rust
+where the closure would suddenly return a value that is not expected by
+the caller's callback signature.</p>
+<p>Rust has solved that problem currently in an incredible elegant way and
+that is by giving the presence or absence of the semicolon a meaning.</p>
+<p>Trailing semicolon in the last expression in a block means: ignore value
+(or convert it to “nil” (<tt class="docutils literal">()</tt>)), the absence of it means to bubble up
+that expression.</p>
+<p>Before we go further with that I want to point out how amazing semicolons
+are.  I love extreme solutions because they are generally more stable than
+some wonky ideas in between.  Python for instance has a very strong stance
+on statement termination: newlines terminate statements.  C has one as
+well:  semicolons terminate statements.  JavaScript <a class="reference external" href="/2011/2/6/automatic-semicolon-insertion/">is flailing</a>.  Are semicolons annoying to
+type?  Probably, I got used to them.  But the alternative to semicolons is
+making line endings significant.  Ruby gets away quit well with (what I
+think is magic or with) some sort of controlled chaos in the grammar.</p>
+<p>I really despise what Erlang is doing where the semicolon is not a
+terminator but a separator and a dot is used as terminator.  Why?  Because
+it makes for awkward diffs where you affect the line before if you add a
+new statement.  I understand why Erlang does it, but that does not make it
+a good idea.</p>
+<p>So hereby I declare: I love semicolons and I love languages that take a
+strong stance on them.  Semicolons in Rust have a lot of value.</p>
+<p>Since only the last expression can be bubbled anyways the fact that the
+last semicolon can be present or absent does not even cause a problem in
+the language grammar.  Some semicolon terminated grammars traditionally
+did not care about the last semicolon in a block anyways (like PHP or CSS
+for instance).</p>
+</div>
+<div class="section" id="iteration-protocol">
+<h2>Iteration Protocol</h2>
+<p>So why is Rust not requiring an explicit return?  Well first of all
+because it would be ugly, but secondly because it shares part of the
+iteration protocol with Ruby.  For instance here is the Rust version of
+accepting a list of values and returning the first even one:</p>
+<div class="highlight"><pre><span></span><span class="n">fn</span> <span class="n">find_even</span><span class="p">(</span><span class="ss">vector</span><span class="p">:</span> <span class="o">&amp;[</span><span class="n">int</span><span class="o">]</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="no">Option</span><span class="o">&lt;</span><span class="n">int</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">for</span> <span class="n">vector</span><span class="o">.</span><span class="n">each</span> <span class="o">|</span><span class="n">x</span><span class="o">|</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="o">*</span><span class="n">x</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">{</span>
+            <span class="k">return</span> <span class="no">Some</span><span class="p">(</span><span class="o">*</span><span class="n">x</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="no">None</span>
+<span class="p">}</span>
+</pre></div>
+<p>Since the language is statically typed and the type system is algebraic
+there is no special <cite>null</cite> type that can be used for any value.  As such
+the return value from the function is either the value wrapped or None.
+Also the iterator yields pointers that need to be dereferences, but ignore
+that part for the moment.  The important part is the <tt class="docutils literal">return</tt>.  It's
+inside a stack closure yet it returns from the outer function.  How the
+hell does that work?  And what's that <tt class="docutils literal">for</tt> statement.  Let's answer the
+latter question first.  The function above could be rewritten like this:</p>
+<div class="highlight"><pre><span></span><span class="n">fn</span> <span class="n">find_even</span><span class="p">(</span><span class="ss">vector</span><span class="p">:</span> <span class="o">&amp;[</span><span class="n">int</span><span class="o">]</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="no">Option</span><span class="o">&lt;</span><span class="n">int</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="n">let</span> <span class="n">mut</span> <span class="ss">rv</span><span class="p">:</span> <span class="no">Option</span><span class="o">&lt;</span><span class="n">int</span><span class="o">&gt;</span> <span class="o">=</span> <span class="no">None</span><span class="p">;</span>
+    <span class="n">vector</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="o">|</span><span class="n">x</span><span class="o">|</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="o">*</span><span class="n">x</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">{</span>
+            <span class="n">rv</span> <span class="o">=</span> <span class="no">Some</span><span class="p">(</span><span class="o">*</span><span class="n">x</span><span class="p">);</span>
+            <span class="kp">false</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+            <span class="kp">true</span>
+        <span class="p">}</span>
+    <span class="p">});</span>
+    <span class="n">rv</span>
+<span class="p">}</span>
+</pre></div>
+<p>As you can see, the iteration callback closure has a return value by
+itself and that is the indication if the iteration should continue or
+terminate.  The <tt class="docutils literal">for</tt> statement is a neat little syntax abstraction
+around the iteration protocol that adds the <tt class="docutils literal">return true</tt> and <tt class="docutils literal">return
+false</tt> for you to make it look nicer.  Since the return at that point is
+up for new use it can be repurposed to mean “return from outer function”,
+and that's what it does.  So Rust, like Ruby benefits greatly from having
+the <tt class="docutils literal">return</tt> up for other use.</p>
+<p>Why is Rust using Ruby style iteration and not Python style iteration?
+Because it's much easier to understand given the restrictions the type
+system gives you.  It's a small price to pay for what the language gives
+you in return.</p>
+</div>
+<div class="section" id="intermission-make-it-generic">
+<h2>Intermission: Make it Generic</h2>
+<p>One thing that should be noted here is that unlike the Python or Ruby
+version this will not work for floating point values.  Traditionally that
+particular example is really hard to implement in languages that have
+generics and not full templates.  This however is still somewhat
+trivially solvable in Rust due to the support of the language.  The
+following would be a version of <tt class="docutils literal">find_first_even</tt> for arbitrary numbers:</p>
+<div class="highlight"><pre><span></span><span class="n">fn</span> <span class="n">find_even</span><span class="o">&lt;</span><span class="ss">T</span><span class="p">:</span> <span class="no">Copy</span> <span class="n">num</span><span class="o">::</span><span class="no">Num</span> <span class="n">cmp</span><span class="o">::</span><span class="no">Eq</span><span class="o">&gt;</span><span class="p">(</span><span class="ss">vec</span><span class="p">:</span> <span class="o">&amp;[</span><span class="n">T</span><span class="o">]</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="no">Option</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="n">let</span> <span class="ss">zero</span><span class="p">:</span> <span class="n">T</span> <span class="o">=</span> <span class="n">num</span><span class="o">::</span><span class="n">from_int</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+    <span class="n">let</span> <span class="ss">two</span><span class="p">:</span> <span class="n">T</span> <span class="o">=</span> <span class="n">num</span><span class="o">::</span><span class="n">from_int</span><span class="p">(</span><span class="mi">2</span><span class="p">);</span>
+    <span class="k">for</span> <span class="n">vec</span><span class="o">.</span><span class="n">each</span> <span class="o">|</span><span class="n">x</span><span class="o">|</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="o">*</span><span class="n">x</span> <span class="o">%</span> <span class="n">two</span> <span class="o">==</span> <span class="n">zero</span> <span class="p">{</span>
+            <span class="k">return</span> <span class="no">Some</span><span class="p">(</span><span class="o">*</span><span class="n">x</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="no">None</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+<p>The function becomes generic and some trait requirements are defined.  The
+type has to be a number and a number that can be compared with the
+equivalency operator.  Since we are now dealing with arbitrary numbers
+literals directly are no longer possible.  Instead we need to use
+<tt class="docutils literal"><span class="pre">num::from_int(0)</span></tt> and have that convert into a value of the specific
+number type before we can use it in the comparison expression.  But even
+with all that extra stuff, it's still very readable code and <em>possible</em>.
+Something that cannot be said about generics in C# for instance.</p>
+</div>
+<div class="section" id="the-semicolon-matters">
+<h2>The Semicolon Matters</h2>
+<p>Now given all these things, here is why the semicolon trick is awesome.
+From the iteration example you see the explicit <tt class="docutils literal">return</tt> is not really
+an option because it's too important.  So what's the downside of always
+returning the last value?  The downside is that you would have to put
+<tt class="docutils literal">()</tt> (Rust's version of “nil”) in a bunch of functions to fulfil the
+requirements of the callback's signature since otherwise the type inferred
+from the function would be the value of the last expression.  This would
+be especially annoying if different branches yield different types.
+Imagine a callback with an if where the first branch assigns a string and
+the second assigns an integer.  The compiler would in this case complain
+that the function returns inconsistent types.</p>
+<p>And this is why the special behavior of the semicolon in Rust is pretty
+clever design.  Brings the nice effects of everything being an expression
+like in Ruby into a statically typed environment without becoming a pain
+to use and unintended side-effects.</p>
+</div>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/rust/">rust</a> and 
+      <a href="/tags/thoughts/">thoughts</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

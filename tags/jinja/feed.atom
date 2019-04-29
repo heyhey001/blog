@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Armin Ronacher's Thoughts and Writings</title>
+  <id>http://lucumr.pocoo.org/feed.atom</id>
+  <updated>2010-12-05T00:00:00Z</updated>
+  <link href="http://lucumr.pocoo.org/" />
+  <link href="http://lucumr.pocoo.org/feed.atom" rel="self" />
+  <subtitle type="text">Armin Ronacher's personal blog about programming, games and random thoughts that come to his mind.</subtitle>
+  <generator>Werkzeug</generator>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Not So Stupid Template Languages</title>
+    <id>http://lucumr.pocoo.org/2010/12/5/not-so-stupid-template-languages</id>
+    <updated>2010-12-05T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2010/12/5/not-so-stupid-template-languages" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Daniel Greenfeld &lt;a class=&quot;reference external&quot; href=&quot;http://pydanny.blogspot.com/2010/12/stupid-template-languages.html&quot;&gt;recently criticized&lt;/a&gt;
+templating languages such as Mako, Genshi, Jinja2 or others for being more
+than a stupid template language.  That of course might be valid criticism,
+but there seems to be some major misunderstanding out there about what
+Jinja2 compared to Django's templating system actually is.&lt;/p&gt;
+&lt;p&gt;As said by Daniel:&lt;/p&gt;
+&lt;blockquote&gt;
+I often work on projects crafted by others, some who decided for
+arcane/brilliant/idiotic reasons to mix the kernel of their
+applications in template function/macros. This is only possible in
+Smart Template Languages! If they were using a Stupid Template
+Language they would have been forced put their kernel code in a Python
+file where it applies, not in a template that was supposed to just
+render HTML or XML or plain text.&lt;/blockquote&gt;
+&lt;p&gt;I suppose the macro part there is written especially with Jinja2 in mind
+there because I know very few templating systems calling things “macros”.
+In fact, the only reason Jinja2 calls its functions “macros” is that
+“enddef” sounded stupid as a keyword and “endfunction” was past the
+threshold of keyword lengths I was happy with.&lt;/p&gt;
+&lt;p&gt;So what is a macro in Jinja2 and why does it exist in the first place?  A
+macro is basically nothing more than a template that is meant for
+including, but with the additional information about what variables it
+wants.  It's the Python principle of “explicit is better than implicit”
+applied for templating languages.&lt;/p&gt;
+&lt;p&gt;Take the following Django template as example:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;ul&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;{%&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;user&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;users&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;%}&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;li&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;{%&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;include&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;_render_user.html&amp;quot;&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;%}&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;li&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;{%&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;endfor&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;%}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;ul&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;From looking at that specific code it's completely impossible to figure
+out what variables the included template depends on.  One might guess that
+user is used, but there are two other variables available for sure: first
+of all “users” is clearly available for the included template, however
+django also adds “forloop” implicitly into the context, so the template
+that was included could use that too.  Additionally however it might access
+the current request, current user or tons of other variables.&lt;/p&gt;
+&lt;p&gt;Jinja2 makes this an explicit thing: don't use includes, import macros and
+explicitly pass the variables there.  It's a little bit more to write but
+comes with three nice advantages:&lt;/p&gt;
+&lt;ol class=&quot;arabic simple&quot;&gt;
+&lt;li&gt;it's explicit which makes it a lot easier to figure out what exactly
+is happening in a template.  Especially if you want to look over
+templates written by someone else it's a huge time saver.&lt;/li&gt;
+&lt;li&gt;it allows the templating system to apply huge performance
+improvements.  “forloop” / “loop” is never referenced?  No point in
+creating an object then.&lt;/li&gt;
+&lt;li&gt;Macros are functions and thus can be used in an expression context.
+This – among other things – makes it possible to expand / call macros
+in the context of internationalized blocks.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;This example here makes this pretty obvious:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;{%&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;_user.html&amp;quot;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;render_user&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;%}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;ul&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;{%&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;user&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;users&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;%}&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;li&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;{{&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;render_user&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;user&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;}}&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;li&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;{%&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;endfor&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;%}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;ul&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Here Daniel is just wrong:&lt;/p&gt;
+&lt;blockquote&gt;
+What it comes down to is that Smart Template Languages designers
+assume that developers are smart enough to avoid making this mistake.
+Stupid Template Languages designers assume that developers generally
+lack the discipline to avoid creating horrific atrocities that because
+of unnecessary complexity have a bus factor of 1.&lt;/blockquote&gt;
+&lt;p&gt;I don't know about how other template engine authors are handling the
+issue, but I am well aware of the fact that users will find ways to shoot
+themselves into the foot with any tool you give them which obviously
+includes Jinja2.  Which is why Jinja2 also provides much superior ways to
+Django to prevent this from happening.&lt;/p&gt;
+&lt;p&gt;Ever had the problem that a template accidentally triggered a database
+query?  In Django land this is a very, very common problem and the exact
+location of that query can be hard to pinpoint.  If you are passing
+arbitrary Python models into the template there will always be ways to
+trigger queries.&lt;/p&gt;
+&lt;p&gt;Jinja2 allows you to easily prevent accidental queries by using a
+sandboxed environment and overriding the callback functions.  In fact,
+preventing queries from model attributes could probably be implemented in
+less than 10 lines of code.  If one would argue that the sandbox adds
+inacceptable overhead, I could generally agree.  At least for some kinds
+of applications.  At the same time however there is no reason why you
+shouldn't use such a sandbox during development and disable it for the
+production system.&lt;/p&gt;
+&lt;p&gt;I have seen some really horrible and bad abuse of the Django template
+language which leads me to the believe that the bus factor is a much
+harder problem in the Django template world than anywhere else.
+Undocumented custom template tags written by someone on the project doing
+some things in one way and other things in a different way, not behaving
+as intended but still in use are very, very common.  It becomes especially
+hairy if people start using custom template tags in internationalized
+applications where suddenly they can't use particular constructs in block
+translation blocks.  Then tags are extended to now also write into
+variables and not render anything.  Worse: because the intended syntax
+clashes due to the custom parsing code with stuff that was already valid
+before leads to inconsistent syntax rules.  A giant mess.&lt;/p&gt;
+&lt;p&gt;I'm not arguing there that Django's template system would be bad, I think
+it's good enough for what it does.  I however disagree strongly with the
+fact that “non stupid template languages” are too complex for people to
+handle or give them additional power to make your code unmaintainable.&lt;/p&gt;
+&lt;p&gt;Those are different systems with different ideas and different
+consequences.  The “unrestricted template languages are bad and result in
+PHP spaghetti code” straw man argument is just that: a straw man.  I have
+seen equally bad Django, PHP, Jinja2 and Mako templates.&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Opinionated Frameworks</title>
+    <id>http://lucumr.pocoo.org/2009/1/6/opinionated-frameworks</id>
+    <updated>2009-01-06T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2009/1/6/opinionated-frameworks" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Once again &lt;a class=&quot;reference external&quot; href=&quot;http://lucumr.pocoo.org/2008/9/16/why-jinja-is-not-django-and-why-django-should-have-a-look-at-it&quot;&gt;my post about Jinja and the Django template engine&lt;/a&gt;
+appeared on &lt;a class=&quot;reference external&quot; href=&quot;http://reddit.com/&quot;&gt;reddit&lt;/a&gt;. The second time in the last
+two weeks, probably because my feeds changed and planets re-displayed
+it.&lt;/p&gt;
+&lt;p&gt;I originally wrote the post a few months ago to promote &lt;a class=&quot;reference external&quot; href=&quot;http://jinja.pocoo.org/&quot;&gt;Jinja&lt;/a&gt; a bit. I was and still am very happy with
+Jinja2 and wanted to write some lines about what I like about it and how
+it works. And I also was hoping that the Django guys have a look at it
+and copy some features of it. Mainly because every once in a while I
+contribute code to a Django powered project or have my fingers in some
+way in such a project's code. And every time I'm kinda puzzled how
+simple some really complex tasks in Django are.&lt;/p&gt;
+&lt;p&gt;So what has changed in Django's templates the last four months? Not that
+much. The only changes in the Django template engine was the addition of
+&lt;cite&gt;{% empty %}&lt;/cite&gt; blocks in &lt;cite&gt;{% for %}&lt;/cite&gt; loops (which does exactly what
+Jinja's &lt;cite&gt;{% else %}&lt;/cite&gt; does for loops) and some bug fixing. Is that a
+problem? I don't know, but probably not.&lt;/p&gt;
+&lt;p&gt;Django's templates are still slow and limited as they were, but it's not
+causing problems so that users &lt;em&gt;have&lt;/em&gt; to switch. Every once in a while I
+notice that people switch to Jinja from Django templates because of
+performance of the limitations, but very often they throw away half the
+framework because they discover that Python has more to offer than just
+Django. And with that in mind I guess the Django guys are doing the
+right thing.&lt;/p&gt;
+&lt;p&gt;Django is designed for content driven websites not so much for
+independently deployed applications (like trac, WordPress, MediaWiki and
+others). So not so much for applications and also not so much for stuff
+where you need crazy database queries that are not possible with Django.
+The template engine is designed for simple HTML generation and that's
+it. If you want more, you often want something different than Django
+anyways.&lt;/p&gt;
+&lt;p&gt;I know many successful projects that are running Django without problems
+and it works out for them, because their requirements match (nearly)
+exactly what the framework was developed for. And I know many that
+adopted Django because of the fuzz but what they actually want to do
+does not fit into the Django style of development.&lt;/p&gt;
+&lt;p&gt;In many ways Django reminds me a bit of unpacking cool stuff. You
+download it and are instantly blown away how cool it is. Database just
+works, templating is awesome, URL routing gives you these incredible
+neat looking URLs and much more. It's so cool that many are trying to
+suddenly do everything with it. And that's kinda where the problem lays.
+You are forcing Django to do things it's not designed for.&lt;/p&gt;
+&lt;p&gt;I &lt;em&gt;think&lt;/em&gt; what is missing is a website that explains the advantages and
+disadvantages of the particular solutions and what projects work best
+with what solution. There are &lt;a class=&quot;reference external&quot; href=&quot;http://pylonshq.com/&quot;&gt;Pylons&lt;/a&gt;,
+&lt;a class=&quot;reference external&quot; href=&quot;http://werkzeug.pocoo.org/&quot;&gt;Werkzeug&lt;/a&gt;, &lt;a class=&quot;reference external&quot; href=&quot;http://pythonpaste.org/&quot;&gt;Paste&lt;/a&gt;, &lt;a class=&quot;reference external&quot; href=&quot;http://repoze.org/&quot;&gt;Repoze&lt;/a&gt; and a lot
+more frameworks and utility libraries that focus on different kinds of
+web applications. And that does not only apply to full blown frameworks
+or WSGI utilities, but also template engines, database libraries and
+even databases themselves. It would prevent a lot of frustration if
+people could find the framework or toolchain of choice &lt;em&gt;before&lt;/em&gt; they
+start developing their project.&lt;/p&gt;
+&lt;p&gt;But such a page would have to be designed by someone unbiased. And
+neither me, nor anyone else who develops on/for a Python powered
+framework should create such a comparison page. But I would encourage
+everybody with experiences in multiple frameworks to write down their
+experiences with different Python frameworks, template engines, database
+adapters and combinations thereof.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Update:&lt;/strong&gt; Fixed misleading sentence. Swapped complex and simple.&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Python Template Engine Comparison</title>
+    <id>http://lucumr.pocoo.org/2008/1/1/python-template-engine-comparison</id>
+    <updated>2008-01-01T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2008/1/1/python-template-engine-comparison" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;I was small-talking with &lt;a class=&quot;reference external&quot; href=&quot;http://techspot.zzzeek.org/&quot;&gt;zzzeek&lt;/a&gt; about
+some things when I told him that I'm using Jinja, Genshi and Mako
+depending on what I'm doing. He told me that it's unusual to switch
+tools like that but I don't think it's that unusual.&lt;/p&gt;
+&lt;p&gt;All three template engines are totally different but have a one thing in
+common: All three are the &amp;quot;second generation&amp;quot; of template engines.
+Genshi is the formal successor of kid, Mako somewhat replaced Mygthy and
+Jinja was inspired by the django templates. All three of them are
+framework agnostic, use unicode internally and have a cool API you can
+use in WSGI applications without scratching your head. But what inspired
+those template engines and which template engine to choose for which
+situation?&lt;/p&gt;
+&lt;p&gt;I often used PHP in the past to do simple header/footer inclusion. But
+what always drove me nuts was that I had to use mod_rewrite to get nice
+URLs or use a bunch of folders with index.php files or use files and
+folders and drop the extension in the apache config. While this is nice,
+this is now that portable and you can't have dynamic parts in the URL
+and once you want some more dynamic stuff such as RSS feeds etc. you
+notice that you made a mistake by choosing PHP. Some days ago I then
+started working on the website for TextPress (not yet online) and wanted
+to try something new: I wrote a tiny WSGI application (about 50 lines of
+code) that just uses werkzeug's routing system and uses template names
+as endpoints. These templates are then loaded with Mako, rendered and
+returned as responses. This is not possible in the same way with Jinja
+because you don't have python blocks and not so simple and
+straightforward with Genshi because you have to think about XML or use a
+rather limited text based template engine. Another very cool feature of
+Mako is that you can do dynamic inheritance which is not possible in
+Jinja.&lt;/p&gt;
+&lt;p&gt;Mako is a great template engine if you know Python, if you need some
+logic in templates (and you know: logic in templates is not bad in every
+situation) and if you need the best performance. Without a doubt Mako is
+one of the fastest template engines for Python and the fastest template
+engine that does not use a C extension.&lt;/p&gt;
+&lt;p&gt;Then there is Jinja which is also a text based template engine like
+Mako. However the focus is on a completely different level. When Mako is
+like PHP, Jinja is like Smarty (even though Mako is a million times
+better than PHP as template engine). When I started working with Python
+as programming language for web applications I stumbled about django. I
+looked at the template engine and thought: WTF is that? The syntax
+seemed odd and the restrictions ridiculous. Later on I loved the syntax
+(and apparently others do to: the mini template engine by Ian Bicking
+(tempita if I recall correctly) and the Genshi text templates are using
+that syntax or a similar one too) but some of the restrictions seem
+still ridiculous. When I looked at all those Django templates I created
+over the time I noticed that I often moved calculations into template
+tags that could be function calls, that I did other calculations in
+the view functions that did not belong there and even more important:
+that you could replace 95% of the custom template tags with function
+calls or function calls with an enclosed template block if the template
+engine had proper expressions. This lead to the development of what is
+now known as Jinja. The syntax, the fact that it's sandboxed and the
+designed friendliness is still very similar to Django, but unlike Django,
+Python like expressions are possible in Jinja.&lt;/p&gt;
+&lt;p&gt;I'm using Jinja wherever I think web designers want to work on later on.
+For example as template engine for TextPress or other applications that
+should be styled by third party web designers.&lt;/p&gt;
+&lt;p&gt;Genshi on the other hand is an XML template engine. As a result of that
+it's slower but also &amp;quot;context aware&amp;quot;. It knows when it's processing a
+CDATA section, it knows when it's inside a tag or an attribute etc. This
+makes it possible to defend XSS in an automatic way. Per default Genshi
+inserts the text into the output stream as text and not as markup. That
+means all the HTML entities are automatically escaped for you. And
+because it's stream based you can rewrite streams during the rendering
+process. This makes it possible to fill form fields automatically, use
+XInclude for simple layout templates and a lot more. You can even
+translate your XML based templates into HTML4 on the fly. So you can use
+your XML tool chain internally and output HTML4 and use the best of both
+worlds. But because of this high flexibility Genshi also has some
+problems to fight: You need to have XML knowledge to use it. No problem
+if you are a programmer, but not that good if you are a web designer
+doing fancy layouts. You are also forced to use XML templates
+everywhere. It's true that Genshi has text templates too to fill the
+gaps, but they are not comparable with real text template engines and
+you are still operating on an XML stream, just that you don't see it.
+And lastly: this whole stream processing makes Genshi slow. Not so slow
+that you can't use it for big applications, but noticeably slower than
+Mako or Jinja.&lt;/p&gt;
+&lt;p&gt;If you are using XML anyways in your application, Genshi is a very good
+idea. Also if you don't have template designers that don't know XML or
+if performance is not that much of a problem. Most of the time the
+bottleneck is the database anyways. I never had real problems with
+Genshi performance so far.&lt;/p&gt;
+&lt;p&gt;I hope this post sums up why I'm using all three template engines and
+why I think we should be happy that we can chose between a couple of
+template engines :-) Why I'm not covering other template engines like
+Cheetah or SimpleTAL? Mostly because I looked at them, tried them out
+and never used them for something big. Mostly because Mako looks a lot
+nicer than Cheetah to me and SimpleTAL is far too much away from Python
+for me.&lt;/p&gt;
+</content>
+  </entry>
+</feed>
+

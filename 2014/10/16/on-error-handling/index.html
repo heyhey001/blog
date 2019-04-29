@@ -1,0 +1,243 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>On Error Handling in Rust | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">On Error Handling in Rust</h1>
+
+  
+  <p class=date>written on Thursday, October 16, 2014
+  
+
+  <p>Rust is improving quite a lot lately and it makes it very exciting to play
+with the language and see how good API design could look like.  There are
+areas in it however that are a bit frustrating still.  For me one area is
+error handling.  But some improvements might be coming up which I find
+quite exciting because it changes things around a bit from what most
+people are used to.</p>
+<p>I actually wanted to write about about the API design in my little
+redis library but I expect the changes in the error handling to change the
+dynamics around a lot.  Because of that I want to write a bit about the
+error handling in Rust currently and where it could be going.</p>
+<div class="section" id="rust-s-concept-of-failure">
+<h2>Rust's Concept of Failure</h2>
+<p>Rust at present has two ways to indicate failure: results and hard task
+failures.  In practical terms only the former is actually what you should
+be concerned with.  Task failures are a last resort that you can fall back
+to if there is nobody who can pick up on your problem or if the problem is
+just of a nature that does not permit any error handling.</p>
+<p>At present a result is as good as it gets.  A type <tt class="docutils literal">Result&lt;T, E&gt;</tt> has
+two possible states in which it can be: <tt class="docutils literal">Ok(T)</tt> or <tt class="docutils literal">Err(E)</tt>.  So it
+either succeeded with an object of value <tt class="docutils literal">T</tt> or it failed with an object
+of value <tt class="docutils literal">E</tt>.</p>
+<p>I think this concept in generally is quite obvious to developers, even if
+they have not used Rust.  Because failures are quite common there is also
+a macro provided in Rust called <cite>try!</cite> which implements an early return
+that propagates the error part upwards:</p>
+<div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">load_document</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nb">Result</span><span class="o">&lt;</span><span class="n">Document</span><span class="p">,</span><span class="w"> </span><span class="n">DatabaseError</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">db</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">try</span><span class="o">!</span><span class="p">(</span><span class="n">open_database</span><span class="p">());</span><span class="w"></span>
+<span class="w">    </span><span class="n">try</span><span class="o">!</span><span class="p">(</span><span class="n">db</span><span class="p">.</span><span class="n">load</span><span class="p">(</span><span class="s">&quot;document_1&quot;</span><span class="p">))</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>With the <cite>try!</cite> macro expanded it looks a bit like this:</p>
+<div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">load_document</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nb">Result</span><span class="o">&lt;</span><span class="n">Document</span><span class="p">,</span><span class="w"> </span><span class="n">DatabaseError</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">db</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">match</span><span class="w"> </span><span class="n">open_database</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="nb">Ok</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"></span>
+<span class="w">        </span><span class="nb">Err</span><span class="p">(</span><span class="n">err</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nb">Err</span><span class="p">(</span><span class="n">err</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">};</span><span class="w"></span>
+<span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">db</span><span class="p">.</span><span class="n">load</span><span class="p">(</span><span class="s">&quot;document_1&quot;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="nb">Ok</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"></span>
+<span class="w">        </span><span class="nb">Err</span><span class="p">(</span><span class="n">err</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nb">Err</span><span class="p">(</span><span class="n">err</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>As you can see, the <cite>try!</cite> macro makes things quite straightforward.
+There is however quite a big problem with it, and that is that all the
+errors from the function have to be the same.  In many cases that is just
+wrong.  A good example is my <a class="reference external" href="http://github.com/mitsuhiko/redis-rs">redis-rs</a> library.  Since all operations
+are happening over sockets you can either get an <cite>IOError</cite> or you might be
+presented with a redis specific error.</p>
+</div>
+<div class="section" id="errors-across-abstraction-boundaries">
+<h2>Errors Across Abstraction Boundaries</h2>
+<p>The problem of errors that want to cross an abstraction boundary are a
+long standing issue in many programming languages.  There have been quite
+a few extreme approaches to this problem.</p>
+<p>The most extreme example is probably the concept of unchecked exceptions.
+In Python for instance anything can fail with any error.  This fit's
+Python's design quite well because Python is a highly dynamic language and
+until you actually execute the thing you don't really know what's going to
+happen.  However the same concept also exists in C# and other more static
+languages where it feels much more alien.</p>
+<p>Java has checked exceptions which have a terrible reputation (deservedly).
+With checked exceptions you have the guarantee that (with the exception of
+runtime exceptions which also exist) an API will not raise you an
+exception you cannot deal with.  However it suffers from the same general
+problem as you currently have in Rust where you need to figure out what
+exactly you should do when your contract to the outside world is that you
+only raise exception X but the function you are calling into raises
+exception Z.  In Java this is especially annoying because the error
+handling is very involved.</p>
+<p>In some other languages like C the errors typically are an in-band signal
+that indicates that something went wrong and an some state elsewhere that
+you can query to figure out what happened.  This is by far the worst
+because it requires that something holds state for you but it's
+reasonably flexible.</p>
+<p>The Python interpreter for instance has a thread local variable that
+contains the &quot;interpreter state&quot; which holds a reference to the last
+actual error that happened.  Individual calls return <cite>NULL</cite> pointers or
+other indicator values.  When you fail in a function you return <cite>NULL</cite>
+after creating an error object and storing in the interpreter state.  If
+you call into another function and you can see that a failure indicator
+(<cite>NULL</cite> pointer) comes back you just propagate the failure upwards.  Once
+something that can handle the error sees a <cite>NULL</cite> it can go back to the
+interpreter state to figure out what exactly happened.</p>
+</div>
+<div class="section" id="what-rust-has-in-mind">
+<h2>What Rust has in Mind</h2>
+<p><a class="reference external" href="https://github.com/aturon/rfcs/blob/error-chaining/active/0000-error-chaining.md">One of the proposals</a>
+for Rust currently introduce a new concept which combines various
+different approaches by changing how errors would propagate.  It sticks
+with the general idea that your functions return your errors but it
+introduces the concept of error interoperability.</p>
+<p>Think of it like this: the contract your library has with the outside
+world is that your library exposes a certain behavior and some behavior is
+an implementation detail.  While it's fairly obvious that your database
+library will eventually do IO to talk to the database, it does not mean
+that it will always do.  This has always been a problem with checked
+exceptions in Java because some of the interfaces do not make sense in all
+circumstances.  If for instance my redis library would ever start talking
+to an in-memory simulation of Redis it will probably stop producing IO
+errors internally.</p>
+<p>The idea of the proposal is twofold.  The first one is that errors
+generally follow a common pattern.  An error is whatever the user wants it
+to be, but it needs to implement the <cite>Error</cite> trait and implement some
+general methods to extract some information out of the error (Like a
+description that gives an error message and optionally some more detail
+information).  In addition the neat aspect is that an error can have a
+cause which points to another error.</p>
+<p>So in case of my redis library for instance if the library would have to
+report an IO error it would report a redis error with a message like
+&quot;Encountered an IO error while talking to the server&quot; and links back to
+the actual IO error.</p>
+<p>To wrap an error in another error the <cite>FromError</cite> trait exists that can
+facilitate this.  So my redis library would implement a conversion of
+<cite>IOError</cite> to a <cite>RedisError</cite> that also stores the IO error as cause.</p>
+<p>The elegance becomes obvious once you see the actual usage code in action:</p>
+<div class="highlight"><pre><span></span><span class="k">impl</span><span class="w"> </span><span class="n">FromError</span><span class="o">&lt;</span><span class="n">IOError</span><span class="o">&gt;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">RedisError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">from_err</span><span class="p">(</span><span class="n">err</span>: <span class="nc">IOError</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">RedisError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">RedisError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">descr</span>: <span class="s">&quot;Encountered an IO error&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">cause</span>: <span class="nb">Some</span><span class="p">(</span><span class="n">err</span><span class="p">),</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">fn</span> <span class="nf">read_value</span><span class="p">(</span><span class="n">host</span><span class="p">,</span><span class="w"> </span><span class="n">port</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Result</span><span class="o">&lt;</span><span class="n">Parser</span><span class="p">,</span><span class="w"> </span><span class="n">RedisError</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">sock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">try</span><span class="o">!</span><span class="p">(</span><span class="n">TcpStream</span>::<span class="n">connect</span><span class="p">(</span><span class="n">host</span><span class="p">,</span><span class="w"> </span><span class="n">port</span><span class="p">));</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">parser</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Parser</span>::<span class="n">new</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">sock</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">Reader</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">try</span><span class="o">!</span><span class="p">(</span><span class="n">parser</span><span class="p">.</span><span class="n">parse_value</span><span class="p">())</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>The <tt class="docutils literal"><span class="pre">TcpStream::connection</span></tt> method fails with an <cite>IOError</cite>.  Because our
+own function fails with <cite>RedisError</cite>, the <cite>try!</cite> macro will automatically
+invoke the <tt class="docutils literal"><span class="pre">FromError::from_err</span></tt> method to create a new redis error that
+wraps the cause one.  Now we just need to make sure that <cite>RedisError</cite>
+implements the <cite>Error</cite> trait to provide the useful bits for
+introspection.</p>
+</div>
+<div class="section" id="from-try-to-navigation">
+<h2>From try! To Navigation</h2>
+<p>But this is not where Rust wants to stop.  There is <a class="reference external" href="https://github.com/rust-lang/rfcs/pull/243">another RFC</a> which proposes an operator
+to replace the <tt class="docutils literal">try!</tt> macro with an operator and it's actually really
+neat.</p>
+<p>In a nutshell <tt class="docutils literal"><span class="pre">try!(x)</span></tt> would become <tt class="docutils literal">x?</tt>.  The consequences are quite
+cool because you can then arbitrarily nest failure conditions:</p>
+<div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">load_document</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nb">Result</span><span class="o">&lt;</span><span class="n">Document</span><span class="p">,</span><span class="w"> </span><span class="n">DatabaseError</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">open_database</span><span class="p">()</span><span class="o">?</span><span class="p">.</span><span class="n">load</span><span class="p">(</span><span class="s">&quot;document_1&quot;</span><span class="p">)</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>This is quite a dramatic improvement over the initial version.  There are
+even more things proposed that would go quite far in emulating exceptions
+without exceptions.  For more information <a class="reference external" href="https://github.com/rust-lang/rfcs/pull/243">read the RFC</a>.</p>
+</div>
+<div class="section" id="and-in-python">
+<h2>And in Python?</h2>
+<p>I think the interesting bit about the <cite>FromError</cite> trait is that the
+general concept is very good in other languages too.  In Python for
+instance it would be very welcome if libraries would start being a bit
+more hygienic with the exceptions they can report.  For instance with the
+requests library I generally have to catch down a whole bunch of
+exceptions that are not officially part of the contract (socket
+exceptions, SSL errors etc.).</p>
+<p>Especially in Python 3 where exceptions generally get chained if rethrown
+correctly there really is no reason for not catching down and rethrowing
+internal exceptions through one exception type of the library.  Having to
+only deal with a <cite>RequestFailed</cite> exception is much more convenient and
+future proof.</p>
+</div>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/api/">api</a>, 
+      <a href="/tags/rust/">rust</a> and 
+      <a href="/tags/thoughts/">thoughts</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

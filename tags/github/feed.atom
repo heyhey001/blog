@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Armin Ronacher's Thoughts and Writings</title>
+  <id>http://lucumr.pocoo.org/feed.atom</id>
+  <updated>2008-09-20T00:00:00Z</updated>
+  <link href="http://lucumr.pocoo.org/" />
+  <link href="http://lucumr.pocoo.org/feed.atom" rel="self" />
+  <subtitle type="text">Armin Ronacher's personal blog about programming, games and random thoughts that come to his mind.</subtitle>
+  <generator>Werkzeug</generator>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Apologies to Github</title>
+    <id>http://lucumr.pocoo.org/2008/9/20/apologies-to-github</id>
+    <updated>2008-09-20T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2008/9/20/apologies-to-github" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;A few days ago I wrote a &lt;a class=&quot;reference external&quot; href=&quot;/2008/9/14/bitbucket-is-no-bit-bucket/&quot;&gt;review about bitbucket&lt;/a&gt;
+and one part of the blog post was about how I was annoyed by the GitHub
+admins forcing people into using GitHub for hosting. Here the section in
+all its shaming glory:&lt;/p&gt;
+&lt;blockquote&gt;
+When GitHub appeared on the internets for the first time, there was
+a short period of time when I saw the admins of that site jump into
+many IRC channels of projects that were using git already to switch
+to GitHub for hosting.&lt;/blockquote&gt;
+&lt;p&gt;Turns out that either my mind played a trick on me, or I screwed up
+earlier and mixed up persons. Fortunately IRC logs exist to disprove
+what I wrote earlier.&lt;/p&gt;
+&lt;p&gt;In the discussions I could grep in my IRC logs it were always non GitHub
+administrators that tried to convince the project owners to switch to
+GitHub and in one situation it was one GitHub author that &lt;em&gt;briefly&lt;/em&gt;
+joined the discussion to explain the benefits of GitHub.&lt;/p&gt;
+&lt;p&gt;So I screwed up and my negative bias towards GitHub was mostly based on
+something my mind made up. Because of that I want to apologise to the
+GitHub team for the false claims I made earlier. I hope I can somehow
+made up for that somehow.&lt;/p&gt;
+</content>
+  </entry>
+</feed>
+

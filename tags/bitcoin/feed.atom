@@ -1,0 +1,518 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Armin Ronacher's Thoughts and Writings</title>
+  <id>http://lucumr.pocoo.org/feed.atom</id>
+  <updated>2015-04-13T00:00:00Z</updated>
+  <link href="http://lucumr.pocoo.org/" />
+  <link href="http://lucumr.pocoo.org/feed.atom" rel="self" />
+  <subtitle type="text">Armin Ronacher's personal blog about programming, games and random thoughts that come to his mind.</subtitle>
+  <generator>Werkzeug</generator>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Bitcoin is Not a Good Consumer Product</title>
+    <id>http://lucumr.pocoo.org/2015/4/13/bitcoin-and-cryptocurrencies</id>
+    <updated>2015-04-13T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2015/4/13/bitcoin-and-cryptocurrencies" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Writing critical essays about Bitcoin is probably not a very good idea,
+judging by past feedback on tweets.  However the topic is burning on my
+heart and I really want to share my thoughts about it once and for all
+since I'm getting more and more the feeling I live in crazy land.  Bitcoin
+brings out the worst in people.&lt;/p&gt;
+&lt;p&gt;I really do not believe that Bitcoin (or any other cryptocurrency for that
+matter) is a viable consumer product.  Not now and not in 50 years.  More
+than that it feels like we're all wasting a lot of time and money trying to
+figure out what to do with Bitcoin.&lt;/p&gt;
+&lt;p&gt;This is really not a very technical post because there is not much that
+should be said about Bitcoin on a technical level.  While it might be a
+revolution in thinking, it's slow and wasteful and completely incapable of
+handling transactions on the volume of our banking system by itself.&lt;/p&gt;
+&lt;p&gt;If Bitcoin wins as technology then because the actual use of the
+technology works for large money transmitters (banks, credit card
+companies) and not a typical end user.  I do however believe that for
+those applications other systems are more appropriate than Bitcoin.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-need-for-change&quot;&gt;
+&lt;h2&gt;The Need for Change&lt;/h2&gt;
+&lt;p&gt;I do want to point out that I definitely see the need for change in the
+financial system and I have very little doubt that change is not coming.
+The way current transactions clear is pretty ridiculous given how far we
+have advanced with technology in other areas.  If Bitcoin was just that, I
+would embrace it in a heartbeat.  Unfortunately Bitcoin is 10% technology
+and &lt;a class=&quot;reference external&quot; href=&quot;http://papers.ssrn.com/sol3/papers.cfm?abstract_id=2589890&quot;&gt;90% politics&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;I absolutely do not agree with the idea that in the process of improving
+transaction infrastructure, we should do away with governments, banks and
+pretty much everything else.  So while this criticism here applies to
+Bitcoin, Dogecoin, Peercoin and god knows what other cryptocurrencies are
+out there, it does not apply to &lt;a class=&quot;reference external&quot; href=&quot;https://ripple.com/&quot;&gt;Ripple&lt;/a&gt; or
+&lt;a class=&quot;reference external&quot; href=&quot;https://www.stellar.org/&quot;&gt;Stellar&lt;/a&gt;.  If you are interested in the
+technical bits of Bitcoin, you might want to monitor those projects
+instead.&lt;/p&gt;
+&lt;p&gt;But enough about that, let's look at Bitcoin and friends.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;bitcoin-the-what-exactly&quot;&gt;
+&lt;h2&gt;Bitcoin the What Exactly?&lt;/h2&gt;
+&lt;p&gt;Bitcoin is many things at once, and that makes it hard to write about it.
+It's an economic system, a currency, a distributed ledger and a community
+and some bizarre investment vehicle with ponzi incentives.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-technical-bits&quot;&gt;
+&lt;h2&gt;The Technical Bits&lt;/h2&gt;
+&lt;p&gt;Bitcoin is hailed as the big technological innovation.  It has been
+compared with the invention of the internet.  At its core it's a very
+simple system but hidden behind a lot of finance-theory mumbojumbo that
+makes things appear more complex than they are.&lt;/p&gt;
+&lt;p&gt;I liked &lt;a class=&quot;reference external&quot; href=&quot;http://graydon2.dreamwidth.org/201698.html&quot;&gt;Graydon Hoare's description of Bitcoin&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;[…] the problem space that “bitcoin” launched itself into:&lt;/p&gt;
+&lt;p&gt;The problem of acquiring — automatically — a system-wide
+consensus view of a data structure otherwise built using a totally
+open-ended membership, using content-addressed storage of “accounts”
+and a spine of linked hashes of the transactions causing them to
+change (the so-called “block chain”).&lt;/p&gt;
+&lt;p&gt;You could call it the problem of automatically selecting, at any given
+moment, an “official” branch out of all the forks of a git repository
+in existence in the world, so that everyone knows “where to look” to
+get “the official” current state of it. Only this git repository
+contains financial account balances and you have to be the owner of an
+account to change it (this part is comparatively easy cryptography).&lt;/p&gt;
+&lt;p&gt;Bitcoin throws a whole pile of obnoxious goldbug monetary theory and
+ponzi scheme incentives into the mix to spread itself, but at a
+protocol level that's all it's really trying to do.&lt;/p&gt;
+&lt;p&gt;Moreover, in order to resist sybil attacks — it's built to have open
+membership — it also uses cryptographic puzzle-solving (based on
+compute-power) to distribute the authority for selecting the official
+consensus-state. This has set up a ridiculous hardware-manufacturing
+arms race in a very particular flavour of compute-power (colliding
+prefixes of SHA256), burned a small country worth of oil, and produced
+a “transaction processing” network with extremely confusing and
+non-obvious failure modes that can sustain about the same rate of
+account-updates as, say, a team of human slide-rule operators. […]
+A single cell phone runs circles around it in transaction processing
+capability, and I tend to think this matters.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Bitcoin as it exists today is slow and does not scale.  It also has a
+fundamental problem that bigger protocol changes require centralized
+agreement or the whole house of cards can collapses.  I believe this
+inherently limits the total number of participants in the network and
+makes it more interesting for an inter-bank clearing system than an end
+user product.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;a-look-at-the-target-audiences&quot;&gt;
+&lt;h2&gt;A Look at the Target Audiences&lt;/h2&gt;
+&lt;p&gt;But oddly enough, it seems like not many people are worried about that.
+And in fact, Bitcoin gets a lot of support by non banking institutions.
+So why might that be?  Who are those people?  And why are they interested
+in the Bitcoin so much?&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;bitcoin-for-the-concerned-citizen&quot;&gt;
+&lt;h3&gt;Bitcoin for the Concerned Citizen&lt;/h3&gt;
+&lt;p&gt;There is a certain demographic which see ill will and conspiracies around
+every corner.  A second demographic sees governments as a beast from hell
+and taxes are what supports that monster.  The intersections of those two
+groups seems to overlap scarily close with a sizable chunk of the “Bitcoin
+community”.  If your base assumptions are that this world works like this,
+then I assume that many of the perceived benefits of Bitcoin (distributed,
+somewhat anonymous, non government controlled etc.) might make a lot of
+sense.&lt;/p&gt;
+&lt;p&gt;Let's assume for a moment that the world would work like this; wouldn't
+Bitcoin be the worst economic base in such a world?  Without Internet
+there is no Bitcoin.  This might not seem like a big problem, but when we
+go by recent examples of where people were faced with governments that
+clearly had bad intents, the availability of internet was very quickly
+“spotty” or gone entirely.  When the Arab Spring took place the people in
+the countries most affected by violent revolutions either lost their
+internet access quickly through government control or because the
+infrastructure ended up destroyed.  In either case using Bitcoin for
+everyday transactions would have been impossible.&lt;/p&gt;
+&lt;p&gt;Bitcoin is often called “digital gold” by supporters, but I'm not sure how
+much of Gold's properties actually apply to Bitcoin.  It's not that I have
+a great understanding of assets (or economics in general) but I can
+understand the appeal of gold a lot.  It's rare and the artificial
+creation of Gold is many times more expensive than the market price (let
+alone that it's much more likely that you produce a radioactive isotope).
+It's also easy to verify if what you're dealing with is really gold.  It's
+also very physical: you will notice if someone tries to steal your gold
+and you can easily check if it's still there.  Aside from all of those
+nice properties, it's also useful for humans for other things than keeping
+locked up as an asset as one can also make &lt;a class=&quot;reference external&quot; href=&quot;http://en.wikipedia.org/wiki/Jewellery&quot;&gt;pretty things&lt;/a&gt; and &lt;a class=&quot;reference external&quot; href=&quot;http://en.wikipedia.org/wiki/Electrical_connector&quot;&gt;useful things&lt;/a&gt; out of it.&lt;/p&gt;
+&lt;p&gt;Bitcoin on the other hand is none of that.  You can't even tell if you own
+a Bitcoin or not.  You might hold the private key to a Bitcoin wallet
+which might hold some amount of Bitcoin or not, but that's about the
+closest you will ever come to owning it.  Even if you would be 100% sure
+that nobody ever figured out your private key, you might still not be sure
+if you actually have control over anything.  The reason for this is that
+your Bitcoin is really only yours if the health of the network is
+guaranteed.  If (for whatever reason) the world conspired against you the
+network can just take away your wealth or decide to no longer accept it.&lt;/p&gt;
+&lt;p&gt;While that might not sound very likely to right now, things along this
+could very well happen.  There are already websites that &lt;a class=&quot;reference external&quot; href=&quot;http://www.blacklistedbitcoins.com/&quot;&gt;blacklist
+Bitcoin addresses&lt;/a&gt;.  Truth be told:
+I actually think that it would be good if Bitcoin would develop in a way
+that you can lock away currency.  Freezing of accounts is a very important
+feature in a well functioning state, and currency systems like Ripple are
+working on &lt;a class=&quot;reference external&quot; href=&quot;https://wiki.ripple.com/Freeze&quot;&gt;freeze functionality&lt;/a&gt;.  But
+even in the Bitcoin world, because movement of money can be tracked, there
+is really nothing that would stop this from happening and in fact, there
+are already exchanges which try to &lt;a class=&quot;reference external&quot; href=&quot;http://coinfire.io/2015/03/21/btc-e-suspends-withdraws-to-stop-stolen-coin-dump/&quot;&gt;prevent the sale of stolen Bitcoin&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;I'm pretty sure that for concerned citizens, gold is still the better
+idea.  Probably until &lt;a class=&quot;reference external&quot; href=&quot;http://en.wikipedia.org/wiki/Gold_Reserve_Act&quot;&gt;the government decides to outlaw it&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;bitcoin-for-criminals&quot;&gt;
+&lt;h3&gt;Bitcoin for Criminals&lt;/h3&gt;
+&lt;p&gt;This is without a doubt, the most promising area for Bitcoin: the criminal
+element.  There is not a day where a Bitcoin exchange gets hacked, or
+someone uses Bitcoin as a way to extort money out of people.  Not exactly
+surprising because Bitcoin's biggest “strength” is its inability to link
+Bitcoin transactions to individuals and the irreversibility of them.&lt;/p&gt;
+&lt;p&gt;However independently of if Bitcoin was created as a ponzi scheme or not,
+the non legitimate uses for it are uncountable.  Bitcoin has been
+successfully used to fund illegal online markets, to extort money out of
+victims, to take over stolen cloud infrastructure to mint coins, to
+washing money gained from stolen credit cards and much more.  Bitcoin can
+not just just be used to attack people willingly engaging in the Bitcoin
+ecosystem, but also by harming people that have nothing to do with
+Bitcoin.  A good example for that is the &lt;a class=&quot;reference external&quot; href=&quot;http://en.wikipedia.org/wiki/CryptoLocker&quot;&gt;CryptoLocker&lt;/a&gt; ransomware which encrypts
+people's harddrives and asks them to pay in Bitcoin to unlock it.  Before
+Bitcoin this sort of “business model” was too risky to pull off, but now
+it's easy and safe.&lt;/p&gt;
+&lt;p&gt;Bitcoin will always be valuable for criminals because Bitcoin is written
+with the idea in mind that oversight would be automatic and controlled by
+Bitcoin users, and not financial institutions or governments.  As such it
+fundamentally lacks the necessary tools to deal with theft and money
+laundering.  I'm pretty sure if Bitcoin wants to take off as a accepted
+financial product, it will eventually have to gain support for for binding
+payments to individuals.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;bitcoin-for-investors&quot;&gt;
+&lt;h3&gt;Bitcoin for Investors&lt;/h3&gt;
+&lt;p&gt;Bitcoin in itself is already of quite questionable nature.  The incentives
+for investing are not too different from those of a pyramid scheme.
+Bitcoin at the end of the day is without value.  The value of Bitcoin is
+entirely made up by the consensus of Bitcoin traders.  However the initial
+developer decided that inflation is the root of all evil and as such (once
+all Bitcoins are minted) is inherently deflationary.  Crazily deflationary
+in fact.  Not just because the supply is fixed (and economies are expected
+to grow), but also because people lose coins.&lt;/p&gt;
+&lt;p&gt;While Bitcoin's monetary base inflates like crazy until 20 years or so
+from now, there is a natural tendency to hoard coins (colloquially
+apparently called to “hodl”) for as long as possible.&lt;/p&gt;
+&lt;p&gt;This is interesting for traders because it means that their coins will
+lose value on the short term, but if they keep the dream alive for long
+enough, they probably gain in value.  As such communities of early
+adopters form who try to advocate for the currency for more people to join
+and for the demand of the currency to go up.  This will increase the value
+of the coin (and as the minting of new coins becomes more and more
+expensive) will reward the early adopters much more than the ones that
+join late.  I assume the ones who make money of Bitcoin currently (other
+than early investors) are miners that manage to get away with burning CPU
+cycles on cheap electrical energy that they get from somewhere.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;bitcoin-for-the-deceased&quot;&gt;
+&lt;h3&gt;Bitcoin for the Deceased&lt;/h3&gt;
+&lt;p&gt;While dead people are clearly not a customer base for Bitcoin, dead people
+are a fact of life.  People die, and usually in the worst possible moment.
+One thing that many dead people have are assets and a significant number
+of dead people also have next of kins that would like to inherit
+something.  When one of my childhood friends unexpectedly passed away I
+was able to witness what this can mean to friends and families.  It's not
+enough that everyone is in grief, dying is a lot of work.  There are bills
+to pay, there are property to return or split up, there are contracts to
+terminate, Facebook profiles to close and many other things to consider.&lt;/p&gt;
+&lt;p&gt;Passing away is a very regulated process.  Most things in life are
+specifically designed so that death is considered.&lt;/p&gt;
+&lt;p&gt;Bitcoin does not consider death.  When you die and nobody but you knows
+your private key, your assets are gone.&lt;/p&gt;
+&lt;p&gt;So you need to protect against this somehow by … what exactly?  Maybe you
+are supposed to share your private key, maybe put it in a bank?  Under
+your mattress?  But hey, when you die and lose your coins, everybody else
+gets a bit richer anyways.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;bitcoin-for-everyday-people&quot;&gt;
+&lt;h3&gt;Bitcoin for Everyday People&lt;/h3&gt;
+&lt;p&gt;This is the place where I will do a pitch about how I do banking in
+Austria.  &lt;a class=&quot;reference external&quot; href=&quot;https://www.sparkasse.at/&quot;&gt;My bank of choice&lt;/a&gt; provides me
+with an overall banking experience that is pretty close to perfect.
+Because it's in the SEPA region, any transactions I do in the Eurozone
+settle for free (and typically same or next day), my credit and debit
+cards support NFC, my phone receives a text why my credit card is charged,
+for online banking the 3D secure enabled stores ask me for 2FA when doing
+new transactions.  Lastly the &lt;a class=&quot;reference external&quot; href=&quot;https://mygeorge.at/&quot;&gt;Online Banking Experience&lt;/a&gt; is beautifully designed and just fun to use.&lt;/p&gt;
+&lt;p&gt;Sure, not all banks are the same, but I have never been so happy to send
+people money.  It's fun, and it's magical and when compared to a few years
+ago it's just very impressive to see how times change.  It also shows you
+how ridiculously fast the credit card network is.  I bought a ticket via
+my Mastercard for the train to the airport once, but the machine was out
+of paper after charging my card.  It managed to print the receipt but not
+the ticket.  Before the machine even managed to start printing the first
+thing I already received a text that my card was charged.  Before the
+error occurred on the device, I got a refund confirmation on my phone.
+The whole operation took less than 5 seconds but the Mastercard network
+already processed two transactions and did that through systems
+interconnected to my bank.  Say what you want, but banks modernize.&lt;/p&gt;
+&lt;p&gt;Not that most non technical people care about this stuff anyways.  But
+they care about being able to pay conveniently and to send money around
+quickly.  The vast number of transactions that people do via their online
+banking is to local services (electricity, flat rent, mortgage payments,
+etc.).  For internet purchases pretty much everybody uses a creditcard.
+I know the Bitcoin community likes to point out how 16 digit numbers are a
+ridiculous security concept and right they are.  Except modern creditcard
+transactions rarely use that information.  NFC terminals make it very
+impossible to skim data and for small transactions no PIN is required.  In
+the future we will probably see a more widespread adoption of other
+confirmation methods that no longer require a PIN input (see apple pay).
+This evolution is already happening and you can see more and more NFC
+terminals popping up.  Internet payments have been equipped with 3D secure
+for ages and it won't take long until it will become pretty much
+mandatory.&lt;/p&gt;
+&lt;p&gt;The end result of all of this is that it becomes a lot safer for your
+average consumer to do online shopping and banking.  It might not be the
+same everywhere yet (and it's certainly underdeveloped in many countries;
+including the US), but there is progress.  And that progress is backwards
+compatible which is a huge thing.&lt;/p&gt;
+&lt;p&gt;Bitcoin?  What would my parents get from that?  Credit card transaction
+fees are lower than the cost (and risk) of conversion of currency from and
+to bitcoin and are factored into the price.  All the other points of
+bitcoin are working against the consumer: they are harder to handle or
+secure, there is no bank provided escrow or insurance system, there is no
+well documented flow of how to do transactions, refunds etc.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;bitcoin-for-merchants&quot;&gt;
+&lt;h3&gt;Bitcoin for Merchants&lt;/h3&gt;
+&lt;p&gt;Right now, you can milk money off Bitcoin users.  Overstock is
+successfully doing that.  But other than that I don't see why a Merchant
+would try to add Bitcoin.  It's more work, it makes accounting
+unnecessarily hard and there really is no user reason for it.  Maybe you
+can that way accept payments from countries that you are not allowed to do
+financial transactions with, but then, you're probably already quite in a
+tricky legal situation.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;so-what-to-do-with-it&quot;&gt;
+&lt;h2&gt;So What To Do With It?&lt;/h2&gt;
+&lt;p&gt;All of the above would make it sound like Bitcoin is for nobody.  While I
+really don't think that given the available technologies, Bitcoin is the
+one to be looking out for, it might be the one that wins.  But it would
+probably only be used for settle transactions between Banks and not by end
+users.  For that the network is neither strong enough nor user friendly.
+I fully expect that the “currency” aspect of Bitcoin will be dead in less
+than five to ten years.&lt;/p&gt;
+&lt;p&gt;I believe that ultimately Bitcoin gets too much wrong, and the biggest
+problem with it is that it's based on a wrong idea.&lt;/p&gt;
+&lt;p&gt;Bitcoin is based on the idea that you can replace trust with computation.
+I'm pretty sure there are fancy papers that explore the topic of trust in
+detail, but the crux of it is, that trust is more of a chain.&lt;/p&gt;
+&lt;p&gt;While the mantra of the Bitcoin community appears to be “vires in numeris”
+when it should rather be “omnis fides in alia fide iacet”.  It's trust all
+the way down.  You can't do away with trusting people.  You need to trust
+the Bitcoin developer, the server that provides the Bitcoin client, the
+integrity of the SSL connection by trusting the CA.  You trust your
+computer to work the way you think it does and you have to trust the
+largest miners.&lt;/p&gt;
+&lt;p&gt;That Bitcoin's greatest fear, the 51% attack is unlikely to happen is not
+so much a law of nature, it's the Bitcoin user's trust in that a group of
+miners would not try to harm their investment.  At the end of the day
+however Bitcoin users trade the trust in their banks for trust in
+something else.  I would be a lot more worried about an anonymous and
+unregulated network like Bitcoin being gamed by a criminal who has too
+much money and attempts a 51% attack and getting away with it, than banks
+colluding.  As terrible as abuse in the financial system is, it very
+rarely results in individual loss.  Typically it's a shared loss we all
+have to pay with our taxes.&lt;/p&gt;
+&lt;p&gt;Bitcoin thinks that by replacing trust with &lt;a class=&quot;reference external&quot; href=&quot;http://gizmodo.com/5994626/bitcoin-mining-has-an-absurd-environmental-impact&quot;&gt;a game of who has the bigger
+miner&lt;/a&gt;
+it has found some sort of solution to human misbehavior.  I really don't
+believe that.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;there-are-other-things-out-there&quot;&gt;
+&lt;h2&gt;There are Other Things out There&lt;/h2&gt;
+&lt;p&gt;The reason I finally decided to write about some of my problems with
+Bitcoin is not that I inherently hate the idea, but because there are so
+many better solutions for the problem of international money transmission
+out there.&lt;/p&gt;
+&lt;p&gt;On the one hand there are already established systems like &lt;a class=&quot;reference external&quot; href=&quot;http://transferwise.com/&quot;&gt;Transferwise&lt;/a&gt; for making international payments cheaper
+already now, there is &lt;a class=&quot;reference external&quot; href=&quot;http://www.westernunion.com/&quot;&gt;Western Union&lt;/a&gt;
+which despite all the bad reputation it has, is a life saver for many
+people out there.  One should not discredit old financial institutions
+that innovate.  There are many banks who are doing great work in revamping
+their offerings.&lt;/p&gt;
+&lt;p&gt;On the other hand there are really interesting newcomers such as &lt;a class=&quot;reference external&quot; href=&quot;https://ripple.com/&quot;&gt;Ripple&lt;/a&gt; and &lt;a class=&quot;reference external&quot; href=&quot;https://www.stellar.org/&quot;&gt;Stellar&lt;/a&gt; which
+try to build decentralized payment systems that do not come with their own
+world-view but try to integrate into our modern banking world.  I think
+they deserve much more attention than they currently get.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">The Future of Payments and Open Source Support</title>
+    <id>http://lucumr.pocoo.org/2014/11/2/payments-in-the-future</id>
+    <updated>2014-11-02T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2014/11/2/payments-in-the-future" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;I kept my mouth shut about Bitcoin on my blog so far, but I do feel like I
+need to bring it up now because of how many comments and mail I got about
+a bug report I wrote two weeks ago for removing projects of mine &lt;a class=&quot;reference external&quot; href=&quot;https://github.com/tip4commit/tip4commit/issues/127&quot;&gt;from a
+bounty website called tip4commit&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;It feels like you are not allowed to say anything other than &amp;quot;bitcoin is
+amazing&amp;quot; on the internet without getting loads of negative comments.  I
+found that quite interesting because I did not actually have anything
+against Bitcoin in this particular case.&lt;/p&gt;
+&lt;p&gt;However to have a place to point future hate mail against, this is why I'm
+less than lukewarm about Bitcoin.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;my-problem&quot;&gt;
+&lt;h2&gt;My Problem&lt;/h2&gt;
+&lt;p&gt;The actual problem I had was not that there was Bitcoin involved in and by
+itself.  The problem was on one hand something I did not opt into (and
+there not being a way to opt out of) this tipping system and that it's a
+completely unregulated space that can cause me troubles I could have
+avoided otherwise.  As of why that is the case I believe I need to provide
+a bit of explanation because I feel like the base assumptions that people
+have that wrote me mail are completely different from mine and no sensible
+discussion can be had in that situation.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-world-i-live-in&quot;&gt;
+&lt;h2&gt;The World I Live in&lt;/h2&gt;
+&lt;p&gt;So let me explain you a bit in which world I grew up.  I was born and
+raised in Austria, spent some time in London before going back to Austria.
+Money in Austria (and many other European countries) works different than
+in the United States where most comments on the internet come from.  How
+big those differences are cannot be expressed because it affects
+everything in your life.&lt;/p&gt;
+&lt;p&gt;Austrians pay a lot of taxes.  How much taxes we pay is very hard to
+grasp, even as an Austrian because unless you are running a company you
+often do not even see all the costs that are associated with your salary.
+Taxes and other things are split into roughly three categories: social
+security, employer costs and income taxes.  Those things are actually not
+called that way in Austria but since this is an English blog post I will
+stick with it.  Your employer pays you social security and other employer
+costs which includes medical insurance and contributions to the pension
+system and many other things.  These payments cover all kinds of things
+that are related to human beings.  For instance if a woman gets pregnant
+and stops working, those payments come of a pool of money that was
+allocated through these measures.  Each child in Austria gets support
+payments from the state and so forth.  There are a lot of things that are
+paid out of the pool of things you do not see normally.  From the amount
+that you get in the end, you also pay taxes.  Those taxes are used for
+highways, kindergartens, schools, universities and lots of other things.&lt;/p&gt;
+&lt;p&gt;The reason I bring this up is because our taxes are very high, but I get
+something for that money.  It might not be the perfect system and there
+are lots of things about it that make me furious, but I do not see a
+reason why I would want to stop paying taxes.&lt;/p&gt;
+&lt;p&gt;It's not just taxes that are different though, credit is different too.
+Very different in fact.  Credit scores exist here, but the lack of one
+does not deny you services.  That's also because it is very hard to get a
+credit in the first place.  It is not very important though, because
+credit cards are not nearly as relevant here as elsewhere.  You still
+kinda need a credit card for online payments but they don't &lt;em&gt;really&lt;/em&gt; give
+you credit.  All Austrian credit cards I have ever seen (with the
+exception of American Express) charge of a linked bank account on a
+certain day.  If you use the card for more money than is available on your
+account it puts your account into overdraft and you pay the overdraft
+fees.  Secondly Austrian credit cards come with Chip and PIN, send you a
+text message whenever they are charged and require two factor
+authentication through a phone on 3D secure enabled sites.  Local services
+also can charge you directly from your bank account through an API
+provided by banks that require two factor authentication to confirm a
+payment.  As of recently the use of NFC for payments is also going up
+tremendously and readers for them pop up everywhere.  The advantage
+obviously being that you cannot skim the credit card number and PIN from
+them.&lt;/p&gt;
+&lt;p&gt;Most of my transactions are also in the SEPA region which means they are
+free and clear within a business day.  The ones that leave SEPA I have
+transferwise for, which is beating Bitcoin in costs and predictability
+when going cross border (if you need to convert from and to real world
+currency on both ends).&lt;/p&gt;
+&lt;p&gt;In my world, Bitcoin seems quite useless.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;why-is-this-relevant&quot;&gt;
+&lt;h2&gt;Why is this relevant?&lt;/h2&gt;
+&lt;p&gt;This topic is relevant because smaller scale Open Source projects
+definitely could benefit from financial support.  I am a huge fan of
+gittip aka gratipay and bountysource.  The reason for this is that they
+make it easy to contribute money for Open Source projects and the
+companies behind them are very nice and straightforward to work with.
+They will make sure that the model is watertight and legal.  I can make
+sure that all paperwork is in order so that it causes no problem for
+either the supporters, gratipay/bountysource or me.  I don't mind if
+people use Bitcoin for supporting me, but I do not want to touch this
+thing because it just makes it more complicated than dealing with a real
+currency.&lt;/p&gt;
+&lt;p&gt;For me sleeping well is an important part of my life and sleeping well
+works better if I do not have to worry about such things.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;bitcoin-is-the-wild-west&quot;&gt;
+&lt;h2&gt;Bitcoin is the Wild West&lt;/h2&gt;
+&lt;p&gt;Bitcoin by itself if it's not going through a system like coinbase is wild
+west and I don't mean that in a good way.  A perfect example for this is
+the already mentioned tip4commit project which is my favorite example of a
+terrible service lately.  It collects money (unasked!) on behalf of other
+projects, collects 1% of the amount donated and spams people with mails to
+redeem their collected tips.  If anyone would run this service with real
+money they would instantly run into regulatory problems (rightfully so!).
+First of all there is the problem of what happens with unredeemed
+currency.  There are strict laws in place in all western countries for
+this sort of thing.  Because this service is using Bitcoin however, it
+will manage to fly under the radar for a long time however.  I don't have
+enough time on my hand to deal with them and I don't want to spend money
+on getting rid of them either, but if they would be doing this with real
+currency I would not have to, because they would need to use a payment
+system which is pressured by banks to prevent this sort of thing from
+happening.&lt;/p&gt;
+&lt;p&gt;If you start handling real money and you have large sums going in and out
+of accounts there will be signals firing that will ask you about the
+nature of your business and if you have a license for it.  If it however
+is Bitcoin or any other crypto currency it can avoid this entirely.&lt;/p&gt;
+&lt;p&gt;In my fancy world where I live in, this is not a good thing.  If you have
+a completely broken piece of country then I can imagine that you are
+suspicious of regulation and this sort of thing, but for me regulation is
+what keeps my world running and working.&lt;/p&gt;
+&lt;p&gt;Personally I believe that Bitcoin is a terrible currency (or not a
+currency at all) but I can see how it might be useful for inter-bank asset
+exchange and transaction clearing.  I would believe that in this space
+innovation will happen and that Bitcoin will have quite a bit of impact.
+Something like the blockchain might be nice to see in the future.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;you-can-t-ignore-bitcoin&quot;&gt;
+&lt;h2&gt;You Can't Ignore Bitcoin&lt;/h2&gt;
+&lt;p&gt;I do not care about Bitcoin and until recently I have been able to avoid
+it entirely.  Through this tip4commit madness however all the sudden I was
+forced to deal with it and I did not enjoy the experience.  In my books
+Bitcoin is an incredible overvalued first generation &amp;quot;thing&amp;quot; that I just
+don't care about.  But please don't make me care about it.&lt;/p&gt;
+&lt;p&gt;Bitcoin for me feels like a cult.  The vocal people in the community seem
+like they don't actually care about Bitcoin, but they want to see it
+succeed so that their &amp;quot;investment&amp;quot; makes a profit.&lt;/p&gt;
+&lt;p&gt;I did not even care about the tip4commit thing any more by the time it was
+submitted to reddit (the issue was already closed as far as I was
+concerned because I did not want to waste more time with it) but all the
+sudden I got email and comments.  The reddit post had the awesome title
+“This guy is complaining about tip4commit, please help educate about
+Bitcoin”.  I do not want to be educated about Bitcoin.  I have been
+following the Bitcoin project since before ASIC mining, by now I have read
+all the arguments …&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;what-i-actually-want&quot;&gt;
+&lt;h2&gt;What I Actually Want&lt;/h2&gt;
+&lt;p&gt;If you want to make a truly useful service for Open Source, make
+something like bountysource but improve upon it.  Make a service which
+allows developers to register their Open Source projects with a support
+platform.  Then allow those developers to setup a split between the
+project itself and contributors (for instance 20%/80%).  Then allow users
+to put bounties on items in the bug tracker.  When a bug is fixed and
+accepted the patch author gets the 80% and the project gets the 20% for
+merging the fix/patch and for maintaining it in the future.&lt;/p&gt;
+&lt;p&gt;This keeps the gamification out and makes the process very transparent for
+everybody.  Right now my problem with bountysource is that I am afraid it
+would bring up the topic of money too much and complicate things (why did
+you not merge my fix / patch.  Why did you do it yourself?  Where is my
+money?) etc.&lt;/p&gt;
+&lt;p&gt;But whatever you do, do not make Bitcoin your feature, solve an actual
+problem.  And solve it in a way that I can declare my taxes and sleep well
+over it.  Open Source is already stressful enough.  Fantasy coins on my
+tax declaration are not making my life easier.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+</feed>
+

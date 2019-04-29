@@ -1,0 +1,234 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>The Problem with Implicit Scoping in CoffeeScript | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">The Problem with Implicit Scoping in CoffeeScript</h1>
+
+  
+  <p class=date>written on Thursday, December 22, 2011
+  
+
+  <p>I love JavaScript and more than that I do love CoffeeScript quite a bit.
+It's beautiful, it follows largely the Ruby and Python design patterns
+that make sense and on top of all that is the code it generates really,
+really well done.  However I do have a major problem with it, and that's
+unfortunately part of the language design and cannot be fixed unless you
+fork off the project.</p>
+<div class="section" id="closures-and-scoping">
+<h2>Closures and Scoping</h2>
+<p>Generally when you want to have a language that supports closures that are
+not only readable but also reassignable you need to express the difference
+in intention of creating a new variable in the current scope or overriding
+the one in the top level scope.</p>
+<p>In JavaScript the <tt class="docutils literal">var</tt> keyword explicitly specifies that you want a new
+variable.  If it's missing you reassign a variable of the same name in a
+higher scope:</p>
+<div class="highlight"><pre><span></span><span class="kd">function</span> <span class="nx">makeCounter</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">counter</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>             <span class="cm">/* new variable here */</span>
+  <span class="k">return</span> <span class="kd">function</span> <span class="nx">inc</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">counter</span> <span class="o">=</span> <span class="nx">counter</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span>     <span class="cm">/* reassign higher level variable */</span>
+    <span class="k">return</span> <span class="nx">counter</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+<p>In Python (Python 3 to be exact) the logic is inversed.  You need a
+keyword to express the intent of reassigning from an outer scope:</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">make_counter</span><span class="p">():</span>
+    <span class="n">counter</span> <span class="o">=</span> <span class="mi">0</span>                 <span class="c1"># new variable here</span>
+    <span class="k">def</span> <span class="nf">inc</span><span class="p">():</span>
+        <span class="k">nonlocal</span> <span class="n">counter</span>
+        <span class="n">counter</span> <span class="o">=</span> <span class="n">counter</span> <span class="o">+</span> <span class="mi">1</span>   <span class="c1"># reassign higher level variable</span>
+        <span class="k">return</span> <span class="n">counter</span>
+    <span class="k">return</span> <span class="n">inc</span>
+</pre></div>
+<p>CoffeeScript does a third thing which is “always reassign unless unknown
+from higher scope”.  In this case it looks like this:</p>
+<div class="highlight"><pre><span></span><span class="nv">makeCounter = </span><span class="nf">-&gt;</span>
+  <span class="nv">counter = </span><span class="mi">0</span>                   <span class="c1"># new variable here</span>
+  <span class="k">return</span> <span class="nf">-&gt;</span>
+    <span class="nv">counter = </span><span class="nx">counter</span> <span class="o">+</span> <span class="mi">1</span>       <span class="c1"># reassign higher level variable</span>
+    <span class="k">return</span> <span class="nx">counter</span>
+</pre></div>
+</div>
+<div class="section" id="why-is-coffeescript-s-method-bad">
+<h2>Why is CoffeeScript's Method Bad?</h2>
+<p>Now if you look at the code above the CoffeeScript one is the shortest.
+And you could even further simplify it.  However there is a huge problem
+with it: it makes maintenance of large code much harder than it has to be
+and because the problem can be entirely silent you won't notice until it's
+too late.</p>
+<p>I had the problem for the first time where I was introducing a helper
+function in the same file that was named like a local helper variable.</p>
+<p>The original code looked like this:</p>
+<div class="highlight"><pre><span></span><span class="nv">shaderFromSource = </span><span class="nf">(ctx, type, source, filename) -&gt;</span>
+  <span class="nv">shader = </span><span class="nx">ctx</span><span class="p">.</span><span class="nx">createShader</span> <span class="nx">ctx</span><span class="p">[</span><span class="nx">type</span><span class="p">]</span>
+  <span class="nv">source = </span><span class="s">&#39;#define &#39;</span> <span class="o">+</span> <span class="nx">type</span> <span class="o">+</span> <span class="s">&#39;\n&#39;</span> <span class="o">+</span> <span class="nx">source</span>
+  <span class="nx">ctx</span><span class="p">.</span><span class="nx">shaderSource</span> <span class="nx">shader</span><span class="p">,</span> <span class="nx">source</span>
+  <span class="nx">ctx</span><span class="p">.</span><span class="nx">compileShader</span> <span class="nx">shader</span>
+  <span class="k">if</span> <span class="nx">ctx</span><span class="p">.</span><span class="nx">getShaderParameter</span> <span class="nx">shader</span><span class="p">,</span> <span class="nx">ctx</span><span class="p">.</span><span class="nx">COMPILE_STATUS</span>
+    <span class="k">return</span> <span class="nx">shader</span>
+  <span class="nv">log = </span><span class="nx">ctx</span><span class="p">.</span><span class="nx">getShaderInfoLog</span> <span class="nx">shader</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">error</span> <span class="nx">describeShaderLog</span> <span class="nx">log</span><span class="p">,</span> <span class="nx">filename</span>
+</pre></div>
+<p>Later I added this line on the top of the file:</p>
+<div class="highlight"><pre><span></span><span class="p">{</span><span class="nx">log</span><span class="p">,</span> <span class="nx">sin</span><span class="p">,</span> <span class="nx">cos</span><span class="p">,</span> <span class="nx">tan</span><span class="p">}</span> <span class="o">=</span> <span class="nb">Math</span>
+</pre></div>
+<p>The purpose of that line is to “import” a bunch of functions from the
+<tt class="docutils literal">Math</tt> “namespace”.  The end result is that in that file you can then
+use <tt class="docutils literal">tan(x)</tt> instead of <tt class="docutils literal">Math.tan(x)</tt>.  However adding that line now
+lets <tt class="docutils literal">shaderFromSource</tt> fail.  Why?  Because it assigns to a variable
+named <tt class="docutils literal">log</tt> which previously was local and just became global.</p>
+<p>And the function will continue to work.  I was able to use the code for a
+while until I spotted that.  I did spot it late because of two reasons.
+One was that the <tt class="docutils literal">log</tt> statement only ocurred if a shader failed loading
+and I had no shader errors for a while, secondly even after the function
+finished execution the code still worked up to the point where I called
+into the matrix calculation function again that needed the math imports.</p>
+<p>At that point you get <tt class="docutils literal">log</tt> is not a function and you wonder what
+happened.  Considering there are 400 lines of code in that module it took
+me a bit to figure out what happened.  Coupled with the race condition
+that it was this totally annoyed me.</p>
+<p>Adding an import or writing a new function / global variable should never,
+ever affect local code in a function!</p>
+</div>
+<div class="section" id="the-simple-solution">
+<h2>The Simple Solution</h2>
+<p>The simple solution is to either add a <tt class="docutils literal">nonlocal</tt> keyword like Python
+has or to introduce a <tt class="docutils literal">:=</tt> parameter that works like <tt class="docutils literal">=</tt> but
+explicitly overrides a higher level variable:</p>
+<div class="highlight"><pre><span></span><span class="nv">makeCounter = </span><span class="nf">-&gt;</span>
+  <span class="nv">counter = </span><span class="mi">0</span>                   <span class="c1"># new variable here</span>
+  <span class="k">return</span> <span class="nf">-&gt;</span>
+    <span class="nx">counter</span> <span class="o">:=</span> <span class="nx">counter</span> <span class="o">+</span> <span class="mi">1</span>       <span class="c1"># reassign higher level variable</span>
+    <span class="k">return</span> <span class="nx">counter</span>
+</pre></div>
+<p>This could even be implicit for <tt class="docutils literal">+=</tt> and other compound parameters since
+those will already assume that something from a higher scoped is assigned.</p>
+</div>
+<div class="section" id="inconsistencies">
+<h2>Inconsistencies</h2>
+<p>Jeremy Ashkenas (who is the developer behind CoffeeScript) told me on
+Twitter the following after proposing to fix this:</p>
+<blockquote>
+&#64;mitsuhiko Not gonna happen ;) Forbidding shadowing altogether is a
+huge win, and a huge conceptual simplification.</blockquote>
+<p>Now here is the next problem.  CoffeeScript does not even forbid
+shadowing.  For instance function parameters shadow as show in this code
+(which works):</p>
+<div class="highlight"><pre><span></span><span class="nv">updateVBO: </span><span class="nf">(x, y, z) -&gt;</span>
+  <span class="nv">chunk = </span><span class="k">this</span><span class="p">.</span><span class="nx">getChunk</span> <span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">,</span> <span class="nx">z</span>
+  <span class="nv">maker = </span><span class="k">new</span> <span class="nx">webglmc</span><span class="p">.</span><span class="nx">CubeMaker</span> <span class="mi">10</span>
+
+  <span class="nv">addPlane = </span><span class="nf">(side, block) -&gt;</span>
+    <span class="nx">maker</span><span class="p">.</span><span class="nx">addSide</span> <span class="nx">side</span><span class="p">,</span> <span class="nx">getBlockTexture</span><span class="p">(</span><span class="nx">block</span><span class="p">)</span>
+
+  <span class="nv">isAir = </span><span class="nf">(cx, cy, cz) =&gt;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">cx</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span> <span class="nx">cx</span> <span class="o">&lt;</span> <span class="nx">CHUNK_SIZE</span> <span class="o">&amp;&amp;</span>
+        <span class="nx">cx</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span> <span class="nx">cx</span> <span class="o">&lt;</span> <span class="nx">CHUNK_SIZE</span> <span class="o">&amp;&amp;</span>
+        <span class="nx">cx</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span> <span class="nx">cx</span> <span class="o">&lt;</span> <span class="nx">CHUNK_SIZE</span><span class="p">)</span>
+      <span class="k">return</span> <span class="nx">chunk</span><span class="p">[</span><span class="nx">cx</span> <span class="o">+</span> <span class="nx">cy</span> <span class="o">*</span> <span class="nx">CHUNK_SIZE</span> <span class="o">+</span> <span class="nx">cz</span> <span class="o">*</span> <span class="nx">CHUNK_SIZE</span> <span class="o">*</span> <span class="nx">CHUNK_SIZE</span><span class="p">]</span>
+    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">getBlock</span> <span class="nx">x</span> <span class="o">*</span> <span class="nx">CHUNK_SIZE</span> <span class="o">+</span> <span class="nx">cx</span><span class="p">,</span>
+                         <span class="nx">y</span> <span class="o">*</span> <span class="nx">CHUNK_SIZE</span> <span class="o">+</span> <span class="nx">cy</span><span class="p">,</span>
+                         <span class="nx">z</span> <span class="o">*</span> <span class="nx">CHUNK_SIZE</span> <span class="o">+</span> <span class="nx">cz</span>
+
+  <span class="k">for</span> <span class="nx">cz</span> <span class="k">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">...</span><span class="nx">CHUNK_SIZE</span><span class="p">]</span>
+    <span class="k">for</span> <span class="nx">cy</span> <span class="k">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">...</span><span class="nx">CHUNK_SIZE</span><span class="p">]</span>
+      <span class="k">for</span> <span class="nx">cx</span> <span class="k">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">...</span><span class="nx">CHUNK_SIZE</span><span class="p">]</span>
+        <span class="nv">block = </span><span class="nx">chunk</span><span class="p">[</span><span class="nx">cx</span> <span class="o">+</span> <span class="nx">cy</span> <span class="o">*</span> <span class="nx">CHUNK_SIZE</span> <span class="o">+</span> <span class="nx">cz</span> <span class="o">*</span> <span class="nx">CHUNK_SIZE</span> <span class="o">*</span> <span class="nx">CHUNK_SIZE</span><span class="p">]</span>
+        <span class="k">continue</span> <span class="k">if</span> <span class="nx">block</span> <span class="o">==</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="nx">isAir</span> <span class="nx">cx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="nx">cy</span><span class="p">,</span> <span class="nx">cz</span> <span class="k">then</span> <span class="nx">addPlane</span><span class="p">(</span><span class="s">&#39;left&#39;</span><span class="p">,</span> <span class="nx">block</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nx">isAir</span> <span class="nx">cx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="nx">cy</span><span class="p">,</span> <span class="nx">cz</span> <span class="k">then</span> <span class="nx">addPlane</span><span class="p">(</span><span class="s">&#39;right&#39;</span><span class="p">,</span> <span class="nx">block</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nx">isAir</span> <span class="nx">cx</span><span class="p">,</span> <span class="nx">cy</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="nx">cz</span> <span class="k">then</span> <span class="nx">addPlane</span><span class="p">(</span><span class="s">&#39;bottom&#39;</span><span class="p">,</span> <span class="nx">block</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nx">isAir</span> <span class="nx">cx</span><span class="p">,</span> <span class="nx">cy</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="nx">cz</span> <span class="k">then</span> <span class="nx">addPlane</span><span class="p">(</span><span class="s">&#39;top&#39;</span><span class="p">,</span> <span class="nx">block</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nx">isAir</span> <span class="nx">cx</span><span class="p">,</span> <span class="nx">cy</span><span class="p">,</span> <span class="nx">cz</span> <span class="o">-</span> <span class="mi">1</span> <span class="k">then</span> <span class="nx">addPlane</span><span class="p">(</span><span class="s">&#39;far&#39;</span><span class="p">,</span> <span class="nx">block</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nx">isAir</span> <span class="nx">cx</span><span class="p">,</span> <span class="nx">cy</span><span class="p">,</span> <span class="nx">cz</span> <span class="o">+</span> <span class="mi">1</span> <span class="k">then</span> <span class="nx">addPlane</span><span class="p">(</span><span class="s">&#39;near&#39;</span><span class="p">,</span> <span class="nx">block</span><span class="p">)</span>
+</pre></div>
+<p>The local <tt class="docutils literal">isAir</tt> helper function uses the same parameters as the loop
+below.  Since it's a function parameter and CoffeeScript does not touch
+them they are automatically shadowing the loop and the code works.
+Exactly as expected and wanted.</p>
+</div>
+<div class="section" id="shadowing-is-good-for-you">
+<h2>Shadowing is Good for You</h2>
+<p>Shadowing is good for you, seriously.  With proper explicit scoping you
+only have to look on the code of the screen to see what it affects.  From
+the assignment you automatically know if it will be changing something
+from a higher scope or not.</p>
+<p>CoffeeScript obviously gets a lot of inspiration from Ruby which suffers
+from the same problem, but with a much smaller impact.  In Ruby scoping
+ends at the next method.  Global variables are prefixed with <tt class="docutils literal">$</tt> and
+classes and modules use a separate lookup which is determined by starting
+with a capital letter which is enforced.</p>
+<p>As it stands right now, I consider the CoffeeScript scoping rules the
+worst of all possible scoping rules and it makes me feel uncomfortable
+using the language, now that I was bitten already.</p>
+<p>Considering we won't see this changed since the author has already closed
+the issue and expressed his satisfaction with the current rules this
+article should at least serve as a reminder for errors not to repeat with
+the next language someone designs.</p>
+</div>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/javascript/">javascript</a> and 
+      <a href="/tags/thoughts/">thoughts</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,319 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>Porting to Python 3 — A Guide | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">Porting to Python 3 — A Guide</h1>
+
+  
+  <p class=date>written on Thursday, February 11, 2010
+  
+
+  <p>The latest <a class="reference external" href="http://jinja.pocoo.org/2/">Jinja 2</a> release came with
+basic support for Python 3. It was surprisingly painless to port the
+application over but it did require a substantial amount of tweaks and
+code changes in order to get it running. For everyone else out there who
+is interested in getting started, I decided to share my experiences:</p>
+<div class="section" id="changing-apis">
+<h2>Changing APIs</h2>
+<p>Before you start porting the library you have to decide how interfaces
+will behave in Python 3. The biggest issue here is obviously unicode,
+but there are others as well. I would say there are four kinds of
+libraries you might encounter regarding string behavior in Python 2:
+There are the libraries that only accept unicode and only output
+unicode, there are those that only accept byte-strings and output
+byte-strings but operate on textual data, there are the libraries that
+operate on either or and what has been fed into it, comes out of it and
+there are libraries that operate either on unicode or byte-strings and
+also accept the other type as long as it's a subset of the default
+encoding (ASCII).</p>
+<p>First you have to find out what your library does, what it is supposed
+to do, and how you want to deal with that in Python 3. Because
+byte-strings no longer exist in Python 3 and were replaced by a <cite>bytes</cite>
+object that works similar, but has an incompatible API it is very
+unlikely that your code will be able to support both in the future (or
+that it is something you would desire).</p>
+</div>
+<div class="section" id="byte-based-libraries">
+<h2>Byte-Based Libraries</h2>
+<p>This is might the most tricky one if you are aiming for Python 2.5
+support or lower and you are operating on bytes directly. The issue is
+that the way you operate on bytes changed fundamentally from Python 2.x
+to 3.x and 2to3 is not really able to pick it up.  Worse, it will try
+convert all your bytestring literals to unicode! The official support is
+as far as I know, to explicitly prefix the byte strings in the 2.x code
+with a leading <cite>b</cite> to indicate bytes.  Unfortunately that means no
+support for 2.x. I am not completely sure what to do in that situation,
+but at least I found a way to trick python to operate on bytes: if you
+have code like this:</p>
+<div class="highlight"><pre><span></span><span class="n">magic</span> <span class="o">=</span> <span class="s1">&#39;M23</span><span class="se">\x01</span><span class="s1">&#39;</span>
+</pre></div>
+<p>And you want to ensure it does not end up being a <cite>str</cite> in 3.x, add a
+dummy encode:</p>
+<div class="highlight"><pre><span></span><span class="n">magic</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;M23</span><span class="se">\x01</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;iso-8859-1&#39;</span><span class="p">)</span>
+</pre></div>
+<p>The only downside is that the encode happens at runtime, so it will slow
+down execution a bit.</p>
+</div>
+<div class="section" id="text-based-libraries">
+<h2>Text Based Libraries</h2>
+<p>The second kind of library is a library that operates on text. In 2.x
+there were multiple ways to implement such libraries and it basically
+came down to what data type was used internally and what was accepted
+for input and output. There are the libraries that operate exclusively
+either on bytestrings or unicode. These are the ones that are the
+easiest to port, because 2to3 was written with nearly that in mind. If
+your library was only accepting bytestrings in 2.x it will (after a 2to3
+run) only be accepting a Python 3 <cite>str</cite> type which is unicode based.
+This works well as long as you do not intend to use some kind of IO in
+your library. Once you start doing that, you will need to make sure you
+can somehow specify the encoding to be used when opening files. In that
+case, make sure you open the file in byte mode (<em>not</em> in text mode!) and
+do the decoding/encoding yourself. This is the only way your IO code
+will work the same in both 2.x and 3.x. But more on IO later.</p>
+<p>What 2to3 does out of the box is converting calls from <cite>unicode</cite> to
+<cite>str</cite> automatically. Unfortunately it does not change the special
+<cite>__unicode__</cite> method to <cite>__str__</cite>. You can easily do that in a custom
+fixer though, so it should be easy to accomplish. If your library
+however supports both <cite>__str__</cite> <em>and</em> <cite>__unicode__</cite> you are in a more
+tricky situation here.  Let me show you an example of the kind of
+classes I deal with in Jinja 2 for example:</p>
+<div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">MyObject</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;some value&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">unicode</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__unicode__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span>
+</pre></div>
+<p>The big problem here is that 2to3 will convert it to this:</p>
+<div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">MyObject</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="s1">&#39;some value&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__unicode__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span>
+</pre></div>
+<p>If you call <cite>str()</cite> on your instance now, it will die with a runtime
+error because it recurses infinitely. Even if it would not recurse, it
+would try to return a bytes object from the <cite>__str__</cite> method because of
+the encode call. My plan was to write a custom fixer that, if it detects
+a <cite>__str__</cite> that just calls into <cite>__unicode__</cite> and encodes, will drop
+the <cite>__str__</cite> method and rename <cite>__unicode__</cite> to <cite>__str__</cite>.
+Unfortunately the tree you are dealing with in 2to3 does not appear to
+be designed to removing code so what I do instead of removing the
+<cite>__str__</cite> is just renaming the <cite>__unicode__</cite> to <cite>__str__</cite> and let Python
+override the dummy <cite>__str__</cite> with the correct one.  The fixer I use for
+that, looks like this:</p>
+<div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">lib2to3</span> <span class="kn">import</span> <span class="n">fixer_base</span>
+<span class="kn">from</span> <span class="nn">lib2to3.fixer_util</span> <span class="kn">import</span> <span class="n">Name</span>
+
+<span class="k">class</span> <span class="nc">FixRenameUnicode</span><span class="p">(</span><span class="n">fixer_base</span><span class="o">.</span><span class="n">BaseFix</span><span class="p">):</span>
+    <span class="n">PATTERN</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;funcdef&lt; &#39;def&#39; name=&#39;__unicode__&#39; parameters&lt; &#39;(&#39; NAME &#39;)&#39; &gt; any+ &gt;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="n">results</span><span class="p">):</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
+        <span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">Name</span><span class="p">(</span><span class="s1">&#39;__str__&#39;</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="n">name</span><span class="o">.</span><span class="n">prefix</span><span class="p">))</span>
+</pre></div>
+<p>After conversion with this fixer in place, the class from above will
+then look like this:</p>
+<div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">MyObject</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="s1">&#39;some value&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span>
+</pre></div>
+<p>But where to put those fixers? Edit 2to3 directly? And do I have to
+provide two source packages for 2.x and 3.x? This is where <a class="reference external" href="http://pypi.python.org/pypi/distribute">distribute</a> comes in.</p>
+</div>
+<div class="section" id="to3-through-distribute">
+<h2>2to3 through distribute</h2>
+<p>Distutils itself already has the possibility to run 2to3 for you, but
+what it cannot do is adding custom fixers without a lot of custom code.
+distribute on the other hand not gives you built in 2to3 support as a
+single keyword argument to <cite>setup()</cite> but can also pass custom fixers to
+2to3 which is very helpful. Because these new keyword arguments however
+would warn if the setup script was executed with setuptools instead of
+distribute, you should only pass them to the setup function if invoked
+from Python 3.  The setup script then looks like this:</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">sys</span>
+
+<span class="kn">from</span> <span class="nn">setuptools</span> <span class="kn">import</span> <span class="n">setup</span>
+
+<span class="c1"># if we are running on python 3, enable 2to3 and</span>
+<span class="c1"># let it use the custom fixers from the custom_fixers</span>
+<span class="c1"># package.</span>
+<span class="n">extra</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
+    <span class="n">extra</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+        <span class="n">use_2to3</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+        <span class="n">use_2to3_fixers</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;custom_fixers&#39;</span><span class="p">]</span>
+    <span class="p">)</span>
+
+
+<span class="n">setup</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s1">&#39;Your Library&#39;</span><span class="p">,</span>
+    <span class="n">version</span><span class="o">=</span><span class="s1">&#39;1.0&#39;</span><span class="p">,</span>
+    <span class="n">classifiers</span><span class="o">=</span><span class="p">[</span>
+        <span class="c1"># make sure to use :: Python *and* :: Python :: 3 so</span>
+        <span class="c1"># that pypi can list the package on the python 3 page</span>
+        <span class="s1">&#39;Programming Language :: Python&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Programming Language :: Python :: 3&#39;</span>
+    <span class="p">],</span>
+    <span class="n">packages</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;yourlibrary&#39;</span><span class="p">],</span>
+    <span class="c1"># make sure to add custom_fixers to the MANIFEST.in</span>
+    <span class="n">include_package_data</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">extra</span>
+<span class="p">)</span>
+</pre></div>
+<p>Now all you have to do is to put the custom 2to3 fixers (written in
+Python 3!) into the <cite>custom_fixers</cite> package next to your real library
+and they will be added automatically. For examples of fixers, look into
+the <cite>lib2to3/fixes</cite> package or your Python 3 installation. If you run
+<cite>python3 setup.py build</cite> it will run 2to3 on your files and put the
+output into the build folder for you to test.</p>
+</div>
+<div class="section" id="input-output">
+<h2>Input/Output</h2>
+<p>So in Python 3 there is a completely new input/output system. It is very
+Java-ish and is able to deal with unicode. The downside is that you
+either don't have it in 2.x or the implementation is too slow, so what
+you want to do is to create yourself an abstraction layer.</p>
+<p>If your library was unicode based in older Python versions you probably
+just did <cite>file.read().decode(encoding)</cite> or something similar. This still
+works on 3.x and I strongly recommend doing that, but be sure to open
+the file in binary mode, otherwise on Python 3 the decode will attempt
+to decode an already decoded unicode string, which does not make any
+sense. If you <em>need</em> normalized newlines (windows newlines converted to
+<cite>'n'</cite>) you would have to post-process the string by hand, but must
+applications and libraries are able to deal with any kind of newline
+anyways.</p>
+<p>You could also just create a IO helper module that calls the builtin
+open on 3.x and <cite>codecs.open</cite> on 2.x. Unfortunately codecs.open has a
+worse performance than the built in open on 2.x, so you might want to
+check how you are dealing with files, if a high performance is necessary
+and so forth. Most of the time, opening the file in binary mode is what
+you want to do.</p>
+<p>If you library was byte based in 2.x and you opened files in the
+library, instead of just working on open file objects, you will have to
+change your API slightly in order to take the charset and error mode
+into account.  If you previously had a function like this:</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">read_file_contents</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+</pre></div>
+<p>You will have to change it to something like this now:</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">read_file_contents</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">charset</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s1">&#39;strict&#39;</span><span class="p">):</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">charset</span><span class="p">,</span> <span class="n">errors</span><span class="p">)</span>
+</pre></div>
+<p>And then ensure that you give the user to provide these arguments to the
+function. This means that whatever calls this, would also have to accept
+this arguments and so forth. Not everyone is using utf-8, there might be
+legacy files in iso-8859-1 a user might still want to be able to open.
+With a proper error handling system, it might even be possible to fall
+back to another encoding if it does not decode as utf-8 properly.</p>
+<p>Last but not least, 3.x <cite>StringIO</cite> is a &quot;string IO&quot;, not something that
+accepts binary data. If you have a lot of unittests that are dealing
+with binary data in such objects, you will have to use the <cite>io.BytesIO</cite>
+instead. If it does not exist, you are running 2.x, and you can safely
+fall back to <cite>cStringIO.StringIO</cite>.</p>
+</div>
+<div class="section" id="unit-testing">
+<h2>Unit-Testing</h2>
+<p>Now the biggest problem I had with switching to 3.x: The unittests.
+First of all: <strong>do not use doctest</strong>. There is a doctest converter in
+2to3, but it does not give you much. Error messages changed, reprs
+changed which it cannot properly pick up, nested tracebacks cause a lot
+of grief and they are hard to debug. I was playing with the idea to
+write a tool that automatically converts doctests to unittests, but I
+was too lazy and converted the few I had in my code, to unittests by
+hand. Furthermore, the few doctests left (used as code examples in the
+documentation) are only tested if the testsuite is invoked from Python
+2.x</p>
+<p>Nosetest has 3.x support in a separate branch, py.test comes with 3.x
+for a while now and the builtin unittest does the trick as well. I
+personally converted all my Jinja 2 tests to unittest lately. If you are
+using unittest you can point distribute to your test suite function and
+it will run the test for you if you write python setup.py test. This
+even runs 2to3 for you if you execute it with Python 3. So very helpful.</p>
+<p>Hope that helps you porting your libraries to Python 3. Would love to
+hear about your experiences, because even if Python 3 did not work out
+as some of us hoped, it is very important that we continue to port
+libraries over to 3.x.</p>
+</div>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/python/">python</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,344 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>Rust and Rest | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">Rust and Rest</h1>
+
+  
+  <p class=date>written on Sunday, July 10, 2016
+  
+
+  <p>A few months back I decided to write a command line client for <a class="reference external" href="http://www.getsentry.com/">Sentry</a> because manually invoking the Sentry API for
+some common tasks (such as dsym or sourcemap management is just no fun).
+Given the choice of languages available I went with Rust.  The reason for
+this is that I want people to be able to download a single executable that
+links everything in statically.  The choice was between C, C++, Go and
+Rust.  There is no denying that I really like Rust so it was already a
+pretty good choice for me.  However what made it even easier is that Rust
+quite a potent ecosystem for what I wanted.  So here is my lessons learned
+from this.</p>
+<div class="section" id="libraries-for-http">
+<h2>Libraries for HTTP</h2>
+<p>To make an HTTP request you have a choice of libraries.  In particular
+there are two in Rust you can try: <a class="reference external" href="http://hyper.rs/">hyper</a> and
+<a class="reference external" href="https://crates.io/crates/curl">rust-curl</a>.  I tried both and there are
+some releases with the former but I settled in rust-curl in the end.  The
+reason for this is twofold.  The first is that curl (despite some of the
+oddities in how it does things) is very powerful and integrates really
+well with the system SSL libraries.  This means that when I compile the
+executable I get the native TLS support right away.  rust-curl also
+(despite being not a pure rust library) compiles really well out of the
+box on Windows, macOS and Linux.  The second reason is that Hyper is
+currently undergoing a major shift in how it's structured and a bit in
+flux.  I did not want to bet on that too much.  When I started it also did
+not have proxy support which is not great.</p>
+<p>For JSON parsing and serializing I went with <a class="reference external" href="https://crates.io/crates/serde">serde</a>.  I suppose that serde will eventually
+be the library of choice for all things serialization but right now it's
+not.  It depends on compiler plugins and there are two ways to make it
+work right now.  One is to go with nightly Rust (which is what I did) the
+other is to use the build script support in Rust.  This is similar to what
+you do in Go where some code generation happens as part of the build.  It
+definitely works but it's not nearly as nice as using serde with nightly
+Rust.</p>
+</div>
+<div class="section" id="api-design">
+<h2>API Design</h2>
+<p>The next question is what a good API design for a Rust HTTP library is.  I
+struggeld with this quite a bit and it took multiple iterations to end up
+with something that I think is a good pattern.  What I ended up is a
+collection of multiple types:</p>
+<ul class="simple">
+<li><tt class="docutils literal">Api</tt>: I have a basic client object which I call <tt class="docutils literal">Api</tt> internally.
+it manages the curl handles (right now it just caches one) and also
+exposes convenience methods to perform certain types of HTTP requests.
+On top of that it provides high level methods that send the right HTTP
+requests and handle the responses.</li>
+<li><tt class="docutils literal">ApiRequest</tt>: basically your request object.  It's mostly a builder
+for making requests and has a method to send the request and get a
+response object.</li>
+<li><tt class="docutils literal">ApiResponse</tt>: contains the response from the HTTP request.  This also
+provides various helpers to convert the response into different things.</li>
+<li><tt class="docutils literal">ApiResult&lt;T&gt;</tt>: this is a result object which is returned from most
+methods.  The error is a special API error that converts from all the
+APIs we call into.  This means it can hold curl errors, form errors,
+JSON errors, IO errors and more.</li>
+</ul>
+<p>To give you an idea how this looks like I want to show you one of the
+high level methods that use most of the API:</p>
+<div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">list_releases</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">org</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">,</span><span class="w"> </span><span class="n">project</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"></span>
+<span class="w">    </span>-&gt; <span class="nc">ApiResult</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">ReleaseInfo</span><span class="o">&gt;&gt;</span><span class="w"></span>
+<span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="nb">Ok</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="o">&amp;</span><span class="n">format</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;/projects/{}/{}/releases/&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">                         </span><span class="n">PathArg</span><span class="p">(</span><span class="n">org</span><span class="p">),</span><span class="w"> </span><span class="n">PathArg</span><span class="p">(</span><span class="n">project</span><span class="p">)))</span><span class="o">?</span><span class="p">.</span><span class="n">convert</span><span class="p">()</span><span class="o">?</span><span class="p">)</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>(Note that I'm using the new question mark syntax <tt class="docutils literal">?</tt> instead of the
+more familiar <tt class="docutils literal">try!</tt> macro here)</p>
+<p>So what is happening here?</p>
+<ol class="arabic simple">
+<li>This is a method on the <tt class="docutils literal">Api</tt> struct.  We use the <tt class="docutils literal">get()</tt>
+shorthand method to make an HTTP <cite>GET</cite> request.  It takes one argument
+which is the URL to make the request to.  We use standard string
+formatting to create the URL path here.</li>
+<li>The <cite>PathArg</cite> is a simple wrapper that customizes the formatting so
+that instead of just stringifying a value it also percent encodes it.</li>
+<li>The return value of the <cite>get</cite> method is a <tt class="docutils literal">ApiResult&lt;ApiResponse&gt;</tt>
+which provides a handy <tt class="docutils literal">convert()</tt> method which does both error
+handling and deserialization.</li>
+</ol>
+<p>How does the JSON handling take place here?  The answer is that
+<tt class="docutils literal">convert()</tt> can do that.  Because <tt class="docutils literal">Vec&lt;ReleaseInfo&gt;</tt> has an automatic
+deserializer implemented.</p>
+</div>
+<div class="section" id="the-error-onion">
+<h2>The Error Onion</h2>
+<p>The bulk of the complexity is hidden behind multiple layers of error
+handling.  It took me quite a long time to finally come up with this
+design which is why I'm particularly happy with finally having found one I
+really like.  The reason error handling is so tricky with HTTP requests is
+because you want to have both the flexibility of responding to specific
+error conditions as well as automatically handling all the ones you are
+not interested in.</p>
+<p>The design I ended up with is that I have an <tt class="docutils literal">ApiError</tt> type.  All the
+internal errors that the library could encounter (curl errors etc.) are
+automatically converted into an <tt class="docutils literal">ApiError</tt>.  If you send a request the
+return value is as such <tt class="docutils literal">Result&lt;ApiResponse, ApiError&gt;</tt>.  However the
+trick here is that at this level no HTTP error (other than connection
+errors) is actually stored as <tt class="docutils literal">ApiError</tt>.  Instead also a failed
+response (because for instance of a 404) is stored as the actual response
+object.</p>
+<p>On the response object you can check the status of the response with these
+methods:</p>
+<div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">status</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">u32</span> <span class="p">{</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">status</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">failed</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">bool</span> <span class="p">{</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">status</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">400</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">status</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">600</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">ok</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">bool</span> <span class="p">{</span><span class="w"> </span><span class="o">!</span><span class="bp">self</span><span class="p">.</span><span class="n">failed</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>However what's nice is that most of the time you don't have to do any of
+this.  The response method also provides a method to conver non successful
+responses into errors like this:</p>
+<div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">to_result</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">ApiResult</span><span class="o">&lt;</span><span class="n">ApiResponse</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">ok</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">Ok</span><span class="p">(</span><span class="bp">self</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Ok</span><span class="p">(</span><span class="n">err</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">deserialize</span>::<span class="o">&lt;</span><span class="n">ErrorInfo</span><span class="o">&gt;</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">detail</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">err</span><span class="p">.</span><span class="n">detail</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nb">Err</span><span class="p">(</span><span class="n">ApiError</span>::<span class="n">Http</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">status</span><span class="p">(),</span><span class="w"> </span><span class="n">detail</span><span class="p">));</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="nb">Err</span><span class="p">(</span><span class="n">ApiError</span>::<span class="n">Http</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">status</span><span class="p">(),</span><span class="w"> </span><span class="s">&quot;generic error&quot;</span><span class="p">.</span><span class="n">into</span><span class="p">()))</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>This method consumes the response and depending on the condition of the
+response returns different results.  If everything was fine the response
+is returned unchanged.  However if there was an error we first try to
+deserialize the body with our own <tt class="docutils literal">ErrorInfo</tt> which is the JSON response
+our API returns or otherwise we fall back to a generic error message and
+the status code.</p>
+<p>What's deserialize?  It just invokes serde for deserialization:</p>
+<div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">deserialize</span><span class="o">&lt;</span><span class="n">T</span>: <span class="nc">Deserialize</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">ApiResult</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="nb">Ok</span><span class="p">(</span><span class="n">serde_json</span>::<span class="n">from_reader</span><span class="p">(</span><span class="k">match</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">body</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="nb">Some</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">body</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">body</span><span class="p">,</span><span class="w"></span>
+<span class="w">        </span><span class="nb">None</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="s">b&quot;&quot;</span><span class="p">[..],</span><span class="w"></span>
+<span class="w">    </span><span class="p">})</span><span class="o">?</span><span class="p">)</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>One thing you can see here is that the body is buffered into memory
+entirely.  I was torn on this in the beginning but it actually turns out
+to make the API significantly nicer because it allows you to reason about
+the response better.  Without buffering up everything in memory it becomes
+much harder to do conditional things based on the body.  For the cases
+where we cannot deal with this limitation I have extra methods to stream
+the incoming data.</p>
+<p>On deserialization we match on the body.  The body is an <tt class="docutils literal">Option&lt;Vec&lt;u8&gt;&gt;</tt>
+here which we convert into a <tt class="docutils literal">&amp;[u8]</tt> which satisfies the <tt class="docutils literal">Read</tt>
+interface which we can then use for deserialization.</p>
+<p>The nice thing about the aforementioned <tt class="docutils literal">to_result</tt> method is that it
+works just so nice.  The common case is to convert something into a result
+and to then deserialize the response if everything is fine.  Which is why
+we have this <tt class="docutils literal">convert</tt> method:</p>
+<div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">convert</span><span class="o">&lt;</span><span class="n">T</span>: <span class="nc">Deserialize</span><span class="o">&gt;</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">ApiResult</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="bp">self</span><span class="p">.</span><span class="n">to_result</span><span class="p">().</span><span class="n">and_then</span><span class="p">(</span><span class="o">|</span><span class="n">x</span><span class="o">|</span><span class="w"> </span><span class="n">x</span><span class="p">.</span><span class="n">deserialize</span><span class="p">())</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<div class="section" id="complex-uses">
+<h2>Complex Uses</h2>
+<p>There are some really nice uses for this.  For instance here is how we
+check for updates from the GitHub API:</p>
+<div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">get_latest_release</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">ApiResult</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="p">(</span><span class="nb">String</span><span class="p">,</span><span class="w"> </span><span class="nb">String</span><span class="p">)</span><span class="o">&gt;&gt;</span><span class="w"></span>
+<span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">resp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;https://api.github.com/repos/getsentry/sentry-cli/releases/latest&quot;</span><span class="p">)</span><span class="o">?</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">resp</span><span class="p">.</span><span class="n">status</span><span class="p">()</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">404</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">info</span><span class="w"> </span>: <span class="nc">GitHubRelease</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">resp</span><span class="p">.</span><span class="n">to_result</span><span class="p">()</span><span class="o">?</span><span class="p">.</span><span class="n">convert</span><span class="p">()</span><span class="o">?</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">asset</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">info</span><span class="p">.</span><span class="n">assets</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="n">asset</span><span class="p">.</span><span class="n">name</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">REFERENCE_NAME</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="nb">Ok</span><span class="p">(</span><span class="nb">Some</span><span class="p">((</span><span class="w"></span>
+<span class="w">                    </span><span class="n">info</span><span class="p">.</span><span class="n">tag_name</span><span class="p">,</span><span class="w"></span>
+<span class="w">                    </span><span class="n">asset</span><span class="p">.</span><span class="n">browser_download_url</span><span class="w"></span>
+<span class="w">                </span><span class="p">)));</span><span class="w"></span>
+<span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="nb">Ok</span><span class="p">(</span><span class="nb">None</span><span class="p">)</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>Here we silently ignore a 404 but otherwise we parse the response as
+<cite>GitHubRelease</cite> structure and then look through all the assets.  The call
+to <cite>to_result</cite> does nothing on success but it will handle all the other
+response errors automatically.</p>
+<p>To get an idea how the structures like <cite>GitHubRelease</cite> are defined, this
+is all that is needed:</p>
+<div class="highlight"><pre><span></span><span class="cp">#[derive(Debug, Deserialize)]</span><span class="w"></span>
+<span class="k">struct</span> <span class="nc">GitHubAsset</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">browser_download_url</span>: <span class="nb">String</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">name</span>: <span class="nb">String</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="cp">#[derive(Debug, Deserialize)]</span><span class="w"></span>
+<span class="k">struct</span> <span class="nc">GitHubRelease</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">tag_name</span>: <span class="nb">String</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">assets</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">GitHubAsset</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<div class="section" id="curl-handle-management">
+<h2>Curl Handle Management</h2>
+<p>One thing that is not visible here is how I manage the curl handles.  Curl
+is a C library and the Rust binding to it is quite low level.  While it's
+well typed and does not require unsafe code to use, it still feels very
+much like a C library.  In particular there is a curl &quot;easy&quot; handle object
+you are supposed to keep hanging around between requests to take advantage
+of keepalives.  However the handles are stateful.  Readers of this blog
+are aware that there are few things I hate as much as unnecessary stateful
+APIs.  So I made it as stateless as possible.</p>
+<p>The &quot;correct&quot; thing to do would be to have a pool of &quot;easy&quot; handles.
+However in my case I never have more than one request outstanding at the
+time so instead of going with something more complex I stuff away the
+&quot;easy&quot; handle in a <tt class="docutils literal">RefCell</tt>.  A <tt class="docutils literal">RefCell</tt> is a smart pointer that
+moves the borrow semantics that rust normally requires at compile time to
+runtime.  This is rougly how this looks:</p>
+<div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">ApiRequest</span><span class="o">&lt;</span><span class="na">&#39;a</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">handle</span>: <span class="nc">RefMut</span><span class="o">&lt;</span><span class="na">&#39;a</span><span class="p">,</span><span class="w"> </span><span class="n">curl</span>::<span class="n">easy</span>::<span class="n">Easy</span><span class="o">&gt;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">Api</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">shared_handle</span>: <span class="nc">RefCell</span><span class="o">&lt;</span><span class="n">curl</span>::<span class="n">easy</span>::<span class="n">Easy</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="p">...</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">Api</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">request</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">method</span>: <span class="nc">Method</span><span class="p">,</span><span class="w"> </span><span class="n">url</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"></span>
+<span class="w">        </span>-&gt; <span class="nc">ApiResult</span><span class="o">&lt;</span><span class="n">ApiRequest</span><span class="o">&lt;</span><span class="na">&#39;a</span><span class="o">&gt;&gt;</span><span class="w"></span>
+<span class="w">    </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">shared_handle</span><span class="p">.</span><span class="n">borrow_mut</span><span class="p">();</span><span class="w"></span>
+<span class="w">        </span><span class="n">ApiRequest</span>::<span class="n">new</span><span class="p">(</span><span class="n">handle</span><span class="p">,</span><span class="w"> </span><span class="n">method</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">url</span><span class="p">)</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>This way if you call <cite>request</cite> twice you will get a runtime panic if the
+last request is still outstanding.  This is fine for what I do.  The
+<tt class="docutils literal">ApiRequest</tt> object itself implements a builder like pattern where you
+can modify the object with chaining calls.  This is roughly how this looks
+like when used for a more complex situation:</p>
+<div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">send_event</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">event</span>: <span class="kp">&amp;</span><span class="nc">Event</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">ApiResult</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">dsn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">config</span><span class="p">.</span><span class="n">dsn</span><span class="p">.</span><span class="n">as_ref</span><span class="p">().</span><span class="n">ok_or</span><span class="p">(</span><span class="n">Error</span>::<span class="n">NoDsn</span><span class="p">)</span><span class="o">?</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">event</span><span class="w"> </span>: <span class="nc">EventInfo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">request</span><span class="p">(</span><span class="n">Method</span>::<span class="n">Post</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">dsn</span><span class="p">.</span><span class="n">get_submit_url</span><span class="p">())</span><span class="o">?</span><span class="w"></span>
+<span class="w">        </span><span class="p">.</span><span class="n">with_header</span><span class="p">(</span><span class="s">&quot;X-Sentry-Auth&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">dsn</span><span class="p">.</span><span class="n">get_auth_header</span><span class="p">(</span><span class="n">event</span><span class="p">.</span><span class="n">timestamp</span><span class="p">))</span><span class="o">?</span><span class="w"></span>
+<span class="w">        </span><span class="p">.</span><span class="n">with_json_body</span><span class="p">(</span><span class="o">&amp;</span><span class="n">event</span><span class="p">)</span><span class="o">?</span><span class="w"></span>
+<span class="w">        </span><span class="p">.</span><span class="n">send</span><span class="p">()</span><span class="o">?</span><span class="p">.</span><span class="n">convert</span><span class="p">()</span><span class="o">?</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="nb">Ok</span><span class="p">(</span><span class="n">event</span><span class="p">.</span><span class="n">id</span><span class="p">)</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<div class="section" id="lessons-learned">
+<h2>Lessons Learned</h2>
+<p>My key takeaways from doing this in Rust so far have been:</p>
+<ul class="simple">
+<li>Rust is definitely a great choice for building command line utilities.
+The ecosystem is getting stronger by the day and there are so many
+useful crates already for very common tasks.</li>
+<li>The cross platform support is superb.  Getting the windows build going
+was easy cake compared to the terror you generally go through with
+other languages (including Python).</li>
+<li>serde is a pretty damn good library.  It's a shame it's not as nice to
+use on stable rust.  Can't wait for this stuff to get more stable.</li>
+<li>Result objects in rust are great but sometimes it makes sense to not
+immediately convert data into a result object.  I originally converted
+failure responses into errors immediately and that definitely hurt the
+convenience of the APIs tremendously.</li>
+<li>Don't be afraid of using C libraries like <cite>curl</cite> instead of native
+Rust things.  It turns out that Rust's build support is pretty
+magnificent which makes installing the rust curl library
+straightforward.  It even takes care of compiling curl itself on
+Windows.</li>
+</ul>
+<p>If you want to see the code, the entire git repository of the client can
+be found online: <a class="reference external" href="http://github.com/getsentry/sentry-cli">getsentry/sentry-cli</a>.</p>
+</div>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/api/">api</a>, 
+      <a href="/tags/http/">http</a>, 
+      <a href="/tags/rest/">rest</a> and 
+      <a href="/tags/rust/">rust</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

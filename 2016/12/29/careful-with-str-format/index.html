@@ -1,0 +1,229 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>Be Careful with Python&#39;s New-Style String Format | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">Be Careful with Python's New-Style String Format</h1>
+
+  
+  <p class=date>written on Thursday, December 29, 2016
+  
+
+  <p>This should have been obvious to me for a longer time, but until earlier
+today I did not really realize the severity of the issues caused by
+<cite>str.format</cite> on untrusted user input.  It came up as a way to bypass the
+Jinja2 Sandbox in a way that would permit retrieving information that you
+should not have access to which is why I just pushed out a <a class="reference external" href="https://www.palletsprojects.com/blog/jinja-281-released/">security
+release</a> for
+it.</p>
+<p>However I think the general issue is quite severe and needs to be a
+discussed because most people are most likely not aware of how easy it is
+to exploit.</p>
+<div class="section" id="the-core-issue">
+<h2>The Core Issue</h2>
+<p>Starting with Python 2.6 a new format string syntax landed inspired by
+.NET which is also the same syntax that is supported by Rust and some
+other programming languages.  It's available behind the <cite>.format()</cite> method
+on byte and unicode strings (on Python 3 just on unicode strings) and it's
+also mirrored in the more customizable <cite>string.Formatter</cite> API.</p>
+<p>One of the features of it is that you can address both positional and
+keyword arguments to the string formatting and you can explicitly reorder
+items at all times.  However the bigger feature is that you can access
+attributes and items of objects.  The latter is what is causing the
+problem here.</p>
+<p>Essentially one can do things like the following:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;class of {0} is {0.__class__}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="mi">42</span><span class="p">)</span>
+<span class="go">&quot;class of 42 is &lt;class &#39;int&#39;&gt;&quot;</span>
+</pre></div>
+<p>In essence: whoever controls the format string can access potentially
+internal attributes of objects.</p>
+</div>
+<div class="section" id="where-does-it-happen">
+<h2>Where does it Happen?</h2>
+<p>First question is why would anyone control the format string.  There are a
+few places where it shows up:</p>
+<ul class="simple">
+<li>untrusted translators on string files.  This is a big one because many
+applications that are translated into multiple languages will use
+new-style Python string formatting and not everybody will vet all the
+strings that come in.</li>
+<li>user exposed configuration.  One some systems users might be permitted
+to configure some behavior and that might be exposed as format
+strings.  In particular I have seen it where users can configure
+notification mails, log message formats or other basic templates in web
+applications.</li>
+</ul>
+</div>
+<div class="section" id="levels-of-danger">
+<h2>Levels of Danger</h2>
+<p>For as long as only C interpreter objects are passed to the format string
+you are somewhat safe because the worst you can discover is some internal
+reprs like the fact that something is an integer class above.</p>
+<p>However tricky it becomes once Python objects are passed in.  The reason
+for this is that the amount of stuff that is exposed from Python functions
+is pretty crazy.  Here is an example from a hypothetical web application
+setup that would leak the secret key:</p>
+<div class="highlight"><pre><span></span><span class="n">CONFIG</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;SECRET_KEY&#39;</span><span class="p">:</span> <span class="s1">&#39;super secret key&#39;</span>
+<span class="p">}</span>
+
+<span class="k">class</span> <span class="nc">Event</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">id</span><span class="p">,</span> <span class="n">level</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="nb">id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">level</span> <span class="o">=</span> <span class="n">level</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">message</span> <span class="o">=</span> <span class="n">message</span>
+
+<span class="k">def</span> <span class="nf">format_event</span><span class="p">(</span><span class="n">format_string</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">format_string</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">event</span><span class="o">=</span><span class="n">event</span><span class="p">)</span>
+</pre></div>
+<p>If the user can inject <cite>format_string</cite> here they could discover the secret
+string like this:</p>
+<div class="highlight"><pre><span></span>{event.__init__.__globals__[CONFIG][SECRET_KEY]}
+</pre></div>
+</div>
+<div class="section" id="sandboxing-formatting">
+<h2>Sandboxing Formatting</h2>
+<p>So what do you do if you do need to let someone else provide format
+strings?  You can use the somewhat undocumented internals to change the
+behavior.</p>
+<div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">string</span> <span class="kn">import</span> <span class="n">Formatter</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">Mapping</span>
+
+<span class="k">class</span> <span class="nc">MagicFormatMapping</span><span class="p">(</span><span class="n">Mapping</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This class implements a dummy wrapper to fix a bug in the Python</span>
+<span class="sd">    standard library for string formatting.</span>
+
+<span class="sd">    See http://bugs.python.org/issue13598 for information about why</span>
+<span class="sd">    this is necessary.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_args</span> <span class="o">=</span> <span class="n">args</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_kwargs</span> <span class="o">=</span> <span class="n">kwargs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_index</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_index</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_last_index</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_args</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+            <span class="k">except</span> <span class="ne">LookupError</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_kwargs</span><span class="p">)</span>
+
+<span class="c1"># This is a necessary API but it&#39;s undocumented and moved around</span>
+<span class="c1"># between Python releases</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">_string</span> <span class="kn">import</span> <span class="n">formatter_field_name_split</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">formatter_field_name_split</span> <span class="o">=</span> <span class="k">lambda</span> \
+        <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_formatter_field_name_split</span><span class="p">()</span>
+
+<span class="k">class</span> <span class="nc">SafeFormatter</span><span class="p">(</span><span class="n">Formatter</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">get_field</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field_name</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">first</span><span class="p">,</span> <span class="n">rest</span> <span class="o">=</span> <span class="n">formatter_field_name_split</span><span class="p">(</span><span class="n">field_name</span><span class="p">)</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="n">first</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">is_attr</span><span class="p">,</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">rest</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">is_attr</span><span class="p">:</span>
+                <span class="n">obj</span> <span class="o">=</span> <span class="n">safe_getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">obj</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">obj</span><span class="p">,</span> <span class="n">first</span>
+
+<span class="k">def</span> <span class="nf">safe_getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
+    <span class="c1"># Expand the logic here.  For instance on 2.x you will also need</span>
+    <span class="c1"># to disallow func_globals, on 3.x you will also need to hide</span>
+    <span class="c1"># things like cr_frame and others.  So ideally have a list of</span>
+    <span class="c1"># objects that are entirely unsafe to access.</span>
+    <span class="k">if</span> <span class="n">attr</span><span class="p">[:</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;_&#39;</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="n">attr</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">safe_format</span><span class="p">(</span><span class="n">_string</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">formatter</span> <span class="o">=</span> <span class="n">SafeFormatter</span><span class="p">()</span>
+    <span class="n">kwargs</span> <span class="o">=</span> <span class="n">MagicFormatMapping</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">formatter</span><span class="o">.</span><span class="n">vformat</span><span class="p">(</span><span class="n">_string</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span>
+</pre></div>
+<p>Now you can use the <cite>safe_format</cite> method as a replacement for
+<cite>str.format</cite>:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;{0.__class__}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="mi">42</span><span class="p">)</span>
+<span class="go">&quot;&lt;type &#39;int&#39;&gt;&quot;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">safe_format</span><span class="p">(</span><span class="s1">&#39;{0.__class__}&#39;</span><span class="p">,</span> <span class="mi">42</span><span class="p">)</span>
+<span class="gt">Traceback (most recent call last):</span>
+  File <span class="nb">&quot;&lt;stdin&gt;&quot;</span>, line <span class="m">1</span>, in <span class="n">&lt;module&gt;</span>
+<span class="gr">AttributeError</span>: <span class="n">__class__</span>
+</pre></div>
+</div>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/python/">python</a> and 
+      <a href="/tags/security/">security</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

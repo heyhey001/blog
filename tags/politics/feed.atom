@@ -1,0 +1,472 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Armin Ronacher's Thoughts and Writings</title>
+  <id>http://lucumr.pocoo.org/feed.atom</id>
+  <updated>2016-11-05T00:00:00Z</updated>
+  <link href="http://lucumr.pocoo.org/" />
+  <link href="http://lucumr.pocoo.org/feed.atom" rel="self" />
+  <subtitle type="text">Armin Ronacher's personal blog about programming, games and random thoughts that come to his mind.</subtitle>
+  <generator>Werkzeug</generator>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">A Europe For Our Children</title>
+    <id>http://lucumr.pocoo.org/2016/5/18/for-our-children</id>
+    <updated>2016-05-18T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2016/5/18/for-our-children" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Most of the readers of this blog are not from Europe, let alone Austria,
+the country I was born in.  As such I'm not sure how many will actually
+care about Austrian politics here, especially if it's a lengthy post.  But
+I would still like if you read it because I think the topic is important
+and not just because of Austria.  Our problems here are not just ours,
+they are a general issue that affects all of Europe and the western world.&lt;/p&gt;
+&lt;p&gt;So since you are probably in no way familiar with Austrian politics or the
+situation in the country I want to give you a brief overview.  Austria has
+recovered very quickly from the war torn country it was after World War 2
+and emerged as one of the most powerful economies of Europe if looked at
+on a GDP per capita basis.  It underwent a conversion from an agricultural
+country with some tourism attached to being dominated by the service
+industry and producing technology and parts (the economical tree map looks
+confusing because it's so heavily diversified).&lt;/p&gt;
+&lt;p&gt;However as great as the country has developed after the wars and as
+profitable the creation of the Eurozone was, there was an end to this
+positive trend and it came with the financial crisis of 2007/2008
+(although with a bit of a delay).  The economy did recover, but it did not
+do it to the extent people wanted.  At the same time necessary reforms
+were not implemented (or not implemented in the right ways) and as a
+result the country has suffered major blows in the last few years.  From a
+personal point of view I cannot stress enough how disappointed I am that
+many of my collegues went to other countries and started their companies
+there or work there.  But it would be foolish to blame politics on this
+alone.  This is as much a problem of politics as it is a problem of
+culture.&lt;/p&gt;
+&lt;p&gt;We now reached the point where cheap and populist ideas like reducing
+social welfare for non citizens gets popular support.  In this environment
+right wing parties emerge and this sunday Austrians will probably elect
+the first right wing leader of the country since the end of World War 2.&lt;/p&gt;
+&lt;p&gt;But politics not what I want to talk about.  What I want to talk about is
+the erosion of civilized discourse in Austria and I think in all of
+Europe.  A large part of the general public are unable to have civilized
+discussions on the bases of facts and instead conspiracies and emotions
+take over and this is something that extends to politicians in Austria as
+well.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-symptoms-and-problems&quot;&gt;
+&lt;h2&gt;The Symptoms and Problems&lt;/h2&gt;
+&lt;p&gt;If you look at the emotional state of the country you can see a few
+symptoms and problems that help the populists to raise to power:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;&lt;strong&gt;Inability (or unwillingness) to learn and understand&lt;/strong&gt; how Austria and
+the world changed in the last few years.  I think this is a big one of the
+people who want to leave the European Union and do similar crazy things
+to the Austrian economy.  We're so intertwined with it, that I doubt
+anyone can predict what would happen as a consequence of leaving it.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;&lt;strong&gt;Comparing things that cannot directly be compared&lt;/strong&gt; is a very related
+problem. As an example the Euro might have been a mistake for Germany
+but that does not mean that the Euro was not a profit for Austria.  We
+were pegged to the Mark before, for us not much changed.  If anything the
+situation improved because we're an export nation and our export partners
+are other European countries and if they also use the Euro they cannot
+harm our exports by devaluing their own currencies.&lt;/p&gt;
+&lt;p&gt;But despite the fact it's so very hard to compare countries because they
+are so fundamentally differently structured - yet people will still do
+it in conversations.  Switzerland is heralded as the great example of
+continental Europe in Austria but it's so specific out of history that
+it's incredible hard to copy or imitate.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;&lt;strong&gt;Not being able consider the other side&lt;/strong&gt;. I am shocked sometimes what
+people here in Austria think the US are like.  The idea that both
+Europeans and Americans might have very similar fears or hopes for TTIP
+for instance does not seem to exist here.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;&lt;strong&gt;Fear of change&lt;/strong&gt;. I think this is a typical Austrian problem but to
+smaller extent it probably exists elsewhere too. Everything new is
+torpedoed until it cannot be avoided any more because every single other
+country already did it before. That applies to smoking bans as much as
+to embracing of credit cards, online services, acceptance of
+homosexuality, Sunday shopping, flexible working hours and much more.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;&lt;strong&gt;Broad categorization&lt;/strong&gt;. I think Austrians are masters at giving
+good/bad labels to large masses of people based on some categorization
+instead of considering the individual.  Refugees are either good or bad,
+the industry is good or bad, corporations are good or bad, immigrants
+are good or bad. That individually a refugee could be good or bad is
+impossible to comprehend in the general discourse and if someone does
+bring it up, it often gets dismissed as an outlier.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;&lt;strong&gt;Inability to give credit&lt;/strong&gt;. This is particularly a problem in Austrian
+politics. It's one party against the other and never ever would a ruling
+party give an opposition party credit or the other way round. Likewise
+would social democratic voters never give conservative parties credit
+for something or the other way round.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-root-causes&quot;&gt;
+&lt;h2&gt;The Root Causes&lt;/h2&gt;
+&lt;p&gt;But what causes this behavior?  I think Austria's history has a lot to do
+with it.  In the recent history there were conservatives versus social
+democrats.  Combined with the fact that after the war Austria emerged not
+only as a loser but also has one with a lot of baggage due to the support
+to national socialism and the complicated way to deal with it after the
+war.  As such the population was always split in two on this level.
+However they could unity at least somewhat by voting for one of the two
+large centrist parties.  Because the country was doing really well, there
+was no reason to reevaluate this.&lt;/p&gt;
+&lt;p&gt;However when disaster struck this rift became bigger instead of smaller
+and particular with this upcoming presidential election only the most
+extreme candidates made it into the run-off. Voters did not vote for
+people they believed in as much as they voted by using tactics against
+predictions.  This now has lead to one the ugliest pre-elections I have
+seen.&lt;/p&gt;
+&lt;p&gt;Politics are no longer about doing the right thing but defending
+principles, even if they are completely unfounded.  Even though everybody
+says they have the best for Austrian in mind everyone is so stuck to their
+own opinion that not a single meter of compromise can be achieved.
+Newspapers paint scary pictures of the different outcomes of the election,
+how the country will be torn, how one candidate would mean European
+sanctions and how the other candidate would mean the end of a functioning
+society.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;a-path-forward&quot;&gt;
+&lt;h2&gt;A Path Forward&lt;/h2&gt;
+&lt;p&gt;There are clearly many things wrong in this country but so is it
+everywhere else.  We're not alone with the changes in the world and we
+cannot fall back to local solutions for these problems.  But likewise can
+we not pretend that problems don't exist.  This behavior of ruling parties
+has helped the rise of the populists.  It does not help to pretend that
+immigration without integration does not contribute to problems in
+society.  We need a more honest approach with more talking to each other.&lt;/p&gt;
+&lt;p&gt;Just a few days ago we got &lt;a class=&quot;reference external&quot; href=&quot;https://en.wikipedia.org/wiki/Christian_Kern&quot;&gt;a new chancellor&lt;/a&gt; and he has indicated that
+he wants to end the course of confrontation his predecessors had.  This
+has been supported by all other parties other than the right wing FPOe.  I
+hope they reconsider and also want to constructively work together with
+the rest of the government to lead the country forward and to restore a
+positive way of thinking rather than the fear that has been going around
+for the last years.&lt;/p&gt;
+&lt;p&gt;This however is not something that is a problem that needs to be solved in
+government.  This is a problem that we as people in that country have and
+we need to talk to each other more.  If we talk more to each other I hope
+it becomes clear that we share many core values, we just don't always
+agree on all of them.&lt;/p&gt;
+&lt;p&gt;And to my friends in Austria: please vote. But more than that: please
+accept that if the outcome is not what you wanted, that it does not mean
+the end of the country as you know it.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Be Careful About What You Dislike</title>
+    <id>http://lucumr.pocoo.org/2016/11/5/be-careful-about-what-you-dislike</id>
+    <updated>2016-11-05T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2016/11/5/be-careful-about-what-you-dislike" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;The last few months I keep making the same observation over and over again
+in various different contexts: that whenever you are confronted with a
+very strong opinion about a topic, reasonable discussions about the topic
+often involve arguments that have long become outdated or are no longer
+strictly relevant to the conversation.&lt;/p&gt;
+&lt;p&gt;What I mean by that is that given a controversial topic, a valid argument
+for one side of the other is being repeated by a crowd of people that once
+heard it, even after that argument stops being valid.  This happens because
+often the general situation changed and the argument references a reality
+that no longer exists in the same form.  Instead of reevaluating the
+environment however, goalposts are moved to restore the general sentiment
+of the opinion.&lt;/p&gt;
+&lt;p&gt;To give you a practical example of this problem I can just go by a topic I
+have a very strong opinion about: Python 3.  When Python 3 was not a huge
+thing yet I started having conversations with people in the community
+about the problems I see with splitting the community and complexity of
+porting.  Not just that, I also kept bringing up general questions about
+some of the text and byte decisions.  I started doing talks about the
+topic and write blog articles that kept being shared.  Nowadays when I go
+to a conference I very quickly end up in conversations where other
+developers come to me and see me as the &amp;quot;Does not like Python 3 guy&amp;quot;.
+While I still am not a friend of some of the decisions in Python 3 I am
+very much aware that Python 3 in 2016 is a very different Python 3 than 6
+years ago or earlier.&lt;/p&gt;
+&lt;p&gt;In fact, I myself campaigned for some changes to Python 3 that made it
+possible to achieve better ports (like the reintroduction of the &lt;cite&gt;u&lt;/cite&gt;
+prefix on Unicode string literals) and the bulk of my libraries work on
+Python 3 for many years now.  It's a fact that in 2016 the problems that
+people have with Python 3 are different than they used to have before.&lt;/p&gt;
+&lt;p&gt;This leads to very interesting conversations where I can have a highly
+technical conversation about a very specific issue with Python 3 and
+thoughts about how to do it differently or deal with it (like some of the
+less obvious consequences of the new text storage model) and another
+person joins into the conversation with an argument against Python 3 that
+has long stropped being valid.  Why?  Because there is a cost towards
+porting to Python 3 and a chance is not seen.  This means that a person
+with a general negativity towards Python 3 would seek me out and try to
+reaffirm their opposition to a port to it.&lt;/p&gt;
+&lt;p&gt;Same thing is happening with JavaScript where there is a general negative
+sentiment about programming in it but not everybody is having good
+arguments for it.  There are some that actually program a lot in it and
+dislike specific things about the current state of the ecosystem, but
+generally acknowledge that the language is evolving, and then there are
+those that take advantage of unhappiness and bring their heavily outdated
+opposition against JavaScript into a conversation just to reaffirm their
+own opinion.&lt;/p&gt;
+&lt;p&gt;This is hardly confined to the programming world.  I made the same
+discovery about CETA.  CETA is a free trade agreement between the European
+Union and Canada and it had the misfortune of being negotiated at the same
+time as the more controversial TTIP with the US.  The story goes roughly
+like this: TTIP was negotiated in secrecy (as all trade agreements are)
+and there were strong disagreements between what the EU and what the US
+thought trade should look like.  Those differences were about food safety
+standards and other highly sensitive topics.  Various organizations on
+both the left and right extremes of the political scale started to grab
+any remotely controversial information that leaked out to shift the public
+opinion towards negativity to TTIP.  Then the entire thing spiraled out of
+control: people not only railed against TTIP but took their opposition
+and looked for similar contracts and found CETA.  Since both are trade
+agreements there is naturally a lot of common ground between them.  The
+subtleties where quickly lost.  Where the initial arguments against TTIP
+were food standards, public services and intransparent ISDS courts many of
+the critics failed to realize that CETA fundamentally was a different
+beast.  Not only was it already a much improved agreement from the start,
+but it kept being modified from the initial public version of it to the
+one that was finally sent to national parliaments.&lt;/p&gt;
+&lt;p&gt;However despite what I would have expected: that critics go in and
+acknowledge that their criticism was being heard instead slowly moved the
+goalposts.  At this point there is so much emotion and misinformation in
+the general community that the goalpost moved all the way to not
+supporting further free trade at all.  In the general conversation about
+ISDS and standards many people brought introduced their own opinions about
+free trade and their dislike towards corporations and multinationals.&lt;/p&gt;
+&lt;p&gt;This I assume is human behavior.  Admitting that you might be wrong is
+hard enough, but it's even harder when you had validation that you were
+right in the past.  In particular that an argument against something might
+no longer be valid because that something has changed in the meantime is
+hard.  I'm not sure what the solution to this is but I definitely realized
+in the few years on my own behavior that one needs to be more careful
+about stating strong opinions in public.  At the same time however I think
+we should all be more careful dispelling misinformation in conversations
+even if the general mood supports your opinion.  As an example while
+emotionally I like hearing stories about how JavaScript's packaging causes
+pain to developers since I experienced it first hand, I know from a
+rational point of view that the ecosystem is improving a tremendous
+speeds.  Yes I have been burned by npm but it's not like this is not
+tremendously improving.&lt;/p&gt;
+&lt;p&gt;Something that has been put to paper once is hard to remove from people's
+minds.  In particular in the technological context technology moves so
+fast that very likely something you read once might no longer be up to
+date as little as six months later.&lt;/p&gt;
+&lt;p&gt;So I suppose my proposal to readers is not to fall into that trap and to
+assume that the environment around oneself keeps on changing.&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">On Countries, Citizenships, Residence and Paying Taxes</title>
+    <id>http://lucumr.pocoo.org/2015/8/9/on-countries-and-citizenships</id>
+    <updated>2015-08-09T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2015/8/9/on-countries-and-citizenships" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Like many software engineers my life involved moving from one country to
+another for work.  Since that moment this whole concept of relocation
+fascinated me because almost everyone in my circle of friends ended up in
+a place far from where they came but their stories were different.
+I learned that the topic of relocation and immigration is a very complex
+and diverse one.  How widely different the experience can be for different
+people!  Most interesting about this however is how little people not
+affected by this understand the complexities of being an immigrant in
+another country.&lt;/p&gt;
+&lt;p&gt;While my experience of moving to another country was the easiest
+imaginable, it was harder for my wife.  How different immigration can be
+is hard to imagine from the outside.&lt;/p&gt;
+&lt;p&gt;Since immigration is a big topic again I figured I might share some of my
+experience on the topic to shed some light on how all that stuff actually
+works.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-basics&quot;&gt;
+&lt;h2&gt;The Basics&lt;/h2&gt;
+&lt;p&gt;The most important part is to understand the legal basis for pretty much
+all topics related to entering and leaving a country and the permits.
+This is surprisingly complex because of the huge variety of different
+terms for related topics.&lt;/p&gt;
+&lt;dl class=&quot;docutils&quot;&gt;
+&lt;dt&gt;Citizenship&lt;/dt&gt;
+&lt;dd&gt;Citizenship is typically what you get at birth and it makes you the
+citizen of a certain country.  In the majority of countries being a
+citizen gives you certain rights but also obligations.  For instance
+in Austria citizenship gives you the right to vote, but you are
+required to defend your country.  Citizenship also almost always gives
+you the right to live in a country though there might be further
+requirements.&lt;/dd&gt;
+&lt;dt&gt;Multiple Citizenships&lt;/dt&gt;
+&lt;dd&gt;This refers to the idea of holding two (or more) active citizenships.
+This is one of the more complex topics because of how different
+countries approach this.  On the one hand are countries like Austria
+which have the concept of dual citizenships but make it very hard to
+hold multiple.  On the other there are countries like the US which do
+not recognize other citizenships at all but will not prevent you from
+holding multiple.  Lastly there are countries which outlaw multiple
+citizenships altogether.&lt;/dd&gt;
+&lt;dt&gt;Visas&lt;/dt&gt;
+&lt;dd&gt;If you are not a citizen of a country you might need a visa to enter
+or leave a country.  Visas in itself however do not necessarily give
+you the right to actually be in a country.  A good example for that
+would be a person who immigrates into a European country for work from
+a country with a passport that requires you to have a visa.  In that
+case you need a visa to cross the border and then you need a permit to
+stay / permit to work.&lt;/dd&gt;
+&lt;dt&gt;Permits&lt;/dt&gt;
+&lt;dd&gt;Permits come in different flavours and not all countries have the same
+approach to them.  In most countries there are permits to stay and
+separate permits to work and sometimes there are residence permits
+which work differently.  In Austria for instance there are permits
+called “Aufenthaltstitel” which literally translates to “entitlement
+for stay” which also usually comes with an indication if you are
+allowed to become part of the workforce or not.  For instance a family
+member permit gives you the right to work whereas a permit for stay
+for students will only give you limited permissions for working.&lt;/dd&gt;
+&lt;dt&gt;Passports&lt;/dt&gt;
+&lt;dd&gt;&lt;p class=&quot;first&quot;&gt;Passports are travel documents and means to identify yourself
+internationally.  As of a few years ago any person travelling will
+need one of those which includes little children.  Interestingly
+however passports are a lot more complex than you might think because
+they are not directly linked to citizenship.  More about this later.&lt;/p&gt;
+&lt;p class=&quot;last&quot;&gt;A passport gets you across a border and in many cases can act as an
+universally accepted way to proof something about yourself.  For most
+states in the world the passports follow a generally accepted format
+which makes them very convenient and they are on of the few documents
+you never need to translate.  Because of this, they will become your
+best friend when you are not at home though they are by no means the
+only document you need to reside in another country.&lt;/p&gt;
+&lt;/dd&gt;
+&lt;/dl&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;relationship-citizenship-and-passport&quot;&gt;
+&lt;h2&gt;Relationship Citizenship and Passport&lt;/h2&gt;
+&lt;p&gt;Most people would assume that having a passport of one country makes you a
+citizen thereof.  That however is not at all correct.  There are different
+reasons for this and I can't go into all here.  The biggest reason why you
+might have a passport of a country you are not a citizen of is because you
+are a stateless person.&lt;/p&gt;
+&lt;p&gt;For most people in the world once they hold a citizenship they cannot
+become stateless.  The reason for this is that there are international
+treaties where if ratified in a country you cannot lose your citizenship
+unless you acquire another one.  There are some countries where this is
+not the case.  The United States being the most popular of them.  A US
+national can give up their US citizenship and become a stateless person
+this way.  The reason this works is because you do not need to be a US
+citizen to be a US national.  For instance people born in American Samoa
+are US nationals but they are not US citizens.  This is also the part
+where citizenship and nationality becomes unclear.  A person born in
+American Samoa will for all intents and purposes be seen as a US citizen
+as their passport will indicate that they have US nationality.&lt;/p&gt;
+&lt;p&gt;On the other hand there are many stateless people living in Estona and
+Lativa who are officially stateless.  The reason for this is that they are
+Russian speaking and are either not entitled to Estonian or Latvian
+citizenship or have no interest in applying for one.  They are issued a
+special passport for stateless people which however some some special
+powers an Estonian passport does not have: they can travel to Russia visa
+free.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;how-do-i-migrate&quot;&gt;
+&lt;h2&gt;How Do I Migrate?&lt;/h2&gt;
+&lt;p&gt;This for many is the million dollar question.  How can I immigrate in a
+foreign country?  Generally this question heavily depends on your own
+citizenship and the laws of the country you want to become a resident of.&lt;/p&gt;
+&lt;p&gt;Here are the most common ways to immigrate:&lt;/p&gt;
+&lt;dl class=&quot;docutils&quot;&gt;
+&lt;dt&gt;Freedom of Movement&lt;/dt&gt;
+&lt;dd&gt;&lt;p class=&quot;first&quot;&gt;Sometimes you are entitled just like that to live in another country
+like a citizen of that country would be.  This for instance is the
+case within the European Union.  If you are German but you feel like
+living in the Czech Republic, you can do so.  Just head there and
+you're done.  That's not entirely true, you still need to do some
+paper work in some cases (like registering etc.), but there is no rule
+that prevents you.&lt;/p&gt;
+&lt;p class=&quot;last&quot;&gt;This is by far the easiest route but it's restricted to a certain
+population of the world, and there is good chance you as a reader are
+not in that group.&lt;/p&gt;
+&lt;/dd&gt;
+&lt;dt&gt;Marry a Citizen&lt;/dt&gt;
+&lt;dd&gt;&lt;p class=&quot;first&quot;&gt;Marriage is still the best way to get a permit of residence and it's
+becoming an even better by the day because the requirements are so
+stict nowadays.  However marriage does not immediately give you
+residence and most people will probably have noticed that.  As an
+example in order for me and my wife (who is not Austrian) to legally
+live together with our child in Austria we need to have household
+income of 17.500 EUR per year after taxes.  That does not sound like a
+lot, but for many people it's not the easiest thing to show,
+especially because those earnings need to exist regardless of the
+outcome of your residence application.  For most people this means
+showing that you have that much in cash available as you probably do
+not live in the country yet to demonstrate a regular income through
+paychecks.&lt;/p&gt;
+&lt;p class=&quot;last&quot;&gt;In the United Kingdom the income requirement is currently 18.600 GBP /
+year and you need to show income for 2.5 years.  Which means that if
+you want to show it in savings, you need to have at least 62.500 GBP
+on an account somewhere.&lt;/p&gt;
+&lt;/dd&gt;
+&lt;dt&gt;Be Exceptional&lt;/dt&gt;
+&lt;dd&gt;The only other way to immigrate is typically to be exceptional.  In
+most countries this is either by being rich enough to invest into the
+country and get residence or citizenship in the process or by being
+extraordinary intelligent or in demand.  This works well for engineers
+because engineers are in demand in almost all places.  However that is
+no guarantee yet, as in most countries visas and permits are
+restricted by numbers and there is a certain amount of luck
+requirement to get one.&lt;/dd&gt;
+&lt;dt&gt;Become a Citizen&lt;/dt&gt;
+&lt;dd&gt;Most people cannot become a citizen from one day to another, but
+sometimes they can.  In that case that is the way to go.  Typically
+this is done by a prior claim to citizenship that you forgot about
+(for instance to be born to a parent with a certain citizenship).
+This most of the time is only possible for as long as you did not turn
+18 yet.&lt;/dd&gt;
+&lt;dt&gt;Claim Asylum&lt;/dt&gt;
+&lt;dd&gt;In certain situations you might be getting away with claiming asylum.
+Pretty sure the chances that you are a reader of this blog and you
+quality for this route are very dim.  Asylum is restricted to people
+who come from situations where their life is in danger.&lt;/dd&gt;
+&lt;/dl&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;legal-immigration-is-hard&quot;&gt;
+&lt;h2&gt;Legal Immigration is Hard&lt;/h2&gt;
+&lt;p&gt;Legal immigration is expensive and a lot of work.  Besides the proof of
+income (which just requires you to have money), there is a lot of time and
+effort required.  All the documents you need (birth certificate, proof of
+being in good legal standing, citizen certificate, proof of registration
+in the original country, prior academic records, drivers license, etc.)
+need to be apostiled or otherwise made work for international usage and
+translated.  In some country many of those documents can only be retrieved
+in a single place and then you need to go through notaries to get them
+attested.  All steps need to be done in one exact order as each border
+crossing needs to be planned and there is time involved in the paperwork.&lt;/p&gt;
+&lt;p&gt;On top of that you often need to pass language exams so there is some
+learning to do.  In Austria for instance you have to leave the country if
+you cannot show German on an A2 level and you cannot even apply without
+A1.  There are some exceptions to the rule (for instance this does not
+apply to asylum seekers or people immigrating via freedom of movement) but
+for the most part everybody has to go through.&lt;/p&gt;
+&lt;p&gt;Finally:  Where do you pay taxes?  In most countries you pay taxes in the
+country you have your primary residence.  However there are some
+exceptions.  The US will tax you no matter where in the world you are, but
+they will try to not double tax you for some time.  The US will also tax
+you if you stop being a citizen and they think you relinquished your
+citizenship to dodge taxes.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-illegal-route&quot;&gt;
+&lt;h2&gt;The Illegal Route&lt;/h2&gt;
+&lt;p&gt;Many people I met over the years just never legally immigrated somewhere.
+That however does not mean that they are illegally in the country.  It can
+also mean that they just never immigrated to begin with and just hop from
+country to country.  They are there as submarines either by pretending to
+be tourists and regularly changing the place of living.&lt;/p&gt;
+&lt;p&gt;This is a bit different from the traditional method of not crossing the
+border much which many migrant workers do.  This however can turn terrible
+the moment someone catches you.  Overstaying your permitted time in
+Schengen for instance will lock you out for 5 years from almost the entire
+European Union.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+</feed>
+

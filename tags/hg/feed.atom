@@ -1,0 +1,446 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Armin Ronacher's Thoughts and Writings</title>
+  <id>http://lucumr.pocoo.org/feed.atom</id>
+  <updated>2010-08-17T00:00:00Z</updated>
+  <link href="http://lucumr.pocoo.org/" />
+  <link href="http://lucumr.pocoo.org/feed.atom" rel="self" />
+  <subtitle type="text">Armin Ronacher's personal blog about programming, games and random thoughts that come to his mind.</subtitle>
+  <generator>Werkzeug</generator>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Bitbucket is no Bit bucket</title>
+    <id>http://lucumr.pocoo.org/2008/9/14/bitbucket-is-no-bit-bucket</id>
+    <updated>2008-09-14T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2008/9/14/bitbucket-is-no-bit-bucket" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;When &lt;a class=&quot;reference external&quot; href=&quot;http://github.com/&quot;&gt;github&lt;/a&gt; appeared on the internets for the
+first time, there was a short period of time when I saw the admins of
+that sitehappy github users [See &lt;a class=&quot;reference external&quot; href=&quot;/2008/9/20/apologies-to-github/&quot;&gt;the follow up to this post&lt;/a&gt;
+for an explanation] jump into many IRC channels of projects that were
+using git already to switch to github for hosting. Personally for me
+that was alarming because after a while it appered that git without the
+hub was no accepted option any more for open source projects.&lt;/p&gt;
+&lt;p&gt;Ever since &lt;a class=&quot;reference external&quot; href=&quot;http://pocoo.org/&quot;&gt;we&lt;/a&gt;'re running our own server I think
+nobody of us ever regretted to host our personal development tools such
+as subversion (or now mercurial), trac, irc bots and a lot more. Root
+servers have become pretty cheap (especially in Germany) and
+debian/ubuntu make server administration a charm.&lt;/p&gt;
+&lt;p&gt;It really hit me hard when I noticed that people are sacrificing the
+distributed nature of git and switch to a central hosting location, even
+though they have their own server infrastructure (I'm looking at you,
+rails team). Git was designed to not be dependent on a central server
+and it just doesn't feel right in my eye to force people to switch to a
+cental hosting platform because it provides things you would be missing
+otherwise (branchviewers, fork overviews or something).&lt;/p&gt;
+&lt;p&gt;This was pretty much the reason why I wasn't interested that much in
+&lt;a class=&quot;reference external&quot; href=&quot;http://bitbucket.org/&quot;&gt;bitbucket&lt;/a&gt; either. I found it a well done
+version of hgweb with very fair hosting plans with builtin wiki and bug
+tracker. Basically the thing I would prefer over Google's code hosting
+(I'm not a big fan of subversion any more you know).&lt;/p&gt;
+&lt;p&gt;A few days ago however I signed up on bitbucket so that I could push to
+the &lt;a class=&quot;reference external&quot; href=&quot;http://www.bitbucket.org/bbangert/dozer/&quot;&gt;dozer&lt;/a&gt; repository. A
+few hours later jespern queried me on freenode and welcomed me to
+bitbucket. First I was afraid the conversion that started would evolve
+into a github like &amp;quot;switch to our service, you won't regret it&amp;quot;
+conversion but it was actually nothing of that sort. That fear out of
+the way I decided to try mirroring some of the pocoo repositories to
+bitbucket (because well, you know: we do have some server outages from
+time to time and a mirror is never a bad idea). And what should I say?
+It's a really, really nice way to host open source project. I won't
+compare it to github here which is very similar except that it uses git
+rather than mercurial and doesn't offer a bug tracker and different
+plans, but to google code which is a very popular project hosting
+platform these days.&lt;/p&gt;
+&lt;p&gt;The big advantage over Google code is obviously that you are using
+mercurial rather than Subversion. While a closed source project usually
+has a known number of developers that all have access to the code an
+open source project usually deals with code from constributors that
+don't have access to the code. So I personally think that this alone
+makes Google code look bad for open source projects.&lt;/p&gt;
+&lt;p&gt;Both Google code and bitbucket are providing a wiki and a bug tracker.
+The wiki in Google code is implemented on top of Subversion which is not
+really that interesting to know but it of course gives you the
+possibility to access the data locally too. Bitbucket does something
+very similar and stores the wiki pages in a separate mercurial
+repository. Especially nice is that the wiki syntax is the well
+established creole syntax which makes processing of the wiki pages
+locally very easy. You can pull your complete wiki history as mercurial
+repository and do whatever you want with it.&lt;/p&gt;
+&lt;p&gt;The bug tracker in bitbucket is probably the weakest part of the system.
+While it provides a simple ticket system it is missing a good mercurial
+integration (eg: that it listens for &amp;quot;this commit fixes #42&amp;quot;) and
+automatically closes / reopens tickets based on that information. There
+is also no way to import or export the tickets as far as I can see but I
+guess that this is a feature that could come in the future.&lt;/p&gt;
+&lt;p&gt;What's missing compared to Google code is a file hosting facilty. I
+don't think that this is something bitbucket should provide in the
+future, but that's definitively something a separate project shold try
+to fix. Now that sourceforge is starting to look more and more like a
+domain parking site and being less useful than ever, it's time for
+someone to stand up and provide file and website serving :)&lt;/p&gt;
+&lt;p&gt;There are some things I'm missing on bitbucket currently that would be
+nice to have. For example it would help mirroring a lot if it was
+possible to add ssh keys directly to a project instead to a user so that
+I can grant write access to an ssh key that is only used for mirroring.
+Integration with CIA (the announcer bot) would be kick-ass too. Maybe it
+would even possible to specify incoming hooks in form of urls. Every
+time a changegroup comes in bitbucket would traverse the list of URLs
+and send them a summary of the changesets as JSON dump. As noticed above
+tracker &amp;lt;-&amp;gt; mercurial integration would be a nice to have as well as
+export / import support for it.&lt;/p&gt;
+&lt;p&gt;I'm really impressed by bitbucket by now and can only recommend it for
+project hosting. Most important: you are not selling your soul to
+anyone. If you are unhappy with what you get, you can grab &lt;em&gt;all your
+data&lt;/em&gt; and go somewhere else thanks to mercurial. And that this is
+possible should also give you a good feeling because it means that the
+people behind bitbucket will care about you to not loose you. Because
+the success of a website always depends on the number of happy users :-)&lt;/p&gt;
+&lt;p&gt;The (by now inofficial) pocoo mirrors are &lt;a class=&quot;reference external&quot; href=&quot;http://www.bitbucket.org/mitsuhiko/&quot;&gt;listed on my bitbucket
+account&lt;/a&gt;. Don't get the headline?
+&lt;a class=&quot;reference external&quot; href=&quot;http://en.wikipedia.org/wiki/Bit_bucket&quot;&gt;Read up bit bucket&lt;/a&gt;.&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Git and Mercurial Branching</title>
+    <id>http://lucumr.pocoo.org/2010/8/17/git-and-mercurial-branching</id>
+    <updated>2010-08-17T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2010/8/17/git-and-mercurial-branching" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;People using my stuff will have noticed a trend that I started using git
+(and github) for some of my newer projects. Now there are two parts of
+the story. One is obviously github which is currently unbeatable. Not
+necessarily due to the size of the community but that it gives you a
+very neat way to look at what patches are available all over the place
+(I'm referring to the fork queue). But the other reason is that despite
+all the hate for git I have, it has grown on me as the tool that does
+the job better.&lt;/p&gt;
+&lt;p&gt;This however is a shame because if you remove the github component and
+some other addons like the hub command, hg is the superior tool. If you
+would download both tools and compare what they can do out of the box
+with the stuff they ship, hg has the better user interface and better
+tools for collaboration. These tools are essentially &lt;cite&gt;hg incoming&lt;/cite&gt;, &lt;cite&gt;hg
+outgoing&lt;/cite&gt; and the &lt;cite&gt;hg serve&lt;/cite&gt; command. Additionally the zeroconf
+extension is pretty awesome when you collaborate locally.&lt;/p&gt;
+&lt;p&gt;Just to give you an example: Georg and me where hacking on &lt;a class=&quot;reference external&quot; href=&quot;http://logbook.pocoo.org/&quot;&gt;Logbook&lt;/a&gt; at EuroPython over an ad-hoc Wifi network
+because the people running the conference were unable to keep the
+network running. Even though logbook is hosted at github currently, we
+were using mercurial for hacking locally. You fire up an &lt;cite&gt;hg serve&lt;/cite&gt; in
+one window and other persons on the network can instantly pull from it.
+That's patch exchange you don't have to think about, it just works (tm).&lt;/p&gt;
+&lt;p&gt;On the surface hg and git look very much alike. The commands are now
+pretty similar and they appear to solve the same problems. However there
+is a philosophical difference between these two: the handling of
+branches.&lt;/p&gt;
+&lt;p&gt;In both hg and git you're exchanging things called changesets. They have
+an sha1 checksum and are linked with their parents and some other meta
+information. Whatever information you are changing, the checksum will
+change as well. So if you would take a changeset and only change the
+name of the committer, the checksum would change. In hg there is another
+piece of information that makes a changeset: the branch the changeset
+was committed to. A branch in hg has a name (one that for a long time
+was eternal) and in a way a head (the latest commit changeset).&lt;/p&gt;
+&lt;p&gt;Now to understand my problem you have to keep two things in mind:
+changesets in hg are linked to the first one that ever happened in the
+repository (same for git) and that a changeset belongs to a branch, even
+if merged.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;I don't like merging&lt;/strong&gt;. That might sound strange, but I really don't
+like merging. I did a lot of merging in hg because it works good enough,
+but what I started doing with git is picking single changesets and
+applying their diffs. Why am I doing this? Now first the implications:
+the checksum changes, because the parents of a changeset will change
+with that operation. On the other hand it gives you the flexibility to
+pick a single changeset and apply it to different branches.&lt;/p&gt;
+&lt;p&gt;So a good example are maintenance branches. My concept of maintenance is
+to release bugfix releases if enough bugs accumulated. I don't promise a
+bugfix release upfront, because if the API does not change in a
+backwards incompatible way and a release is upcoming, I can combine that
+into one release. Now that might sound like bad release management, and
+it clearly is not the optimal way, but I am one person doing the
+releases and I have way too many projects to care about and a limited
+amount of time.&lt;/p&gt;
+&lt;p&gt;Now what if at one point there are already two or three bugfixes or a
+critical bug comes up that absolutely must be released (for example
+security issues). What I do in git is I check out the tag of the release
+I want to incorporate the patches and start cherry-picking the patches
+from the master branch I want to apply. I obviously could not merge with
+master because then I would pull in all the patches up to the patch I
+was interested in (remember, they are linked and only exist if the link
+to the first changeset is fully established).&lt;/p&gt;
+&lt;p&gt;In git branches are just labels to a changeset. When you cherry pick one
+changeset from a branch (or a branch of another repo) and apply it to
+another one, you no longer know where the changeset was coming from.
+That's a limitation I can totally live with. The cherry picking command
+in git has a flag that allows me to add a &amp;quot;signed off&amp;quot; flag. That way I
+can preserve the original author of the changeset and add my own name
+for the signed off flag. So a changeset shows both authors. Here an
+example of how this looks like: &lt;a class=&quot;reference external&quot; href=&quot;http://github.com/mitsuhiko/flask/commit/36a421bb3a235f696131bc8a546492fc04a411f0&quot;&gt;commit 36a421bb3a235f696131 to Flask&lt;/a&gt;.
+This is actually implemented by just adding a mime-like header as footer
+to the changeset, nothing fancy with commit metadata etc. However the
+important thing of this feature is that it's consistently implemented by
+the little amount of UI that exist in git and other commands. People are
+aware of this signed off thing.&lt;/p&gt;
+&lt;p&gt;Doing the same in hg is also possible with the transplant command. The
+downside is that if you transplant patches from one repo or branch into
+another one, the incoming and outgoing commands no longer work like you
+would expect them to do. They compare the checksum of the changeset
+instead of the checksum of the contents of the patch. And as soon as the
+UI starts no longer working, user frustration starts happening. But the
+frustration of a user is not the issue here, the real issue is that this
+confuses users and will cause them to make (understandable) mistakes.
+I'm not a revision control system author myself and my knowledge of the
+tools I'm using is limited to the subset I am using as well. Very often
+when I get the link to a hg repo from another person I will notice that
+they have a bugfix hg branch or something similar and screwed up merging
+with upstream. Sometimes in the process of correcting that mistake I
+will make another huge mistake myself that I then start correcting in
+frustration by stripping all the changesets I just made and applying the
+patch by hand, totally bypassing hg. These mistakes happen because
+features like remote bookmarks, transplanting changesets and even named
+branches are not integrated well enough into other commands. Especially
+that the branch name is imprinted into the changeset is confusing to say
+the least.&lt;/p&gt;
+&lt;p&gt;For example the hg repositories on pocoo.org were partially created from
+a huge subversion repository by an early version of one of the
+subversion conversion commands. Don't ask me which one, but what it did
+was naming the default branch everyone works on &amp;quot;trunk&amp;quot;. However to the
+best of my knowledge a hg repository starts with &amp;quot;default&amp;quot; as default
+branch name and hides that from the user interface. When people now pick
+up work on one of our converted repos sometimes the confusion kicks in
+why their hg experiments never had a displayed branch and why certain
+assumptions are now invalidated. This especially becomes an obvious
+problem the more git users are out there. A git user has the idea that
+&amp;quot;git pull&amp;quot; will fetch all the changesets and merge that with the branch
+they are tracking. Git has a pretty bizarre but working concept to track
+remote branches that involves entries in the git config I don't
+understand at all. I'm thankful the git UI provides some support to do
+that for me. However on the other hand in hg we don't have the concept
+of tracking remote branches. What we have there instead are just aliases
+to a URL that points to a hg repository (and lately we can even refer to
+branches on a remote repo in the URL that is another source of confusion
+for me I will explain later). hg will pull changes from there and let
+you do the merge then. Because that is quite repetitive someone came up
+with the fetch extension for hg that pulls in changes and merges if
+necessary, otherwise will just update. Now that fetch extension just
+assumes that if there are two heads it should merge them, otherwise if
+there is one head it will update, and if it finds anything else it will
+just error out. You have no idea how many times hg fetch totally
+destroyed the recent history when I merged in stuff that looked find in
+hg incoming. Now obviously I should not have used hg fetch in the first
+place, but a bit of help from the extension would be appreciated. Fetch
+is also only partially to blame because it predates bookmarks and back
+then nobody was using named branches.&lt;/p&gt;
+&lt;p&gt;It all boils down basically to hg having an awesome internal concept
+that does a lot of things really well, but other things not being
+properly supported by the user interface I suppose.&lt;/p&gt;
+&lt;p&gt;In layman terms git's branching concept roughly works like this: all
+your changesets are linked to at least one parent. A changset has a
+checksum for the commit + metadata and I think a checksum for the
+contents of the patch as well. Additionally you can assign names to
+changesets. There are tags which are aliases to changesets that do not
+change, and there are branches which are basically names that are moved
+to a new changeset on commit. Because of how this works you can have
+changesets that are no longer linked to any place of the history because
+they point away from one changeset and the name information of their
+hash is lost. Git has a garbage collector that can remove these things
+from the repository. There is not much magic in there and obviously it
+would be very easy for hg to support that, but the core issue here is
+not the implementation but the user interface. I don't think hg needs
+git style branches at all!&lt;/p&gt;
+&lt;p&gt;What hg needs instead is a user interface that is aware of certain
+operations:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;&lt;cite&gt;hg push&lt;/cite&gt; can push bookmarks to remote repositories nowadays, but this
+also involves pushing multiple heads to the serverside which the hg
+command currently disallows by default unless you force it to. This is
+user unfriendly and even if you are an experienced hg user you will
+most likely not do the force but ask first if you are doing something
+wrong here.&lt;/li&gt;
+&lt;li&gt;The special label &amp;quot;tip&amp;quot; in hg moves between branches. This is the
+worst user interface fail because all tools are interested in tip more
+than what branch you are on. For example if you are using named
+branches in hg things like bitbucket, trac (and I think even hgweb)
+will show you the contents of the default file browser view
+alternating between different branches. If the last commit was on
+0.2-maintenance you will see the contents of the 0.2-maintenance
+branch by default, if the last commit was on 2.0-new-features it will
+display that branch instead. I think the invention of a tip label was
+a mistake. It should have been per-branch instead.&lt;/li&gt;
+&lt;li&gt;&lt;cite&gt;hg incoming&lt;/cite&gt; / &lt;cite&gt;hg outgoing&lt;/cite&gt; are unaware of things like &lt;cite&gt;hg transplant&lt;/cite&gt;.
+If you are doing transplanting, hg incoming over the times becomes so
+filled up with changesets already applied that you better not use it
+at all. It also forces people you just transplanted patches from
+delete their local checkout (or strip it to an older revision) and
+pull again. In git this is not a problem because you just delete your
+local feature branch and update the separately tracked master branch
+which will magically include the changes I transplanted. Due to the
+separate content tracking this will not even transfer larger amounts
+of data over the wire, because git will already find them locally.&lt;/li&gt;
+&lt;li&gt;The &lt;cite&gt;hg heads&lt;/cite&gt; command is intended to help people merge changes
+locally by visualizing what unmerged heads are there, but when you
+start using bookmarks and named branches it's intentional that there
+are multiple heads. The more branches, the more useless the command.
+The solution here would be git-like branch tracking so that heads can
+filter out uninteresting pieces of information.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;There is that hg over the time started adopting solutions that actually
+are not solutions. For example you can have an alias not only for the
+URL of a repository but the URL of a repository + a branch. That sounds
+like wonderful thing to have, unfortunately due to the fact that the
+name of the branch is part of the changesets you will be surprised
+sooner or later when you merge in changes from another persons repo and
+suddenly see feature branches appear even though you never specified
+anything like that. This is a problem that becomes more apparent the
+more people use hg with git knowledge where it's logical and encouraged
+to create branches for every single feature you are implementing.&lt;/p&gt;
+&lt;p&gt;I am not quite sure what the named-branch-in-URL is supposed to fix, but
+for me it just created more confusion when working with repositories
+that actually have named branches in that differ from the one or two I
+have.&lt;/p&gt;
+&lt;p&gt;So why does hg has these &amp;quot;limitations&amp;quot; in the first place? Probably
+because the history of the project was not the big-ass Linux kernel
+(though that is not entirely true) but mercurial itself. And for smaller
+repositories the git model does not appear too appealing at the first
+glance. It took me a while to start fully appreciating the possibilities
+of small branches and now I can't live without them any more.&lt;/p&gt;
+&lt;p&gt;The git UI might suck, and I still have a hard time with it, but the
+branching works nicely and so is dealing with other people's patches.
+It's the perfect tool for me currently when it comes to quickly
+reviewing and applying patches and it grew on me. I still wonder
+internally why the hell I'm writing &lt;cite&gt;git push origin :branchname&lt;/cite&gt; to
+delete a branch remotely :) And with all these UI faults, git has the
+better UI for branchy development :(&lt;/p&gt;
+&lt;p&gt;But due to the horrible git UI and the incredible hostility of git for
+people switching from the friendly lands from mercurial I am pretty sure
+very few core developer of git had a look a serious at &amp;quot;the other tool&amp;quot;
+to get an idea of what everybody is buzzing about when the topic &amp;quot;hg and
+git branching&amp;quot; comes up.&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Mercurial for Subversion Users</title>
+    <id>http://lucumr.pocoo.org/2008/1/28/mercurial-for-subversion-users</id>
+    <updated>2008-01-28T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2008/1/28/mercurial-for-subversion-users" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;More and more projects are switching over to &lt;a class=&quot;reference external&quot; href=&quot;http://www.selenic.com/mercurial/&quot;&gt;mercurial&lt;/a&gt; or similar DVCS. Great as
+mercurial is, it's hard to get started if you are used to subversion
+because the concept behind Subversion (svn) and mercurial (hg) is
+fundamentally different. This article should help you understand how
+mercurial and similar systems work and how you can use it to contribute
+patches to the pocoo projects.&lt;/p&gt;
+&lt;p&gt;If you compare Subversion to mercurial you won't find that many
+similarities beside the command arguments. Subversion works like FTP
+whereas mercurial is bittorrent. In Subversion the server is special: it
+keeps all the revision log and all the operations require a connection
+to this server. In mercurial I can take down the central repository if
+there is one an all developers will still be able to exchange changes.
+All the revision information is available to anyone and there is
+absolutely no difference between server and clients.&lt;/p&gt;
+&lt;p&gt;This fundamental design decision means that there are dozens of separate
+branches of the code. hg makes it easy to merge and branch and it's
+developed exactly for that. In Subversion branching and merging is
+painful an often people just don't branch and don't commit there changes
+until the testsuite etc. passes again which of course results in huge
+changesets. But let's step right into it!&lt;/p&gt;
+&lt;p&gt;The first thing in Subversion you do is either creating a repository on
+the server or checking it out on the client. In hg there is no
+difference between server and client so the process of creating a
+repository is available to everybody. Creating a repository is just as
+simple as typing &amp;quot;hg init name_of_the_repository&amp;quot;. If that folder does
+not exist yet it will create an empty folder and initialize it as root
+of the repository, otherwise it will create the repository in the name
+of that folder.&lt;/p&gt;
+&lt;p&gt;The process of checking out is a bit different from Subversion because
+it's effectively the same as creating a branch. Say you want to check
+out the current Pygments version to do some changes. The first thing you
+will do is looking for a way to access this repository. There are three
+very common ways to access it: filesystem, HTTP or SSH. Pygments is
+available as SSH and HTTP, but for non core developers only HTTP is
+available. Interestingly quite a few people have problems locating the
+checkout URL which is not very surprising because hgweb handles that.
+hgweb is the standard mercurial web interface which doesn't only provide
+a way to look at the changesets and tree but also handles patch
+exchange. In the case of Pygments this command should give you a fresh
+checkout in a few seconds into the new folder &amp;quot;pygments&amp;quot;:&lt;/p&gt;
+&lt;pre class=&quot;literal-block&quot;&gt;
+hg clone http://dev.pocoo.org/hg/pygments-main pygments
+&lt;/pre&gt;
+&lt;p&gt;One thing you will notice is that it's incredible fast and even though
+the repository contains the whole history the checkout is pretty small.
+By the time I'm writing this blog post the pygments sourcecode including
+the unittests and example sourcecode without the revision history is
+2.5MB. A complete mercurial checkout is only 5MB even though it includes
+486 changesets.&lt;/p&gt;
+&lt;p&gt;After you got your very own repository by cloning the pygments one you
+will notice that all the subversion-like commands (&amp;quot;hg ci&amp;quot;, &amp;quot;hg add&amp;quot;,
+&amp;quot;hg up&amp;quot;, ...) work locally only. You check into your local version of
+the repository and hg up won't incorporate remote changes. One of the
+things that happen on hg clone is that mercurial will set the path to
+the repository you cloned from into the hgrc of the newly created
+repository. This file (&amp;quot;.hg/hgrc&amp;quot;) is used to store per-repository
+configuration like the path of remote repositories, the name used for
+checkins, plugins that are only enabled for this repository and more.
+Executing &amp;quot;hg pull&amp;quot; will automatically pull changes from this remote
+repository and put them into the current repository as second branch. To
+see what &amp;quot;hg pull&amp;quot; will pull from that remote repository you can execute
+&amp;quot;hg incoming&amp;quot; and it will print a list of changesets that are in the
+remote repository but not yet in the local one. After you have pulled
+you have to update the repository with &amp;quot;hg up&amp;quot; so that you can actually
+see the changes. If there were remote changes that require merging you
+have to &amp;quot;hg merge&amp;quot; them and &amp;quot;hg ci&amp;quot; the merge.&lt;/p&gt;
+&lt;p&gt;Because this process is very common there are ways to simplify it. &amp;quot;hg
+pull &amp;amp;&amp;amp; hg update&amp;quot; can be written as &amp;quot;hg pull -u&amp;quot;. All the commands
+(pull, update, merge and checkin if required) can be handled in one go
+using &amp;quot;hg fe&amp;quot;. This command however is part of a plugin which is
+disabled by default. If you want to use it you have to add the following
+lines into the repository hgrc or your personal one:&lt;/p&gt;
+&lt;pre class=&quot;literal-block&quot;&gt;
+[extensions]
+hgext.fetch=
+&lt;/pre&gt;
+&lt;p&gt;The other important difference to subversion is how you push your
+changes back to the server. In open source projects usually only a small
+number of developers has access to the main repository and contributors
+create patches using &amp;quot;diff&amp;quot; or &amp;quot;svn diff&amp;quot; and mail it to one of the
+persons with commit rights or attach it to a ticket in the project's
+tracker. If you are a person with push privileges you can do &amp;quot;hg push&amp;quot;
+and it will push the changesets which are not yet on the server (you can
+look at them using &amp;quot;hg outgoing&amp;quot;). If you don't have push access you can
+create a bundle of changes and attach that to a ticket rather than a
+patch. A bundle stores multiple changesets in one file and it also
+preserves the correct author information and timestamps. Another way is
+mailing the changes to a different developer using the patchbomb
+extension (I won't cover that here, just google it up). Or you can let
+other people pull from your repository. Therefore you either have to
+configure your apache to server a hgweb instance or you just call &amp;quot;hg
+serve&amp;quot; and it will spawn a server on localhost:8000 everybody can pull
+from.&lt;/p&gt;
+&lt;p&gt;Once the developer has decided to put your changes into the central
+repository and pushed them, your changes will appear there unaltered and
+with the same revision hashes. What will be different is the local
+number the changeset is given. If the revision was called deadbeef:42
+locally it could be called deadbeef:52 on the server because different
+changesets were applied first.&lt;/p&gt;
+&lt;p&gt;All the commands that interact with remote repositories (&amp;quot;hg pull&amp;quot;, &amp;quot;hg
+push&amp;quot;, &amp;quot;hg fe&amp;quot;, ...) also take a different path than the default path
+from the hgrc as argument. This allows you to pull changes from
+repositories shared over the web.&lt;/p&gt;
+&lt;p&gt;A cool example what mercurial allows you to do is our last ubuntuusers
+webteam meetup. There we used my notebook to store the central
+repository and everybody pushed the changes every once in a while to it.
+Additionally some people exchanged patches to not yet working features
+among each other so that the code on the central repo was seldom broken.
+When I left everybody had all the changes locally because they pulled
+and I could remove my notebook and everybody continued working on their
+way home. When we met again on IRC I copied my repo on the server and
+everybody pushed their local changes to it.&lt;/p&gt;
+</content>
+  </entry>
+</feed>
+

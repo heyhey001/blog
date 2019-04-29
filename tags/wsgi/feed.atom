@@ -1,0 +1,1111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Armin Ronacher's Thoughts and Writings</title>
+  <id>http://lucumr.pocoo.org/feed.atom</id>
+  <updated>2011-07-27T00:00:00Z</updated>
+  <link href="http://lucumr.pocoo.org/" />
+  <link href="http://lucumr.pocoo.org/feed.atom" rel="self" />
+  <subtitle type="text">Armin Ronacher's personal blog about programming, games and random thoughts that come to his mind.</subtitle>
+  <generator>Werkzeug</generator>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Getting Started with WSGI</title>
+    <id>http://lucumr.pocoo.org/2007/5/21/getting-started-with-wsgi</id>
+    <updated>2007-05-21T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2007/5/21/getting-started-with-wsgi" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;I finally finished the written matura and have some more time to work on
+projects and write articles. One of the things I wanted to write for a
+long time is a WSGI tutorial that does not require a specific framework
+or implementation. So here we go.&lt;/p&gt;
+&lt;img alt=&quot;Getting started with WSGI&quot; src=&quot;http://dev.pocoo.org/~mitsuhiko/wsgi-snake.png&quot; /&gt;
+&lt;div class=&quot;section&quot; id=&quot;what-s-wsgi&quot;&gt;
+&lt;h2&gt;What's WSGI?&lt;/h2&gt;
+&lt;p&gt;Basically WSGI is lower level than CGI which you probably know. But in
+difference to CGI, WSGI does scale and can work in both multithreaded
+and multi process environments because it's a specification that doesn't
+mind how it's implemented. In fact WSGI is not CGI because it's between
+your web application and the webserver layer which can be CGI,
+mod_python, FastCGI or a webserver that implements WSGI in the core like
+the python stdlib standalone WSGI server called wsgiref.&lt;/p&gt;
+&lt;p&gt;WSGI is specified in the &lt;a class=&quot;reference external&quot; href=&quot;http://www.python.org/dev/peps/pep-0333/&quot;&gt;PEP 333&lt;/a&gt; and adapted by various
+frameworks including the well known frameworks django and pylons.&lt;/p&gt;
+&lt;p&gt;If you are too lazy to read the pep 333 here's a short summary:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;WSGI application are callable python objects (functions or classes
+with a &lt;cite&gt;__call__&lt;/cite&gt; method that are passed two arguments: a WSGI
+environment as first argument and a function that starts the response.&lt;/li&gt;
+&lt;li&gt;the application has to start a response using the function provided
+and return an iterable where each yielded item means writing and
+flushing.&lt;/li&gt;
+&lt;li&gt;The WSGI environment is like a CGI environment just with some
+additional keys that are either provided by the server or a
+middleware.&lt;/li&gt;
+&lt;li&gt;you can add middlewares to your application by wrapping it.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Because that's a lot of information let's ignore it for now and have a
+look at a basic WSGI application:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;extended-hello-world&quot;&gt;
+&lt;h2&gt;Extended Hello World&lt;/h2&gt;
+&lt;p&gt;Here a simple, but not too simple example of a WSGI application that
+says &lt;cite&gt;Hello World!&lt;/cite&gt; where World can be specified via url parameter.&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;cgi&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;parse_qs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;escape&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;hello_world&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;parameters&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;parse_qs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;QUERY_STRING&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;subject&amp;#39;&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;parameters&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;subject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;escape&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;parameters&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;subject&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;][&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;subject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;World&amp;#39;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;start_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;200 OK&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Content-Type&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;text/html&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)])&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&amp;#39;Hello &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%(subject)s&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;s1&quot;&gt;    Hello &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%(subject)s&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;!&lt;/span&gt;
+
+&lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;subject&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;subject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}]&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;As you can see the &lt;cite&gt;start_response&lt;/cite&gt; function takes two arguments. A
+status string and a list of tuples that represent the response headers.
+What you cannot see because it's not used here and nowhere else is that
+the &lt;cite&gt;start_response&lt;/cite&gt; function returns something. It returns a &lt;cite&gt;write&lt;/cite&gt;
+function that directly writes to the webserver output stream. Because it
+bypasses middlewares (we'll cover that later) it's a terrible bad idea
+to use that function. For debugging purposes however it can be useful.&lt;/p&gt;
+&lt;p&gt;But how to start that application now? A webserver doesn't know how to
+handle that and neither does python because nothing calls that function.
+Because we're lazy we don't setup a server with WSGI support now but use
+the &lt;cite&gt;wsgiref&lt;/cite&gt; WSGI standalone server bundled with python2.5 and higher.
+(You can also download it for python2.3 or 2.4)&lt;/p&gt;
+&lt;p&gt;Just add this to your file:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;vm&quot;&gt;__name__&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;__main__&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;wsgiref.simple_server&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;make_server&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;srv&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;make_server&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;localhost&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8080&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;hello_world&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;srv&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;serve_forever&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;When you now start the file you should be able to get a &lt;cite&gt;Hello John!&lt;/cite&gt; on
+&lt;cite&gt;http://localhost:8080/?subject=John&lt;/cite&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;path-dispatching&quot;&gt;
+&lt;h2&gt;Path Dispatching&lt;/h2&gt;
+&lt;p&gt;You probably worked with CGI or PHP before. If you did so you know that
+you most of the time have multiple public files (&lt;cite&gt;.pl&lt;/cite&gt; / &lt;cite&gt;.php&lt;/cite&gt;) a user
+can access and that do something. Not so in WSGI. There you only have
+one file which consumes all paths. Thus if you have your server from the
+previous example still running you should get the same content on
+&lt;cite&gt;http://localhost:8080/foo?subject=John&lt;/cite&gt;.&lt;/p&gt;
+&lt;p&gt;The accessed path is saved in the &lt;cite&gt;PATH_INFO&lt;/cite&gt; variable in the WSGI
+environment, the real path to the application in &lt;cite&gt;SCRIPT_NAME&lt;/cite&gt;. In case
+of the development server &lt;cite&gt;SCRIPT_NAME&lt;/cite&gt; will be empty, but if you have a
+wiki that is mounted on &lt;cite&gt;http://example.com/wiki&lt;/cite&gt; the &lt;cite&gt;SCRIPT_NAME&lt;/cite&gt;
+variable would be &lt;cite&gt;/wiki&lt;/cite&gt;. This information can now be used to serve
+multiple indepentent pages with nice URLs.&lt;/p&gt;
+&lt;p&gt;In this example we have a bunch of regular expressions and match the
+current request against that:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;re&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;cgi&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;escape&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;sd&quot;&gt;&amp;quot;&amp;quot;&amp;quot;This function will be mounted on &amp;quot;/&amp;quot; and display a link&lt;/span&gt;
+&lt;span class=&quot;sd&quot;&gt;    to the hello world page.&amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;start_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;200 OK&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Content-Type&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;text/html&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)])&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&amp;#39;Hello World Application&lt;/span&gt;
+&lt;span class=&quot;s1&quot;&gt;               This is the Hello World application:&lt;/span&gt;
+
+&lt;span class=&quot;s1&quot;&gt;`continue &amp;lt;hello/&amp;gt;`_&lt;/span&gt;
+
+&lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;hello&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;sd&quot;&gt;&amp;quot;&amp;quot;&amp;quot;Like the example above, but it uses the name specified in the&lt;/span&gt;
+&lt;span class=&quot;sd&quot;&gt;URL.&amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# get the name from the url if it was specified there.&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;args&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;myapp.url_args&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;subject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;escape&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;subject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;World&amp;#39;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;start_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;200 OK&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Content-Type&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;text/html&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)])&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&amp;#39;Hello &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%(subject)s&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;s1&quot;&gt;            Hello &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%(subject)s&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;!&lt;/span&gt;
+
+&lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;subject&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;subject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}]&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;not_found&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;sd&quot;&gt;&amp;quot;&amp;quot;&amp;quot;Called if no URL matches.&amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;start_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;404 NOT FOUND&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Content-Type&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;text/plain&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)])&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Not Found&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# map urls to functions&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;urls&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sa&quot;&gt;r&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;^$&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sa&quot;&gt;r&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;hello/?$&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;hello&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sa&quot;&gt;r&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;hello/(.+)$&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;hello&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;application&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;sd&quot;&gt;&amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+&lt;span class=&quot;sd&quot;&gt;    The main WSGI application. Dispatch the current request to&lt;/span&gt;
+&lt;span class=&quot;sd&quot;&gt;    the functions from above and store the regular expression&lt;/span&gt;
+&lt;span class=&quot;sd&quot;&gt;    captures in the WSGI environment as  `myapp.url_args` so that&lt;/span&gt;
+&lt;span class=&quot;sd&quot;&gt;    the functions from above can access the url placeholders.&lt;/span&gt;
+
+&lt;span class=&quot;sd&quot;&gt;    If nothing matches call the `not_found` function.&lt;/span&gt;
+&lt;span class=&quot;sd&quot;&gt;    &amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;path&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;PATH_INFO&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lstrip&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;/&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;regex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;callback&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;urls&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;match&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;re&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;search&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;regex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;match&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;myapp.url_args&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;match&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;groups&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;callback&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;not_found&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Now that's a bunch of code. But you should get the idea how URL
+dispatching works. Basically if you now visit
+&lt;cite&gt;http://localhost:8080/hello/John&lt;/cite&gt; you should get the same as above but
+with a nicer URL and a error 404 page if you enter the wrong url. Now
+you could improve that further by encapsulating &lt;cite&gt;environ&lt;/cite&gt; in a request
+object and replacing the &lt;cite&gt;start_response&lt;/cite&gt; call and the return iterator
+with a response objects. This is also what WSGI libraries like &lt;a class=&quot;reference external&quot; href=&quot;http://werkzeug.pocoo.org/&quot;&gt;Werkzeug&lt;/a&gt; and &lt;a class=&quot;reference external&quot; href=&quot;http://www.pythonpaste.org/&quot;&gt;Paste&lt;/a&gt; do.&lt;/p&gt;
+&lt;p&gt;By adding something to the environment we did something normally
+middlewares do. So let's try to write one that catches exceptions and
+renders them in the browser:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;c1&quot;&gt;# import the helper functions we need to get and render tracebacks&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;sys&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;exc_info&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;traceback&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;format_tb&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;ExceptionMiddleware&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;object&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;sd&quot;&gt;&amp;quot;&amp;quot;&amp;quot;The middleware we use.&amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;fm&quot;&gt;__init__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;app&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;app&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;app&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;fm&quot;&gt;__call__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;sd&quot;&gt;&amp;quot;&amp;quot;&amp;quot;Call the application can catch exceptions.&amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;appiter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;
+        &lt;span class=&quot;c1&quot;&gt;# just call the application and send the output back&lt;/span&gt;
+        &lt;span class=&quot;c1&quot;&gt;# unchanged but catch exceptions&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;appiter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;app&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;item&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;appiter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+                &lt;span class=&quot;k&quot;&gt;yield&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;item&lt;/span&gt;
+        &lt;span class=&quot;c1&quot;&gt;# if an exception occours we get the exception information&lt;/span&gt;
+        &lt;span class=&quot;c1&quot;&gt;# and prepare a traceback we can render&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;e_type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e_value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tb&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;exc_info&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;traceback&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Traceback (most recent call last):&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;traceback&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;format_tb&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tb&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;traceback&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;: &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;e_type&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;vm&quot;&gt;__name__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e_value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+            &lt;span class=&quot;c1&quot;&gt;# we might have not a stated response by now. try&lt;/span&gt;
+            &lt;span class=&quot;c1&quot;&gt;# to start one with the status code 500 or ignore an&lt;/span&gt;
+            &lt;span class=&quot;c1&quot;&gt;# raised exception if the application already started one.&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;start_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;500 INTERNAL SERVER ERROR&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;
+                               &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Content-Type&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;text/plain&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)])&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+                &lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;yield&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;join&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;traceback&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+        &lt;span class=&quot;c1&quot;&gt;# wsgi applications might have a close function. If it exists&lt;/span&gt;
+        &lt;span class=&quot;c1&quot;&gt;# it *must* be called.&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;hasattr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;appiter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;close&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;appiter&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;close&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;So how can we use that middleware now? If our WSGI application is called
+&lt;cite&gt;application&lt;/cite&gt; like in the previous example all we have to do is to wrap
+it:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;application&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ExceptionMiddleware&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;application&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Now all occouring exceptions will be catched and displayed in the
+browser. Of course you don't have to do that because there are many
+libraries that do exactly that and with more features.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;deployment&quot;&gt;
+&lt;h2&gt;Deployment&lt;/h2&gt;
+&lt;p&gt;Now where the application is &amp;quot;finished&amp;quot; it must be installed on the
+production server somehow. You can of course use wsgiref behind
+mod_proxy but there are also more sophisticated solutions available.
+Many people for example prefer using WSGI applications on top of
+FastCGI. If you have &lt;a class=&quot;reference external&quot; href=&quot;http://trac.saddi.com/flup&quot;&gt;flup&lt;/a&gt; installed all
+you have to do is to defined a &lt;cite&gt;myapplication.fcgi&lt;/cite&gt; with this code in:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;ch&quot;&gt;#!/usr/bin/python&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;flup.server.fcgi&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;WSGIServer&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;myapplication&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;application&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;WSGIServer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;application&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;run&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;The apache config then could look like this:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;lt;ServerName&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;www.example.com&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;Alias&lt;/span&gt; &lt;span class=&quot;sx&quot;&gt;/public&lt;/span&gt; &lt;span class=&quot;sx&quot;&gt;/path/to/the/static/files&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;ScriptAlias&lt;/span&gt; / &lt;span class=&quot;sx&quot;&gt;/path/to/myapplication.fcgi/&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;&amp;lt;/ServerName&amp;gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;As you can see there is also a clause for static files. If you are in
+development mode and want to serve static files in your WSGI application
+there are a couple of middlewares (werkzeug and paste as well as &amp;quot;static&amp;quot;
+from Luke Arno's tools provide that) available.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;nih-dry&quot;&gt;
+&lt;h2&gt;NIH / DRY&lt;/h2&gt;
+&lt;p&gt;Avoid the &amp;quot;Not Invented Here&amp;quot; problem and don't repeat yourself. Use
+the libraries that exist and their utilities! But there are so many!
+Which one to use? Here my suggestions:&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;frameworks&quot;&gt;
+&lt;h3&gt;Frameworks&lt;/h3&gt;
+&lt;p&gt;Since Ruby on Rails appeared on the web everybody is talking about
+frameworks. Python has two major ones too. One that abstracts stuff very
+much and is called &lt;a class=&quot;reference external&quot; href=&quot;http://www.djangoproject.com/&quot;&gt;Django&lt;/a&gt; and the other
+that is much nearer to WSGI and called &lt;a class=&quot;reference external&quot; href=&quot;http://www.pylonshq.com/&quot;&gt;pylons&lt;/a&gt;. Django is an awesome framework but only as
+long as you don't want to distribute your application. It's if you have to
+create a webpage in no time.  Pylons on the other hand requires more
+developer interaction and your applications are a lot easier to deploy.&lt;/p&gt;
+&lt;p&gt;There are other frameworks too but &lt;strong&gt;my&lt;/strong&gt; experiences with them are quite
+bad or the community is too small.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;utility-libraries&quot;&gt;
+&lt;h3&gt;Utility Libraries&lt;/h3&gt;
+&lt;p&gt;For many situations you don't want a full blown framework. Either because
+it's too big for your application or your application is too complex that
+you can solve it with a framework. (You can solve any application with a
+framework but it could be that the way you have to solve it is a lot more
+complex than without the &amp;quot;help&amp;quot; of the framework)&lt;/p&gt;
+&lt;p&gt;For that some utility libraries exist:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://www.pythonpaste.org/&quot;&gt;Paste&lt;/a&gt; — used by pylons behind the scenes.
+Implements request and response objects. Ships many middlewares.&lt;/li&gt;
+&lt;li&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://werkzeug.pocoo.org/&quot;&gt;Werkzeug&lt;/a&gt; — minimal WSGI library we wrote
+for pocoo. Ships unicode away request and response objects as well as an
+advanced URL mapper and a interactive debugger.&lt;/li&gt;
+&lt;li&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://lukearno.com/projects/&quot;&gt;Luke Arno's WSGI helpers&lt;/a&gt; —
+various WSGI helpers in independent modules by Luke Arno.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;There are also many middlewares out there. Just look for them at
+the &lt;a class=&quot;reference external&quot; href=&quot;http://cheeseshop.python.org/pypi?:action=search&amp;amp;term=wsgi&quot;&gt;Cheeseshop&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;template-engines&quot;&gt;
+&lt;h3&gt;Template Engines&lt;/h3&gt;
+&lt;p&gt;Here a list of template engines I often use and recommend:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://genshi.edgewall.org/&quot;&gt;Genshi&lt;/a&gt; — the world's best XML template
+engine. But quite slow, so if you need a really good performance you have
+to go with something else.&lt;/li&gt;
+&lt;li&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://www.makotemplates.org/&quot;&gt;Mako&lt;/a&gt; — stupidely fast text based
+template engine. It's a mix of ERB, Mason and django templates.&lt;/li&gt;
+&lt;li&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://jinja.pocoo.org/&quot;&gt;Jinja2&lt;/a&gt; — sandboxed, designer friendly and
+quite fast, text based template engine. Of course my personal choice :D&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;conclusion&quot;&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;WSGI rocks. You can simply create your own personal stack. If you think
+it's too complicated have a look at werkzeug and paste, they make things a
+lot easier without limiting you.&lt;/p&gt;
+&lt;p&gt;I hope this article was useful.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Python, the Web and Little Things on my Mind</title>
+    <id>http://lucumr.pocoo.org/2011/1/22/python-the-web-and-little-things</id>
+    <updated>2011-01-22T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2011/1/22/python-the-web-and-little-things" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;A few days ago &lt;a class=&quot;reference external&quot; href=&quot;http://www.python.org/dev/peps/pep-3333/&quot;&gt;PEP 3333&lt;/a&gt; was
+accepted.  In case you don't know what this is: it's a specification of
+WSGI (&lt;a class=&quot;reference external&quot; href=&quot;http://www.python.org/dev/peps/pep-333/&quot;&gt;PEP 333&lt;/a&gt;) updated for
+Python 3.  In case you are wondering what it does: it basically just
+specifies something very close to what everybody was expecting for Python
+3 anyways.  Together with that also some work went into improving the
+standard library for Python 3.2 so that it would become easier to port
+applications to Python 3.&lt;/p&gt;
+&lt;p&gt;Besides that there were also some recent developments in the Python web
+world I would really love to share my thoughts about.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;python-3-and-the-web&quot;&gt;
+&lt;h2&gt;Python 3 and the Web&lt;/h2&gt;
+&lt;p&gt;When I was complaining about Python 3 for web development (or more exactly
+WSGI) at DjangoCon Europe a year ago, I wanted to raise concern about the
+state of WSGI and that part of the problem was that very few people cared
+about it.  Also I was very unhappy with the idea of introducing Unicode
+for parts that are clearly not intended to be Unicode.  A lot of things
+have changed.  First of all I was wrong about Unicode on the WSGI layer.
+While I still think that it would have been a wiser choice to stick to
+bytes there the environment just does not support this very well.  Python
+3 does not provide any useful string operations for byte objects and there
+is also not really a plan to support it.  Furthermore a lot of places in
+the standard library now accept Unicode where Unicode was not necessarily
+the best idea.  However at the same time there is also a lot of
+opportunity now to drive things forward.  The fact that urllib on Python 3
+is behaving unexpected with regard to Unicode and bytes means that we will
+probably see some actual working IRI libraries.&lt;/p&gt;
+&lt;p&gt;The problem there however is that a direct port of &lt;a class=&quot;reference external&quot; href=&quot;http://werkzeug.pocoo.org/&quot;&gt;Werkzeug&lt;/a&gt; to Python 3 is very unlikely.  To make a
+transition possible I would probably have to change some interfaces also
+for Python 2.  Otherwise a painless upgrade seems to be pretty unlikely.
+This is a lot easier for higher level interfaces such as &lt;a class=&quot;reference external&quot; href=&quot;http://flask.pocoo.org/&quot;&gt;Flask&lt;/a&gt; which is based on Werkzeug.  That will
+probably work the moment Werkzeug itself works as there is barely anything
+in there that would not survive a run through 2to3.&lt;/p&gt;
+&lt;p&gt;The other aspect however right now is that a port to Python 3 will take a
+lot of time which I am not yet willing to spend due to the low demand of
+users being interested in Python 3.  This I think has two reasons:&lt;/p&gt;
+&lt;ol class=&quot;arabic&quot;&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;A switch to Python 3 is a lot of work and you don't win anything.
+Python 3 performs considerably worse than Python 2 (&lt;a class=&quot;reference external&quot; href=&quot;http://shootout.alioth.debian.org/u32/which-programming-languages-are-fastest.php&quot;&gt;Source&lt;/a&gt;)
+for certain tasks and Python 2 already wasn't the fastest interpreter.
+Part of that can probably be explained with Unicode requiring more
+memory internally than bytestrings did (2 to 4 times as much for
+strings).  Secondly a lot of stuff broke from Python 2 to Python 3 and
+due to the low number of users a lot of these issues are yet to be
+noticed.  As with all problems in the language and standard library
+itself just fixing them is not a solution.  To also support “older”
+versions of Python 3 developers will always add workarounds to their
+code for problems also in the standard library.  That's unfortunately
+pretty much a chicken-egg problem.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class=&quot;first&quot;&gt;PyPy, stackless and alternative Python implementations don't have
+plans for Python 3 or no plans yet.  For a long time CPython was the
+only implementation everybody cared about.  However this seems to be
+changing.  To &lt;a class=&quot;reference external&quot; href=&quot;https://www.google.com/buzz/bcannon/bZDN1jNZ3uC/Is-this-finally-going-to-push-CPython-into-the&quot;&gt;quote&lt;/a&gt;
+&lt;a class=&quot;reference external&quot; href=&quot;http://sayspy.blogspot.com/&quot;&gt;Brett Cannon&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Is this finally going to push CPython into the realm of being the
+reference implementation of Python with PyPy being the one
+everyone runs in production? And is this going to impact any
+potential future momentum for unladen swallow if PyPy continues to
+gain on speed?&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Alternative Python implementations are important because they enable
+web developers to use Python in environments where they couldn't
+otherwise use it (Jython in enterprise environments with Java
+requirements for instance) or because they have features that are
+unavailable in CPython or don't perform as well.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Python 3 is clearly the better language, hands down.  The downside however
+is that porting existing applications is a giant step and nobody can see
+into the future.  The big advantage of Python 3 was supposed to be
+Unladen Swallow but unfortunately the numbers are far from what everybody
+was expecting.&lt;/p&gt;
+&lt;p&gt;So let me reiterate my suggestion for Python 3 in web applications: don't
+use it just yet, but write your code in a way that it could pass through
+2to3.  It's surprisingly easy for high level applications in the web field
+because all frameworks already are Unicode based in Python 2.  That way
+you have the options to go with either development (PyPy or Python 3) when
+one is clearly going ahead.&lt;/p&gt;
+&lt;p&gt;Personally I am looking forward to this year's PyCon where there will be
+most likely a bunch of discussions about the future of Python.  Either way
+it will be bright.&lt;/p&gt;
+&lt;p&gt;A pretty depressing quote on Python 3 &lt;a class=&quot;reference external&quot; href=&quot;http://www.reddit.com/r/IAmA/comments/f545e/i_am_a_fourtime_published_author_i_write_free/c1dcgsm&quot;&gt;came from Mark Pilgrim&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+Python 3 is a commercial disaster. In 2010Q3 I had negative sales of
+DiP3 [Dive into Python 3]. More people returned it than bought it. I'm
+considering retro-fitting the book's content to Python 2.7 and
+re-releasing it as “Dive Into Python 2.” Seriously.&lt;/blockquote&gt;
+&lt;p&gt;At least this clearly shows that Python 3 is not going as good as it
+could, and that rethinking the roadmap might be a good idea.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;variety&quot;&gt;
+&lt;h2&gt;Variety&lt;/h2&gt;
+&lt;p&gt;The other thing that is constantly on my mind is the variety in
+frameworks, WSGI implementations and a bunch of other “competing”
+libraries.  As far as I am concerned we are doing great, much better than
+before.  Of course I am sitting in my happy little spot of not having a
+whole lot of users compared to the other big frameworks out there, but
+Werkzeug and Flask have been successful enough that I can somewhat take
+part in discussions about web development in the Python world without
+feeling misplaced.&lt;/p&gt;
+&lt;p&gt;Pylons and BFG have recently merged into a new framework called Pyramid
+and this was one of the greatest moves in Python's web framework history.
+TurboGear's fate is not yet known, but it's not too unlikely that it will
+be based on Pyramid.  Not because it's good to have less frameworks by
+definition, but because they were similar in scope and aiming for the same
+just in slightly different ways.  It's probably comparable to the Ruby on
+Rails and Merb merge just on a slightly smaller scale.&lt;/p&gt;
+&lt;p&gt;I personally would love to see a merge of Bottle and Flask for instance
+because both are aiming for the same thing as well, but unfortunately that
+seems to be pretty unlikely due to the fact that Bottle does not want to
+have any dependencies.  However switching from Bottle to Flask would be a
+piece of cake for any Bottle user as that process could be fully
+automated.  Lately Flask also comes in a “Kitchensink” release that is a
+zip file with Flask and all dependencies to drop into a folder.  That way
+you don't have to deal with virtualenv or anything else if you don't want
+to or if you can't.&lt;/p&gt;
+&lt;p&gt;Another possible merge would of course be Werkzeug and &lt;a class=&quot;reference external&quot; href=&quot;http://pythonpaste.org/webob/&quot;&gt;WebOb&lt;/a&gt;.  With better communication early on
+this problem would have never been and we would only have one library now.
+Independent of if such a merge will be possible or not, Werkzeug is
+currently in the process of being cleaned up and improved so that a switch
+to WebOb or from WebOb could be possible.  I don't have any direct plans
+yet but I don't see a reason why that shouldn't eventually happen.  There
+is one big philosophical difference between WebOb and Werkzeug which is
+how much of data manipulation should go back into the WSGI environment,
+but nothing that couldn't be solved so that everybody would be happy.
+Both WebOb and Werkzeug are in the progress of becoming more like each
+other already and there is clearly place for going further.  Python
+packaging is improving alongside which makes depending on one library more
+not a big problem these days, so that shouldn't be the problem either in
+case a merged library might not have all the features Werkzeug or WebOb
+previously had.&lt;/p&gt;
+&lt;p&gt;What makes me incredible happy currently is that the developers of most
+Python frameworks or WSGI implementations have contact with each other in
+some form or another and there is potential for working together.  This is
+especially interesting because upcoming and smaller projects like Flask
+can learn a lot from existing solutions and try to learn from their
+mistakes because they still have the possibility.  Django has to care a lot
+about their existing users and can't make more courageous steps whereas
+this is possible for Flask and Pyramid for instance.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;working-together&quot;&gt;
+&lt;h2&gt;Working Together&lt;/h2&gt;
+&lt;p&gt;This goes hand in hand with what I wrote above.  Even if there is more
+than one library for the same use case, there is no reason why people
+should not work together.  For instance it is in the interest of every
+user that when one framework had a security problem other developers get
+some insight in what the problem and solution was as the chances are high
+that a similar problem might exist in another framework as well.  Also
+it's in the interest of everybody involved that Python stays an
+interesting platform for web developers so a consensus on various things
+(WSGI, packaging standards, database APIs etc.) is important.&lt;/p&gt;
+&lt;p&gt;With that I want to primarily encourage developer to take place in such
+discussions who are currently not doing that.  Most frameworks have IRC
+channels on Freenode and there are also various backrooms where such
+discussions can take place.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">WSGI and the Pluggable Pipe Dream</title>
+    <id>http://lucumr.pocoo.org/2011/7/27/the-pluggable-pipedream</id>
+    <updated>2011-07-27T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2011/7/27/the-pluggable-pipedream" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;As a Python web developer you are at one point confronted with the term
+“&lt;a class=&quot;reference external&quot; href=&quot;http://www.python.org/dev/peps/pep-0333/&quot;&gt;WSGI&lt;/a&gt;” (which after 6 years of existence still does not have an
+official truncation.  Some rhyme it with “Whisky”, others just pronounce
+the abbreviation, other's just call it by the pep number 333).  WSGI when
+it was created was a pretty awesome thing.  It made it possible to use any
+Python web application with any webserver by specifying a gateway layer.&lt;/p&gt;
+&lt;p&gt;In fact, it became so popular and well supported in the Python world that
+similar protocols were created for other languages as well.  One of the
+first was &lt;a class=&quot;reference external&quot; href=&quot;http://rack.rubyforge.org/&quot;&gt;Rack&lt;/a&gt; for Ruby, then came &lt;a class=&quot;reference external&quot; href=&quot;http://jackjs.org/jsgi-spec.html&quot;&gt;Jack&lt;/a&gt;/JSGI for JavaScript,
+&lt;a class=&quot;reference external&quot; href=&quot;http://plackperl.org/&quot;&gt;PSGI&lt;/a&gt;/Plack for Perl and many others.  And yet ever since WSGI became
+from a niche protocol nobody knew to &lt;em&gt;the&lt;/em&gt; protocol for web applications
+people tried to change and replace it.  Why is that and why does nobody
+succeed in replacing it?&lt;/p&gt;
+&lt;p&gt;WSGI stands for “Webserver Gateway Interface” and it really envisioned as
+this bridge between server and application.  Additionally the PEP
+explained how you can use middlewares and this was the beginning of the
+end.  The PEP also suggested that people would write their frameworks
+around WSGI which certainly many did.  People tried to cram over the years
+more and more services into the WSGI layer with varying success.  Session
+middlewares, authentication systems, caching layers etc.  The vision of
+many people is or was to use the WSGI layer as a way to combine multiple
+applications together.&lt;/p&gt;
+&lt;p&gt;WebOb for instance went very far with that.  For as long as all your
+applications are only using WebOb and nothing else you can “attach” a
+request object to a WSGI environment at any point in the WSGI chain and
+you are operating on basically the same request object with the same data
+behind.  This however goes well beyond what WSGI specifies or encourages.&lt;/p&gt;
+&lt;p&gt;If you mix a WebOb application with Django, Werkzeug or anything your
+options of what is possible are greatly reduced.&lt;/p&gt;
+&lt;small&gt;&lt;p&gt;Consider this post a personal brain dump.  It might be unstructured and
+appear raw and there is a reason for this: it's one of the topic where the
+more you think about it, the more details jump into your mind.  WSGI is
+such a simple specification but there is so much around it that it can
+really make your head hurt.&lt;/p&gt;
+&lt;p&gt;I rewrote parts of this now a couple of times and I am still unhappy with
+it, so please just take it for what it is.&lt;/p&gt;
+&lt;/small&gt;&lt;div class=&quot;section&quot; id=&quot;what-wsgi-broke&quot;&gt;
+&lt;h2&gt;What WSGI Broke&lt;/h2&gt;
+&lt;p&gt;If you look at APIs before WSGI or even at new frameworks that don't
+support WSGI, a common pattern is having a request object that not only
+gives access to the incoming data but also allows you to send data back
+to the client.  For instance by having a &lt;tt class=&quot;docutils literal&quot;&gt;write()&lt;/tt&gt; method.  WSGI broke
+with this convention early and this was a major step because it meant that
+you had to use buffering internally or change their API to use generators.&lt;/p&gt;
+&lt;p&gt;The thing with Python is that you cannot stop execution in a frame by hand
+unless you are using greenlets which back in 2004 were not available.  As
+such you could not transparently convert an API like this into WSGI:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;my_view&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;start_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;200 OK&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;send_header&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Content-Type&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;text/plain&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;end_headers&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;write&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Hello World!&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;write&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Goodbye World!&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;end&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;The direct the entirely equivalent example would be this:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;my_view&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;generate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;yield&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;Hello World!&amp;#39;&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;yield&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;Goodbye World!&amp;#39;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;start_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;200 OK&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Content-Type&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;text/plain&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)])&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;generate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;While it is indeed now possible to utilize greenlets to convert multiple
+function calls into yields in a generator, it's still something you would
+not do.  So you can imagine that when WSGI came out it was quite a
+challenge to convert to it.&lt;/p&gt;
+&lt;p&gt;If you look at other protocols that are WSGI inspired you can see that the
+iterator concept was adapted and modified.  In Python iteration works by
+calling a method on the iterator until it signals that it finished.  In
+Ruby it's the other way round.  You provide a function and pass it to the
+iterator which will then call the function until it exhausts.  The Ruby
+way has the nice advantage that you don't need generators and can easily
+convert from this Rack interface to an old-school write + flush method
+pair.&lt;/p&gt;
+&lt;p&gt;This is one of the things that some people are not happy with when they
+think about WSGI.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-wsgi-quirks&quot;&gt;
+&lt;h2&gt;The WSGI Quirks&lt;/h2&gt;
+&lt;p&gt;When you ask people what their opinion on WSGI is, they will always tell
+you that the &lt;tt class=&quot;docutils literal&quot;&gt;start_response()&lt;/tt&gt; callable is just bad.  And they are
+quite correct in saying that we can get rid of it.  But before you blindly
+throw it away you have to understand why it was created in the first
+place.  The common way to call &lt;tt class=&quot;docutils literal&quot;&gt;start_response()&lt;/tt&gt; with the status code
+as string + explanation and a list of key-value tuples which represent
+the headers.  But what many people miss is that &lt;tt class=&quot;docutils literal&quot;&gt;start_response()&lt;/tt&gt; can
+do more than just that!&lt;/p&gt;
+&lt;p&gt;First of all, remember when I said that you cannot generate
+&lt;tt class=&quot;docutils literal&quot;&gt;response.write()&lt;/tt&gt; calls transparently into &lt;cite&gt;yield&lt;/cite&gt; statements.  When
+the PEP was written it was quite obvious that this would be a problem for
+existing applications that need to stream out data via
+&lt;tt class=&quot;docutils literal&quot;&gt;request.write()&lt;/tt&gt;.  And as such &lt;tt class=&quot;docutils literal&quot;&gt;start_response()&lt;/tt&gt; was given a return
+value which many developers don't know about.  What &lt;tt class=&quot;docutils literal&quot;&gt;start_response()&lt;/tt&gt;
+returns is a function that directly writes into the client's stream.
+Surely that problem could have been solved in a different way, for
+instance by putting that function into the WSGI environment but the
+intention here was very simply that just the caller that starts the
+response gets this function.&lt;/p&gt;
+&lt;p&gt;Have you ever used that direct write function?  Me neither and for good
+reasons: It bypasses processing by middlewares since it directly goes to
+the output stream.  But it set the path to WSGI acceptance as it was a
+simple way to WSGI-ify CGI scripts.  For instance the mercurial hgweb
+interface was a prominent user of that write function.&lt;/p&gt;
+&lt;p&gt;But that's not where &lt;tt class=&quot;docutils literal&quot;&gt;start_response()&lt;/tt&gt; ends.  It has a third parameter
+that people commonly miss: &lt;tt class=&quot;docutils literal&quot;&gt;exc_info&lt;/tt&gt;.  It's rarely used because error
+handling is typically handled at a higher level in the stack but the
+intention of course was to make the server aware of errors.  Here is how
+it's supposed to work: You start the response and are about to send data
+but an error happens, you can change your mind and start the response a
+second time with the error information.  You could also not have started
+the response before and directly inform it about the errors.  Why is this?
+This comes in combination with another fact: headers are not sent, they
+are set.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-async-nod&quot;&gt;
+&lt;h2&gt;The Async Nod&lt;/h2&gt;
+&lt;p&gt;WSGI as a protocol was designed to also support async applications in
+theory.  When you start the response, you're not actually starting the
+response.  You are informing the server about the headers you want to send
+but they are not actually sent until you yield a non empty string.  This
+allows you to change from an already notified &lt;tt class=&quot;docutils literal&quot;&gt;200 OK&lt;/tt&gt; to a &lt;tt class=&quot;docutils literal&quot;&gt;500
+INTERNAL SERVER ERROR&lt;/tt&gt; until a later point.  For instance this is
+perfectly valid WSGI code:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;weird_app&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;start_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;200 OK&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Content-Type&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;text/plain&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)])&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;yield&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;yield&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;raise&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;Exception&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Something went wrong late&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;Exception&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;start_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;500 INTERNAL SERVER ERROR&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+                       &lt;span class=&quot;p&quot;&gt;[(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Content-Type&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;text/plain&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)],&lt;/span&gt;
+                       &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;exc_info&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;yield&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;Application Failed&amp;#39;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;This is the extreme example which you will not see in practice.  The
+server should attempt to change the headers if still not sent or recover
+in whatever way possible from that error condition.  The “headers are sent
+when the first non empty string is yielded” rule is nothing more than a
+neat nod to async systems that can use this neat trick to yield empty
+strings to signal that they are not ready yet.  I don't know if this was
+intentional behavior but the PEP is quite elaborate on mentioning that
+it's for async systems, so I suppose someone thought about it.&lt;/p&gt;
+&lt;p&gt;Generally though you will never find this particular usage used in
+practice.  It's just generally something that makes processing WSGI code
+harder than it needs to be.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;relaying-and-proxying&quot;&gt;
+&lt;h2&gt;Relaying and Proxying&lt;/h2&gt;
+&lt;p&gt;Where WSGI is annoying is relaying messages from one WSGI app to another.
+Let's assume for a moment WSGI would lack the &lt;tt class=&quot;docutils literal&quot;&gt;start_response()&lt;/tt&gt;
+callable and that empty string thing and a write callable.  The canonical
+“Hello World” would probably look like this:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;hello_world&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;200 OK&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Content-Type&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;text/plain&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)],&lt;/span&gt; \
+           &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Hello World!&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Simple and straightforward indeed, and it would be incredible easy to
+proxy these things.  All you have to do would be to call that function,
+pass it an environment dictionary and then take the return value, work
+with it, and forward it.&lt;/p&gt;
+&lt;p&gt;WSGI itself makes this really hard for a bunch of reasons:&lt;/p&gt;
+&lt;ol class=&quot;arabic simple&quot;&gt;
+&lt;li&gt;The return value of an application.  When you have it, was
+&lt;tt class=&quot;docutils literal&quot;&gt;start_response()&lt;/tt&gt; already called or not?  If you directly return a
+list it was called, if the whole function however has a &lt;tt class=&quot;docutils literal&quot;&gt;yield&lt;/tt&gt; in
+there anywhere the &lt;tt class=&quot;docutils literal&quot;&gt;start_response()&lt;/tt&gt; function will not be called
+until the first iteration on the return value.&lt;/li&gt;
+&lt;li&gt;Does anyone at any point mix &lt;tt class=&quot;docutils literal&quot;&gt;write()&lt;/tt&gt; and an iterable return value?
+If yes how do they mix?&lt;/li&gt;
+&lt;li&gt;You have to be careful that headers can change until a non empty
+string came back from the iterable.&lt;/li&gt;
+&lt;li&gt;The iterator can have a close method which you are required to call.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;All in all this makes WSGI a terrible protocol for the simple case where
+you want to invoke another application, munch with the return value and
+then forward it.&lt;/p&gt;
+&lt;p&gt;Why if that's so bad, why was it decided to work that way in the first
+place?  Because obviously you will sacrifice something if you change that
+into a flat tuple as return value.  For starters you lose:&lt;/p&gt;
+&lt;ol class=&quot;arabic simple&quot;&gt;
+&lt;li&gt;The ability to change a success response into an internal server
+error response.&lt;/li&gt;
+&lt;li&gt;Async systems would need to come up with the result right away when
+you call the function or block (bad) until they know what to return.&lt;/li&gt;
+&lt;li&gt;Everything has to be generator powered, no more &lt;tt class=&quot;docutils literal&quot;&gt;response.write()&lt;/tt&gt;
+unless you introduce greenlets.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;everybody-wants-a-revolution&quot;&gt;
+&lt;h2&gt;Everybody wants a Revolution&lt;/h2&gt;
+&lt;p&gt;WSGI is far from being flawless.  But the problem is that most of the time
+when people try to replace it they will also attempt to fix the other
+issues it has.  So instead of a nice little step forward it's a completely
+new proposal.  For instance my attempt to do that for Python 3 was so
+naively wrong that I like to think that I did not have my hands in such a
+WSGI replacement PEP in the first place.  And I can tell you right away
+why a small evolving of WSGI is pointless and why a big step is even
+worse:&lt;/p&gt;
+&lt;p&gt;Let's ask the question first: why would we want to improve WSGI?  On the
+surface because there are a few things that don't work or are
+unnecessarily complex.  And here comes the problem: &lt;em&gt;for different reasons&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;Half the people just want the gory details improved to simplify
+implementations of servers and client libraries, others want it simplified
+and extended to support pluggable applications.  And this is where it all
+falls apart.&lt;/p&gt;
+&lt;p&gt;Let's look at what could be improved in WSGI itself:&lt;/p&gt;
+&lt;ol class=&quot;arabic simple&quot;&gt;
+&lt;li&gt;&lt;tt class=&quot;docutils literal&quot;&gt;'wsgi.input'&lt;/tt&gt; is ill-specified but in practice it rarely causes
+troubles because a) half the servers are already extending WSGI and b)
+even though half the libraries are in violation it's only the edge
+cases that cause problems and those are rare.&lt;/li&gt;
+&lt;li&gt;Headers cannot be streamed which might be a problem with responses
+that have a huge amount of headers.&lt;/li&gt;
+&lt;li&gt;Trailers are not specified at all except for that “servers might do
+chunked responses”&lt;/li&gt;
+&lt;li&gt;Chunked request data is totally unimplementable on top of the current
+specification due to the ill-specified WSGI input thing.&lt;/li&gt;
+&lt;li&gt;WSGI can be hard to implement in an environment where you are running
+inside a server like Apache that is already doing request filtering
+that is outside of your control.  WSGI assumes HTTP level access which
+inside a webserver you usually no longer have.&lt;/li&gt;
+&lt;li&gt;WSGI extends CGI's environment and inherits the problem that paths are
+decoded which comes with loss of information.&lt;/li&gt;
+&lt;li&gt;The &lt;tt class=&quot;docutils literal&quot;&gt;start_response()&lt;/tt&gt; machinery seems unnecessarily complex for the
+fact that barely anybody these days needs the &lt;tt class=&quot;docutils literal&quot;&gt;exc_info&lt;/tt&gt; or
+&lt;tt class=&quot;docutils literal&quot;&gt;write()&lt;/tt&gt; callable any more.&lt;/li&gt;
+&lt;li&gt;The &lt;tt class=&quot;docutils literal&quot;&gt;'wsgi.file_wrapper'&lt;/tt&gt; is complete garbage because it does not
+work in practice as soon as middlewares are involved that process
+responses.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;But you know what?  WebOb, Werkzeug, Django and all the other frameworks
+out there learned to live with WSGI as it is and it works for us.  There
+are some corner cases where we would love it to be improved like the input
+thing, but it's hardly something that's worth breaking API over.  We
+already wrote the code and coming up with a new spec at that point mostly
+just supports the “the great thing about standards is that there are so
+many to chose from” sentiment.  Especially now that WSGI was just extended
+to deal with Python 3's unicode behavior we have to be very careful not to
+force more complexity into everybody's code.&lt;/p&gt;
+&lt;p&gt;On top of that however there is so stuff that is missing in WSGI that many
+want to see solved:&lt;/p&gt;
+&lt;ol class=&quot;arabic simple&quot;&gt;
+&lt;li&gt;Allowing an application to notify the server that it wants to be
+reloaded next request.&lt;/li&gt;
+&lt;li&gt;Have a documented point in the application that is executed before the
+first request in the most efficient way possible but already with
+information at hand that would otherwise only be available during
+request (like: where the hell am I located?  What's my base URL etc.)&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;But here is the problem:  Changing WSGI now would only mean that we would
+have to replace all our WSGI servers, WSGI client implementations,
+Framework bridges and whatnot.  We would have to replace our middlewares
+that adopt to different server environments, work around browser bugs,
+that implement profiling and debugging functionality, that handle error
+logging and whatnot.  We have a lot already that interfaces with WSGI and
+knows how to deal with the protocol.&lt;/p&gt;
+&lt;p&gt;Of course if we could just come up with a new WSGI from ground up we would
+make it different.  But would we make it more pluggable?  Probably not,
+and here is why.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-magic-plug&quot;&gt;
+&lt;h2&gt;The Magic Plug&lt;/h2&gt;
+&lt;p&gt;I love small applications that work together.  And the layer I let those
+applications work together is called HTTP.  In fact, I will even have a
+talk about this at PyCodeConf.  But what I do not believe in is that
+magical plug that is called “framework independent pluggable application”.
+I don't know where this idea came from that it might work, but it does
+not.  The idea that you can reused code on top of WSGI to work with
+Framework 1 and Framework 2 is not working out.  If they are truly divided
+of course, you can nicely use WSGI as a layer to speak to both apps
+depending on an HTTP request that came to a central dispatch point.  If
+the user wanted to &lt;tt class=&quot;docutils literal&quot;&gt;/app1&lt;/tt&gt; I can dispatch to application 1, if the user
+went to &lt;tt class=&quot;docutils literal&quot;&gt;/app2&lt;/tt&gt; I just point them to application 2.  But that's
+something I can already do.&lt;/p&gt;
+&lt;p&gt;But that's now what this is about, is it?  Commonly the idea is that you
+can take any return value from any WSGI application and then mangle it a
+bit so that it fits into your environment.  The idea is that a middleware
+could look at submitted form data and do some processing on it or anything
+else that is currently not really possible with WSGI.&lt;/p&gt;
+&lt;p&gt;What you need at that point is not a new WSGI: you need a whole new
+machinery that deals with so much more than just HTTP.  Because we're
+doing so much more than we did a few years ago.&lt;/p&gt;
+&lt;p&gt;If you want to replace WSGI, you would not replace it, you would put a new
+layer on top of it.  One that has extensive knowledge about everything
+that happens.  You would have a standardized request/response library that
+covers every single case that is currently needed and make it extensible
+enough to handle future cases as well.&lt;/p&gt;
+&lt;p&gt;If we would have designed a request/response object in 2004 when WSGI was
+created, it would look vastly different from what we know about web
+applications today.  Back then we would probably have supported URL
+encoded form data and XForms (since that was the latest hip thing), now we
+know nobody uses XForms but JSON encoded data is pretty damn common, both
+in incoming and outgoing direction.&lt;/p&gt;
+&lt;p&gt;Then there is the general trend currently towards async servers and
+frameworks.  That's pretty awesome, but all of them are considering WSGI
+to be a hurdle and are bypassing it.  Which then again means that a layer
+on top of WSGI would not be that magic plug either since it would not work
+for non WSGI environments.  If we want to step into that direction WSGI
+itself would need an update to make it work better with async
+environments.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;where-to-go&quot;&gt;
+&lt;h2&gt;Where to Go?&lt;/h2&gt;
+&lt;p&gt;Every once in a while someone shows up with an idea how to replace WSGI.
+In the end however every new conflicting specification does not really
+solve what people hope it would solve: making frameworks work better with
+each other.  And there I think the glue that brings everything together
+will not be on the server side.  It won't be a new version of WSGI, it
+will be client side JavaScript that synchronizes authentication from one
+part of the application to another without he user realizing that.  It
+will be JavaScript that speaks to different backend servers written in
+different frameworks of languages even and then render that on the client
+side into whatever is necessary.&lt;/p&gt;
+&lt;p&gt;Personally I am pretty damn sure that WSGI no longer carries the
+importance it had a few years ago.  I think it no longer makes sense to
+merge different applications on the WSGI level together, it should be done
+on a higher level and JavaScript is a nice way to do that.&lt;/p&gt;
+&lt;p&gt;Just think about Google's gray bar.  You can totally throw such a bar on
+top of different independent parts of the application by emitting a tiny
+piece of JavaScript that generates that bar and handles your user session.&lt;/p&gt;
+&lt;p&gt;In general JSON via HTTP or zeromq is so much cooler and more flexible
+than WSGI could ever be.  I think if we accept that as a possible way to
+build applications out of components and start experimenting with it we
+could build some really cool stuff.&lt;/p&gt;
+&lt;p&gt;But that's just my 50 cents on this topic.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">WSGI on Python 3</title>
+    <id>http://lucumr.pocoo.org/2010/5/25/wsgi-on-python-3</id>
+    <updated>2010-05-25T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2010/5/25/wsgi-on-python-3" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Yesterday after my talk about WSGI on Python 3 I announced an OpenSpace
+about WSGI. However only two people showed up there which was quite
+disappointing. On the bright side however: it was in parallel to some
+interesting lighting talks and I did not explain to well what the
+purpose of this OpenSpace was.&lt;/p&gt;
+&lt;p&gt;In order to do better this time around, I want to summarize the current
+situation of WSGI on Python 3, what the options are and why I'm at the
+moment thinking of going back to an earlier proposal that was dismissed
+already.&lt;/p&gt;
+&lt;p&gt;So here we go again:&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;language-changes&quot;&gt;
+&lt;h2&gt;Language Changes&lt;/h2&gt;
+&lt;p&gt;There are a couple of changes in the Python language that are relevant
+to WSGI because they make certain things harder to implement and others
+easier. In Python 2.x bytestrings and unicode strings shared many
+methods and Python would do a lot to make it easy for you to implicitly
+switch between the two types. The root cause of the unicode decode and
+unicode encode errors everybody knows in Python are often caused by the
+implicit conversion going on.&lt;/p&gt;
+&lt;p&gt;Now in Python 3 the whole thing looks a lot different.  There are only
+unicode strings now and the bytestrings got replaced by things that are
+more like arrays than strings.  Take this Python 2 example:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;foo&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;sa&quot;&gt;u&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;bar&amp;#39;&lt;/span&gt;
+&lt;span class=&quot;go&quot;&gt;u&amp;#39;foobar&amp;#39;&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;foo &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;42&lt;/span&gt;
+&lt;span class=&quot;go&quot;&gt;&amp;#39;foo 42&amp;#39;&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;print&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;foo&amp;#39;&lt;/span&gt;
+&lt;span class=&quot;go&quot;&gt;foo&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;list&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;foo&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;go&quot;&gt;[&amp;#39;f&amp;#39;, &amp;#39;o&amp;#39;, &amp;#39;o&amp;#39;]&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;dl class=&quot;docutils&quot;&gt;
+&lt;dt&gt;Now compare that to the very same example on Python 3, just with syntax&lt;/dt&gt;
+&lt;dd&gt;adjusted to the new rules:&lt;/dd&gt;
+&lt;/dl&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;foo&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;bar&amp;#39;&lt;/span&gt;
+&lt;span class=&quot;gt&quot;&gt;Traceback (most recent call last):&lt;/span&gt;
+&lt;span class=&quot;gr&quot;&gt;  File &amp;quot;&amp;quot;, line 1, in&lt;/span&gt;
+&lt;span class=&quot;gr&quot;&gt;TypeError&lt;/span&gt;: &lt;span class=&quot;n&quot;&gt;can&amp;#39;t concat bytes to str&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;foo &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;42&lt;/span&gt;
+&lt;span class=&quot;gt&quot;&gt;Traceback (most recent call last):&lt;/span&gt;
+&lt;span class=&quot;gr&quot;&gt;  File &amp;quot;&amp;quot;, line 1, in&lt;/span&gt;
+&lt;span class=&quot;gr&quot;&gt;TypeError&lt;/span&gt;: &lt;span class=&quot;n&quot;&gt;unsupported operand type(s) for %: &amp;#39;bytes&amp;#39; and &amp;#39;int&amp;#39;&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;foo&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;go&quot;&gt;b&amp;#39;foo&amp;#39;&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt;&amp;gt;&amp;gt; &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;list&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;foo&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;go&quot;&gt;[102, 111, 111]&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;There are ways to convert these bytes to unicode strings and the other way
+round, there are also string methods like &lt;cite&gt;title()&lt;/cite&gt; and &lt;cite&gt;upper()&lt;/cite&gt; and
+everything you know from a string, but it still does not behave like a
+string.  Keep this in mind when reading the rest of this article, because
+that explains why the straightforward approach does not work out too well
+at the moment.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;something-about-protocols&quot;&gt;
+&lt;h2&gt;Something about Protocols&lt;/h2&gt;
+&lt;p&gt;WSGI like HTTP or URIs are all based on ASCII or an encoding like latin1
+or even different encodings.  But all those are not based on a single
+encoding that represents unicode.  In Python 2 the unicode situation for
+web applications was fixed pretty quickly by all frameworks in the same
+way: you as the framework/application know the encoding, so decode
+incoming request data from the given charset and operate on unicode
+internally.  If you go to the database, back to HTTP or something else
+that does not operate on unicode, encode to the target encoding which you
+know.&lt;/p&gt;
+&lt;p&gt;This is painless some libraries like Django make it even less painful by
+having special helpers that can convert between utf-8 encoded strings and
+actual unicode objects at any point.  Here a list of web related libraries
+operating on unicode (just a small pick): Django, Pylons, TurboGears 2,
+WebOb, Werkzeug, Jinja, SQLAlchemy, Genshi, simplejson, feedparser and the
+list goes on.&lt;/p&gt;
+&lt;p&gt;What these libraries can have, what a protocol like WSGI does not, is
+having the knowledge of the encoding used. Why? Because in practice (not
+on the paper) encodings on the web are very simple and driven by the
+application: the encoding the application sends out is the encoding that
+comes back. It's as simple as that.  However WSGI does not have that
+knowledge because how would you tell WSGI what encoding to assume?  There
+is no configuration for WSGI so the only thing we could do is forcing a
+specific charset for WSGI applications on Python 3 if we want to get
+unicode onto that layer.  Like utf-8 for everything except headers which
+should be latin1 for RFC compliance.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;byte-based-wsgi&quot;&gt;
+&lt;h2&gt;Byte Based WSGI&lt;/h2&gt;
+&lt;p&gt;On Python 2 WSGI is based on bytes.  If we would go with bytes on Python 3
+as well, the specification for Python 3 would look like this:&lt;/p&gt;
+&lt;ol class=&quot;arabic simple&quot;&gt;
+&lt;li&gt;WSGI &lt;cite&gt;environ&lt;/cite&gt; keys are unicode&lt;/li&gt;
+&lt;li&gt;WSGI &lt;cite&gt;environ&lt;/cite&gt; values that contain incoming request data are
+bytes&lt;/li&gt;
+&lt;li&gt;headers, chunks in the response iterable as well as status
+code are bytes as well&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;If we ignore everything else that makes this approach hard on Python
+3 and only look at the bytes object which just does not behave like a
+standard string any more, a WSGI library based on the standard libraries
+functions and the bytes type is quite complex compared to the Python 2
+counterpart.  Take the very simple code commonly used to reproduce a URL
+from the WSGI environment on Python 2:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;get_host&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;HTTP_HOST&amp;#39;&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;HTTP_HOST&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;SERVER_NAME&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;wsgi.url_scheme&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;SERVER_PORT&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; \
+       &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;https&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;443&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;http&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;80&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)):&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;:&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;SERVER_PORT&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;result&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;get_current_url&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;rv&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;://&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;/&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s%s&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;wsgi.url_scheme&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;get_host&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;urllib&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;quote&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;SCRIPT_NAME&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;strip&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;/&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)),&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;urllib&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;quote&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;/&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;PATH_INFO&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lstrip&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;/&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;qs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;QUERY_STRING&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;qs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;rv&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;?&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;qs&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rv&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;This depends on many string operations and is entirely based on bytes
+(like URLs are). So what has to be changed to make this code work on
+Python 3? Here an untested version of the same code adapted to
+theoretically run on a byte based WSGI implementation for Python 3.&lt;/p&gt;
+&lt;p&gt;The &lt;cite&gt;get_host()&lt;/cite&gt; function is easy to port because it only concatenates
+bytes.  This works exactly the same on Python 3, but we could even improve
+that theoretically by switching to bytearrays which are mutable bytes
+objects which in theory give us better memory management.  But here the
+straightforward port:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;get_host&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;HTTP_HOST&amp;#39;&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;HTTP_HOST&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;SERVER_NAME&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;wsgi.url_scheme&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;SERVER_PORT&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; \
+       &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;https&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;443&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;http&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;80&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)):&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;:&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;SERVER_PORT&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;result&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;The port of the actual &lt;cite&gt;get_current_url()&lt;/cite&gt; function is a little different
+because the string formatting feature used for the Python
+2 implementation are no longer available:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;get_current_url&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;rv&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;wsgi.url_scheme&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;://&amp;#39;&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;get_host&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;/&amp;#39;&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;urllib&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;quote&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;SCRIPT_NAME&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;strip&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;/&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;urllib&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;quote&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;/&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;PATH_INFO&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lstrip&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;/&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;qs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;environ&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;QUERY_STRING&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;qs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;rv&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;sa&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;?&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;qs&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rv&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;The example did not become necessarily harder, but it became a little bit
+more low level. When the developers of the standard library ported over
+some of the functions and classes related to web development they decided
+to introduce unicode in places where it's does not really belong. It's an
+understandable decision based on how byte strings work on Python 3, but it
+does cause some problems. Here a list of places where we have unicode,
+where we previously did not have it. Not judging here on if the decision
+was right or wrong to introduce unicode there, just that it happened:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;All the HTTP functions and servers in the standard library are
+now operating on latin1 encoded headers. The header parsing
+functions will assume latin1 there and pass unicode to you.
+Unfortunately right now, Python 3 does not support non &lt;em&gt;ASCII&lt;/em&gt;
+headers at all which I think is a bug in the implementation.&lt;/li&gt;
+&lt;li&gt;The &lt;cite&gt;FieldStorage&lt;/cite&gt; object is assuming an utf-8 encoded input
+stream as far as I understand which currently breaks binary file
+uploads. This apparently is also an issue with the email package
+which internally is based on a common mime parsing library.&lt;/li&gt;
+&lt;li&gt;&lt;cite&gt;urllib&lt;/cite&gt; also got unicode forcely integrated. It is assuming
+utf-8 encoded string in many places and does not support other
+encodings for some functions which is something that can be fixed.
+Ideally it would also support operations on bytes which is
+currently only the case for unquoting but none of the more complex
+operations.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-about-to-be-spec&quot;&gt;
+&lt;h2&gt;The about-to-be Spec&lt;/h2&gt;
+&lt;p&gt;There are some other places as well where unicode appeared, but
+these are the ones causing the most troubles besides the bytes not
+being a string thing. Now what later most of WEB-SIG agreed with and
+what Graham implemented for &lt;cite&gt;mod_wsgi&lt;/cite&gt; ultimately is a fake unicode
+approach. What does this mean? Make sure that all the information is
+stored as unicode but not with the proper encoding (which WSGI would
+not know) but just assume latin1. If latin1 is not what the
+application expected, the application can encode back to latin1 and
+decode from utf-8. (As far as I know, this is loss-less).&lt;/p&gt;
+&lt;p&gt;Here what the current specification looks like that is about to be
+crafted into a PEP:&lt;/p&gt;
+&lt;ol class=&quot;arabic simple&quot;&gt;
+&lt;li&gt;The application is passed an instance of a Python dictionary
+containing what is referred to as the WSGI environment. All keys
+in this dictionary are native strings. For CGI variables, all
+names are going to be ISO-8859-1 and so where native strings are
+unicode strings, that encoding is used for the names of CGI
+variables.&lt;/li&gt;
+&lt;li&gt;For the WSGI variable 'wsgi.url_scheme' contained in the WSGI
+environment, the value of the variable should be a native
+string.&lt;/li&gt;
+&lt;li&gt;For the CGI variables contained in the WSGI environment, the
+values of the variables are native strings. Where native strings
+are unicode strings, ISO-8859-1 encoding would be used such that
+the original character data is preserved and as necessary the
+unicode string can be converted back to bytes and thence decoded
+to unicode again using a different encoding.&lt;/li&gt;
+&lt;li&gt;The WSGI input stream 'wsgi.input' contained in the WSGI
+environment and from which request content is read, should yield
+byte strings.&lt;/li&gt;
+&lt;li&gt;The status line specified by the WSGI application should be a
+byte string. Where native strings are unicode strings, the
+native string type can also be returned in which case it would
+be encoded as ISO-8859-1.&lt;/li&gt;
+&lt;li&gt;The list of response headers specified by the WSGI
+application should contain tuples consisting of two values,
+where each value is a byte string. Where native strings are
+unicode strings, the native string type can also be returned in
+which case it would be encoded as ISO-8859-1.&lt;/li&gt;
+&lt;li&gt;The iterable returned by the application and from which
+response content is derived, should yield byte strings. Where
+native strings are unicode strings, the native string type can
+also be returned in which case it would be encoded as
+ISO-8859-1.&lt;/li&gt;
+&lt;li&gt;The value passed to the 'write()' callback returned by
+'start_response()' should be a byte string. Where native strings
+are unicode strings, a native string type can also be supplied,
+in which case it would be encoded as ISO-8859-1.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;why-i-m-unhappy-again&quot;&gt;
+&lt;h2&gt;Why I'm Unhappy again&lt;/h2&gt;
+&lt;p&gt;I did some tests lately with toying around and starting to work on a
+port of Werkzeug but the more I worked with it, the more I disliked
+it. WSGI in Python 2 was already a protocol that was far more
+complex than it should have been and some parts of it just don't
+make any sense (like the input stream having readline without size)
+but it was something you could get started quickly and the basics
+were simple. Middlewares, the area where WSGI was already a far too
+complex now just become more complex because they have to encode
+unicode strings before they can operate on them, even if it's just
+comparing.&lt;/p&gt;
+&lt;p&gt;It just feels like the more I play with it, the more unhappy I
+become with how the bytes object works and how the standard library
+behaves. And I doubt I will be the only one here. It's just that
+playing with the actual code shows problems you wouldn't spot on the
+paper so I would love to see a wider crowd of people toying with
+both the language and specification to make sure WSGI stays a
+specification everybody is happy with.&lt;/p&gt;
+&lt;p&gt;Right now I'm a little bit afraid we end up with a specification
+that requires use to do the encode/decode/encode/decode dance just
+because the standard library and a limitation on the bytes object
+makes us do. Because one thing is for certain: ASCII and bytes are
+here to stay. Nobody can change the protocols that are in use, and
+even those would on the very bottom have to be based on bytes. And
+if the tools to work with them are not good enough in Python 3 we
+will see the problems with that on multiple levels, not just WSGI
+(Databases, email, and more).&lt;/p&gt;
+&lt;p&gt;What I currently have in mind is a bit more than what was ever on
+discussion for WSGI which is why I don't expect anything like that
+to be implemented, but it can't harm sharing:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;Support basic string formatting for bytes&lt;/li&gt;
+&lt;li&gt;Support bytes in more places of the standard library (urllib,
+cgi module etc.)&lt;/li&gt;
+&lt;li&gt;use bytes for values (not keys) in the WSGI spec for Python 3,
+just like in Python 2&lt;/li&gt;
+&lt;li&gt;use bytes for headers, status codes and everything for Python 3&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I am happy to accept a quasi-unicode support as well and will port
+Werkzeug over to it. But it's probably still the time to improve the
+specification &lt;em&gt;and&lt;/em&gt; language that everybody is happy. Right now it
+looks like not a lot of people are playing with the specification,
+the language and the implications of all that. The reason why Python
+3 is not as good as it could be, is that far too few people look at
+it. It is clear that the future of Python will be Python 3 and that
+there are no intentions of make other releases than Python 2.7, so
+to make the process less painful it's necessary to start playing
+with it now.&lt;/p&gt;
+&lt;p&gt;So I encourage everyone to play with Python 3, the spec, the
+standard library so that there is more input. Maybe the bytes issue
+does look like I think it is, maybe it's not. But if only a four
+people are discussing the issue, there is too few input to make
+rational decisions.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+</feed>
+

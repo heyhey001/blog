@@ -1,0 +1,1060 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Armin Ronacher's Thoughts and Writings</title>
+  <id>http://lucumr.pocoo.org/feed.atom</id>
+  <updated>2013-07-23T00:00:00Z</updated>
+  <link href="http://lucumr.pocoo.org/" />
+  <link href="http://lucumr.pocoo.org/feed.atom" rel="self" />
+  <subtitle type="text">Armin Ronacher's personal blog about programming, games and random thoughts that come to his mind.</subtitle>
+  <generator>Werkzeug</generator>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Are you sure you want to use GPL?</title>
+    <id>http://lucumr.pocoo.org/2009/2/12/are-you-sure-you-want-to-use-gpl</id>
+    <updated>2009-02-12T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2009/2/12/are-you-sure-you-want-to-use-gpl" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;When I started using Linux I was totally sold to the concept of Open
+Source. I still am, but my view changed. The first code I released under
+an Open Source license was GPL licensed and I continued to do so for
+some time. The last code under the GPL license I actively developed was
+&lt;a class=&quot;reference external&quot; href=&quot;http://zine.pocoo.org/&quot;&gt;Zine&lt;/a&gt; until a few days before the release
+when I relicensed it under the modified BSD license.&lt;/p&gt;
+&lt;p&gt;The reason why I changed the license is a rather complex one and I want
+to share my experiences with the GPL and other Open Source licenses here
+for a moment. I suppose many people acted like me and chose the GPL
+because everyone else did but didn't know about all the implications it
+has.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;left-versus-right&quot;&gt;
+&lt;h2&gt;Left versus Right&lt;/h2&gt;
+&lt;p&gt;The GPL and BSD (and friends) licenses couldn't be more different. It
+starts with the length of the paper. The BSD license is two or three
+clauses of text plus a copyright information and no-warranty clause. The
+GPLv3 on the other hand has 600 lines of text. BSD restricts the rights,
+GPL permits. Restricting rights sounds bad, but it just means that you
+can do everything with it, except the stuff listed in the license. The
+GPL starts by explaining what you can do with it. The GPL is following
+the &lt;a class=&quot;reference external&quot; href=&quot;http://en.wikipedia.org/wiki/Copyleft&quot;&gt;Copyleft&lt;/a&gt; principle,
+something the BSD license is not doing.&lt;/p&gt;
+&lt;p&gt;This has some very complex implications many GPL / BSD users don't know
+about but should.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;what-bsd-means&quot;&gt;
+&lt;h2&gt;What BSD means&lt;/h2&gt;
+&lt;p&gt;Let's start with the BSD license, the license of my choice. The three
+clause version is very similar to the MIT license and the two clause
+version is basically the MIT license. What does it say?&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Copyright (c) &amp;lt;year&amp;gt;, &amp;lt;copyright holder&amp;gt; All rights reserved.&lt;/p&gt;
+&lt;p&gt;Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.&lt;/li&gt;
+&lt;li&gt;Redistributions in binary form must reproduce the above
+copyright notice, this list of conditions and the following
+disclaimer in the documentation and/or other materials provided
+with the distribution.&lt;/li&gt;
+&lt;li&gt;Neither the name of the &amp;lt;organization&amp;gt; nor the names of its
+contributors may be used to endorse or promote products derived
+from this software without specific prior written permission.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Pretty simple. It allows the user to do everything with the application
+but removing the Copyright. The third clause means that derived works
+may not use the author's names for advertising. This clause is not in
+the 2 clause BSD and MIT licenses.&lt;/p&gt;
+&lt;p&gt;Now this of course means that someone can take your software, change the
+branding and sell it. The world is bad and you can be sure that this
+will happen if your application is worth it. We'll cover that part of
+the license a little bit later.&lt;/p&gt;
+&lt;p&gt;Let's see how the GPL works there.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;what-gpl-means&quot;&gt;
+&lt;h2&gt;What GPL means&lt;/h2&gt;
+&lt;p&gt;The GPL license is too long to be quoted here, but I'll try to sum up
+the most important aspects of it:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;Copies may be distributed free of charge or for money, but the
+source code has to be shipped or provided free of charge (or at cost
+price) on demand. The receiver of the source code has the same rights
+meaning he can share copies free of charge or resell.&lt;/li&gt;
+&lt;li&gt;The licensed material may be analysed or modified.&lt;/li&gt;
+&lt;li&gt;Modified material may be distributed under the same licensing terms
+but don't have to be distributed.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;There is a lot more in the license, like how long source code has to be
+available and how to deal with that, but the essence is that. Like for
+the BSD license someone can take the application, rebrand it and sell
+it, however the license demands that the modified source is available
+under the same license.&lt;/p&gt;
+&lt;p&gt;However modifications only have to be made available to the public if
+distribution happens. So it's perfectly fine to take GPL code, modify it
+heavily and use it in a not distributed application / library. This is
+how companies like Google can run their own patched versions of Linux
+for example.&lt;/p&gt;
+&lt;p&gt;But what this also means is that non GPL code can't use GPL code which
+is also the main problem of it.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;license-compatibilities&quot;&gt;
+&lt;h2&gt;License Compatibilities&lt;/h2&gt;
+&lt;p&gt;BSD is GPL compatible, but GPL does not permit the use of GPL licensed
+code in non-GPL code. This is especially annoying if important libraries
+users expect are GPL. For example the very popular &lt;a class=&quot;reference external&quot; href=&quot;http://en.wikipedia.org/wiki/GNU_readline&quot;&gt;readline&lt;/a&gt; library is GPL licensed.
+Users of OS X will know that, because interactive shells of Python and
+other non GPL applications sucks there. People tried to rewrite readline
+to get rid of the GPL problem but the alternatives are not as well
+maintained as the original one.&lt;/p&gt;
+&lt;p&gt;I guess this is also what Steve Ballmer referred to as “cancer”.
+Unfortunately he's not entirely wrong there. For example I tried to
+develop an interactive administration shell for &lt;a class=&quot;reference external&quot; href=&quot;http://zine.pocoo.org/&quot;&gt;Zine&lt;/a&gt; but without readline (which I cannot use as
+Zine is BSD licensed) the user experience is just meh. I would have to
+relicense the entire application to GPL just so that I can have an
+interactive shell with readline support.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;freedom&quot;&gt;
+&lt;h2&gt;Freedom&lt;/h2&gt;
+&lt;p&gt;Now this depends on how you define freedom. The people behind the GPL
+have a very communistic point of view in terms of freedom: free software
+should be available to everybody under the same terms. Unfortunately
+like communism it does not work out that well because it turns out
+humans are not really compatible to that way to look at things. On the
+other hand there are the permissive licenses like BSD that just give
+away all rights except the copyright and do not enforce freedom. You can
+take BSD code and re-license it under the GPL if you want to. That kind
+of freedom however is a one-way ticket. Once you made a GPL release of
+your code there will always be a GPL version of it. If not for future
+releases, at least for that one release as you can't revoke the license.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;making-money&quot;&gt;
+&lt;h2&gt;Making Money&lt;/h2&gt;
+&lt;p&gt;Ultimately the goal of software development for many is to make money.
+Many people decide to utilize the GPL license for that by dual-licensing
+the code under the GPL and a proprietary license where the latter is
+only available to costumers. As a single developer it's arguable harder
+to sell code that is licensed under the BSD license. There the business
+model is probably more selling non-open-source extensions to paying
+costumers. If you open source all your code under the BSD you have to be
+really good so that you can make money out of it.&lt;/p&gt;
+&lt;p&gt;Many developers don't really care about that, have their fun developing
+it and BSD license it for others to start where they stopped. A good
+example of successful BSD / MIT code are &lt;a class=&quot;reference external&quot; href=&quot;http://www.djangoproject.com/&quot;&gt;Django&lt;/a&gt; and &lt;a class=&quot;reference external&quot; href=&quot;http://rubyonrails.org/&quot;&gt;Ruby on Rails&lt;/a&gt;. Both projects developed by strong
+communities with supporting companies behind it. The company behind
+Rails creates very successful closed source applications based on Rails;
+Many of the developers working on Django are paid by individual
+companies that work with it.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;recap&quot;&gt;
+&lt;h2&gt;Recap&lt;/h2&gt;
+&lt;p&gt;Before you license your code under an Open Source license: Think about
+the license! Both types of licenses have their advantages and
+disadvantages and it would be stupid to use the GPL without thinking
+just because “everybody does”. Many just do because they haven't read
+the license either.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">free VS free</title>
+    <id>http://lucumr.pocoo.org/2009/7/14/free-vs-free</id>
+    <updated>2009-07-14T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2009/7/14/free-vs-free" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Seems like my favourite &lt;a class=&quot;reference external&quot; href=&quot;http://zedshaw.com/blog/2009-07-13.html&quot;&gt;discussion&lt;/a&gt; &lt;a class=&quot;reference external&quot; href=&quot;http://jacobian.org/writing/gpl-questions&quot;&gt;is back&lt;/a&gt;. In the ring two guys: Zed
+Shaw, the developer of lamson and mongrel, on the other side we have
+Jacob Kaplan-Moss Django's BDFL.&lt;/p&gt;
+&lt;p&gt;This time the discussion seems to be entitled &amp;quot;Because the only thing
+better than an arbitrarily restrictive license is an ambiguously
+restrictive license&amp;quot; [&lt;a class=&quot;reference external&quot; href=&quot;http://twitter.com/jacobian/status/2598708129&quot;&gt;via twitter&lt;/a&gt;]. I won't warm up the
+discussion with new arguments (promised) but what I found most
+interesting about the discussion is &lt;a class=&quot;reference external&quot; href=&quot;http://zedshaw.com/blog/2009-07-13.html&quot;&gt;Zed's blog post&lt;/a&gt; why he's using the (A/L)GPL.
+Basically what he's saying is that he does not want to be burned again
+like he was with Mongrel and uses the GPL to force people to contribute.&lt;/p&gt;
+&lt;p&gt;I'm not exactly sure how that supports freedom. I might be idealistic
+here, but what motivates me the most about the open source libraries I
+work on is how they are used. I got mails from developers in many
+companies that are using various &lt;a class=&quot;reference external&quot; href=&quot;http://dev.pocoo.org/&quot;&gt;Pocoo&lt;/a&gt;
+libraries internally and cannot contribute patches due to restrictions
+in the company structure. Every once in a while I get patches those
+developers craft in their free time and very often I don't get any.
+However the point is, that I can see people using my stuff which
+motivates.&lt;/p&gt;
+&lt;p&gt;I'm not making money with my libraries, but that's probably because I'm
+not a friend of selling code. I love to give the stuff away I'm working
+on, and get payed for support if one needs it. And so far this worked
+flawlessly for me.&lt;/p&gt;
+&lt;p&gt;Forcing people to freedom is not exactly my definition of being free.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;So dear users: Use my stuff, have fun with it. And letting me know
+that you're doing is the best reward I can think of. And if you can
+contribute patches, that's even better.&lt;/strong&gt;&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Licenses dammed Licenses</title>
+    <id>http://lucumr.pocoo.org/2010/6/19/licenses-dammed-licenses</id>
+    <updated>2010-06-19T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2010/6/19/licenses-dammed-licenses" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Just wanted to share a few mistakes I made regarding licensing of &lt;a class=&quot;reference external&quot; href=&quot;http://flask.pocoo.org/&quot;&gt;Flask&lt;/a&gt; and some general suggestions of how to
+handle it. Also I would like to explain a problem I have with open
+source licenses in general and if you have some suggestions. Disclaimer:
+IANAL and what I write down there might be completely wrong. If you know
+better, please let me know. (And I mean it. Granted, I hate licensing,
+but I also depend on them so I want to have a good understanding of what
+the heck I'm actually doing by licensing my stuff)&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;closed-open&quot;&gt;
+&lt;h2&gt;Closed Open&lt;/h2&gt;
+&lt;p&gt;I love Open Source, I really do. All my code is licenses under the very
+generous BSD license which comes with barely any strings attached: do
+what you want, keep the copyright around, do not use my name to endorse
+derived products. And I am totally fine with that. But that is my take
+on code alone. When it comes to artwork and design I would love to use a
+less open license. Why? Let's take the &lt;a class=&quot;reference external&quot; href=&quot;http://flask.pocoo.org/docs/&quot;&gt;Flask documentation&lt;/a&gt; as an example. This documentation has a
+nice and simple stylesheet and is still unique enough that one could
+recognize Flask or Flask related projects from it. So I would love (but
+can't) limit that license to something like: use this only for Flask
+related projects or modify it enough to be visually different. Now of
+course that is a fishy description, but this could be fixed. The problem
+however is that this is no longer an open source license (which I would
+not have any problems with). After all that also forces Linux
+distributions like Debian to ship a modified version of my project with
+a different style for the documentation because they have to reject such
+packages or put it into the non-free section.&lt;/p&gt;
+&lt;p&gt;Both things I would love to avoid, so I back-paddled on my licensing
+plans and put the themes under the BSD license with friendly reminder
+now. But when I was changing the license an interesting thing came up:
+could it be that the old theme was partially unlicensed? Now one
+stylesheet was already BSD licensed, that was not a problem, the
+template files and everything else did not have a license header nor was
+a LICENSE file in place. The way Flask used that style was with a git
+submodule. Interestingly this was not present in the source distribution
+of Flask. So unless Debian made any changes, the docs would not build
+out of the box on a Debian system anyway which brought back my idea for
+going the non-free path with docs. But that is now past in any case, so
+let's move on. But the more interesting question here is what license
+that thing is under now. I am pretty sure one could argue that the
+original documentation was not licensed, thus closed source and all
+Flask extensions I did not write were violating the license (which was
+never the intention because the documentation strongly recommends the
+Flask documentation themes).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;licensing-documentation&quot;&gt;
+&lt;h2&gt;Licensing Documentation&lt;/h2&gt;
+&lt;p&gt;Licenses from a source POV are already crazy, but when it comes to
+documentation texts, images and everything else involved in a modern
+application or even software library the whole thing becomes way more
+complex. Like many others I so far licensed my code under the BSD
+license and I did that by adding a quick licensing header to all files
+and adding a LICENSE file with the license text. The license text was
+more or less the original three-clause BSD license text with &amp;quot;University
+of Berkley&amp;quot; replaced by &amp;quot;Copyright Holder&amp;quot; and a line that describes who
+the copyright holder is/are so that copy/pasting that license gets
+easier. With Flask I now made a change to that license so that it not
+only mentions source and binaries, but also the documentation explicitly
+(&lt;a class=&quot;reference external&quot; href=&quot;http://flask.pocoo.org/docs/license/#flask-license&quot;&gt;read the new license&lt;/a&gt;). From a legal
+point of view it should still be the same as before, but now explicitly
+mentions the documentation. That documentation should get their own
+license is something I did not come up with, other people did that
+before me. Which is why there exists a list of documentation licenses:
+&lt;a class=&quot;reference external&quot; href=&quot;http://www.gnu.org/licenses/fdl.html&quot;&gt;GNU Free Documentation License&lt;/a&gt;, &lt;a class=&quot;reference external&quot; href=&quot;http://www.freebsd.org/copyright/freebsd-doc-license.html&quot;&gt;FreeBSD Documentation License&lt;/a&gt;, the
+&lt;a class=&quot;reference external&quot; href=&quot;http://en.wikipedia.org/wiki/Creative_Commons_licenses&quot;&gt;Creative Commons Licenses&lt;/a&gt; and many
+more.&lt;/p&gt;
+&lt;p&gt;Now my first plan was to adapt the FreeBSD Documentation License because
+it is very close to the BSD license and should not cause any troubles
+switching to without having to ask all the persons who provided patches.
+Though a licensing change is a licensing change and even if just the
+wording changed I would not pull this off without sending out mails
+first. But before I even came to that, I noticed that this would not
+work out at all. Because if that is assumed to be a different license
+than the BSD license used previously the final built documentation would
+be affected by both the BSD and now the FreeBSD documentation license.
+Why that? Because the sourcecode itself is still under the BSD license
+and with that the docstrings in there which are pulled directly into the
+final documentation. While one could argue in many programming languages
+that the comments are under a different license, this does not work out
+well in Python where the docstrings are available at runtime. They are
+clearly part of the program.&lt;/p&gt;
+&lt;p&gt;My final change was to take the previous BSD license and explicitly add
+&amp;quot;and documentation&amp;quot; to everything that previously just listed &amp;quot;source&amp;quot;
+and &amp;quot;binary&amp;quot; form.&lt;/p&gt;
+&lt;p&gt;I am quite confident that this is overkill but still serves the purpose.
+To be honest I doubt anyone would ever want to sue anyone based on
+ambiguous documentation licenses, but for me the whole point of a
+license is to be something I can defend my project on. And as such I
+want to have a clear understanding for myself what exactly is under
+which license. If someone would have asked me a week ago under that
+license my documentation was, I would have answered with BSD. If then
+that person would have asked me where this was written down I would have
+had a harder time explaining that &amp;quot;source&amp;quot; also means restructured text
+and &amp;quot;binary&amp;quot; also means HTML.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;logos-and-design&quot;&gt;
+&lt;h2&gt;Logos and Design&lt;/h2&gt;
+&lt;p&gt;Now this is where I am totally lost. When I was asking on Twitter what
+license to pick for a project logo, people answered with the creative
+commons attribute non-derivative 3.0 license (hereby named CC-ND-3.0).
+Now I actually did license that logo under that license and even shipped
+it with the documentation and the Flask tarball, and it also ended up in
+Debian. The interesting part is that the website clearly mentioned the
+license as CC-ND-3.0. I just violated my own license and from my
+understanding of the copyright law, what I released should be considered
+CC-ND-3.0 for the logo because I would not be legally allowed to license
+that as BSD. This is pretty weird because as a copyright holder I can
+release that thing under anything but you could argue that because the
+LICENSE file was not in the same folder as the logo and the logo was
+just copied there, it not automatically becomes BSD licensed. That's
+like if I would copy the Debian logo into my project it does not become
+BSD licensed, I just made a license violation by not adding the license.
+Again, in the Debian can I'm not the copyright holder, but I could
+imagine that if that would have to be defended in court, the same logic
+would apply.&lt;/p&gt;
+&lt;p&gt;Either way, the interesting part here is that the CC-ND-3.0 license is
+not accepted in Debian because it is not a free license. So in theory if
+my package would be a license violation and I correct this license
+violation by revoking all current releases, and re-release those
+packages with a license text for CC-ND-3.0 Debian would have to update
+all their tarballs to exclude the logo from it. It's fun to see how such
+small differences can cause such an amount of troubles for all parties
+involved. So I decided not to be a dick and adapt a very simple license
+for the logo (&lt;a class=&quot;reference external&quot; href=&quot;http://flask.pocoo.org/docs/license/#flask-artwork-license&quot;&gt;read license text&lt;/a&gt;) that is
+formed after the Debian free logo license. It also has a BSD-ish clause
+regarding endorsements by Flask authors and recommends linking to the
+Flask project website. From what I understand, old release are now okay
+in compliance with the new license which also works retroactively so
+Debian should be in the clear. However the source version of the logo
+(the SVG file) still has to come with the license text which never was
+part of the distribution tarballs.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;logo-and-design-protection&quot;&gt;
+&lt;h2&gt;Logo and Design Protection&lt;/h2&gt;
+&lt;p&gt;At that point I'm totally convinced that there is no way, besides
+registering a trademark, to protect your logos for an open source
+project. Restrictive licenses are not accepted by Debian and many other
+Linux distribution causing a lot of work for all parties involved.
+Sounds pretty bad for small open source projects but in reality the
+majority of people are reasonable and have no problems with accepting
+&amp;quot;recommendations&amp;quot; or &amp;quot;kind requests&amp;quot; in licenses.&lt;/p&gt;
+&lt;p&gt;Of course once your logo is BSD-ish licensed people actually could use
+the logo for something completely different. I would love to hear about
+a reasonable recommendation in that regard besides: just ignore it. The
+point is: as long there is no license, it is closed source and Debian
+cannot ship it. I am also not totally sure exactly what the Debian logo
+license (and as such the Flask logo license) exactly allows. May you now
+use this logo as a bullet point on a website not related to Flask? From
+my understanding yes, because otherwise it would not be considered open
+source, but what exactly is the legal interpretation of this sentence be
+then?&lt;/p&gt;
+&lt;blockquote&gt;
+This logo or a modified version may be used by anyone to refer to
+the Flask project, but does not indicate endorsement by the project.&lt;/blockquote&gt;
+&lt;p&gt;At that point I am totally lost and just want to ignore that problem,
+but it would be interesting how an open source project can get a bit of
+control over the non-source parts. Logos are something I would love to
+see sort-of protected.&lt;/p&gt;
+&lt;p&gt;To come back to the copyright problem with the documentation style: I am
+well aware of the fact that protecting visual appearances on copyright
+is not possible. One could replicate a 1:1 version of the Flask
+documentation design for instance by never looking at the original CSS
+and template files and would be totally fine (clean room reverse
+engineering). But to be honest, nobody does the work of reproducing the
+documentation style 1:1, that would be far more complex and time
+consuming than creating your own. I have no problems whatsoever with
+people who take the design and add their personal touch to it. In that
+case why not use my source files?&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;tl;dr:&lt;/strong&gt; licensing is hard, let's go shopping.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Licensing in a Post Copyright World</title>
+    <id>http://lucumr.pocoo.org/2013/7/23/licensing</id>
+    <updated>2013-07-23T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2013/7/23/licensing" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;The GPL used to be the cornerstone of the Open Source movement.  At least
+it always felt that way.  Clearly if you looked closer the situation has
+always been a situation of many licenses and the GNU GPL was only a small
+part of it.  In recent years however it has become painfully obvious that
+a lot of developers have built up an open hatred for the licenses on
+different levels.&lt;/p&gt;
+&lt;p&gt;What I found surprising however is how little the license is being
+discussed nowadays.  If you Google for discussions on the GPLv3 the most
+you are generally greeted with links to articles from 2006 and earlier
+when the debate about the latest revision of the GNU GPL was at its
+height.  However none of the concerns of the discussions back then were
+ever addressed and you can see today that this has left a big impact on
+how the GPL is seen today.&lt;/p&gt;
+&lt;p&gt;The whole topic got a lot of relevance for me again recently due to
+GitHub.  GitHub is one of the pillars of Open Source development these
+days and yet it's also a place where there is more improperly than
+properly licensed software.  Their attempt to change that has been a
+simple license selector and I believe that is a terrible idea, especially
+because it brings up the whole GPL topic again.&lt;/p&gt;
+&lt;p&gt;This article is opening up a bit of the history of Open Source software
+licensing, how it seems to change and what we could do to improve it.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;what-changed-in-2007&quot;&gt;
+&lt;h2&gt;What Changed in 2007&lt;/h2&gt;
+&lt;p&gt;Until the GNU GPLv3 released, the number one Copyleft license was the GNU
+GPLv2 &lt;a class=&quot;footnote-reference&quot; href=&quot;#gplstat&quot; id=&quot;id1&quot;&gt;[1]&lt;/a&gt;.  Copyleft and GNU GPL were seen as the same thing.  GPL
+is a very restrictive license in the sense that it whitelists rights
+instead of just putting a handful of requirements into a license that
+otherwise permits everything.  This made the whole topic of GPL
+compatibility was always something that people discussed.  GPL
+compatibility is generally just the idea that a license can downgrade to
+the GPL.  Most licenses were able to do that, but some licenses had some
+pieces of text that made this impossible.  Most famously the Apache
+License 2.0 was seen as GPL incompatible due to extra restrictions on
+patents and some versions of the Mozilla Public License.&lt;/p&gt;
+&lt;p&gt;Sun liked the whole concept of not being compatible with GPL and later
+drafted a new license on basis of the Mozilla Public License version 1.1
+which was deemed GPL incompatible and created the Common Development and
+Distribution License (CDDL).  This allowed them to release software under
+an Open Source license without allowing the Linux developers to take
+advantage of their open contributions.&lt;/p&gt;
+&lt;p&gt;In 2007 the whole topic of GPL compatibility became a whole lot more
+complicated as a new version of the GPL was written.  Due to how the GPL
+licenses work different versions of the GPL are incompatible with each
+other.  That's not terribly surprising but it's important to note, because
+it has quite profound implications given how people license code under the
+GPL and how the ecosystem was supposed to work.&lt;/p&gt;
+&lt;p&gt;There is a lot of code out there that depending on how you look at it,
+it's either GPLv2 or GPLv3.  This is due to it being possible to license
+code under GPL of a specific version or any later version.  What defines
+what a later version of a GPL license looks like?  The GPL itself &lt;a class=&quot;footnote-reference&quot; href=&quot;#gplv3&quot; id=&quot;id2&quot;&gt;[2]&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+If the Program specifies that a certain numbered version of the GNU
+General Public License “or any later version” applies to it, you have
+the option of following the terms and conditions either of that
+numbered version or of any later version published by the Free
+Software Foundation.&lt;/blockquote&gt;
+&lt;p&gt;There are three camps currently: the camp that stuck to GPLv2, the camp
+that upgraded to GPLv3 and the camp that's GPLv2 or later and depending on
+the context is either GPLv2 or GPLv3.&lt;/p&gt;
+&lt;p&gt;The most vocal projects about their disagreement with the GPLv3 have
+certainly been Linux &lt;a class=&quot;footnote-reference&quot; href=&quot;#linuxgplv2&quot; id=&quot;id3&quot;&gt;[3]&lt;/a&gt; and Busybox &lt;a class=&quot;footnote-reference&quot; href=&quot;#busyboxgpl&quot; id=&quot;id4&quot;&gt;[4]&lt;/a&gt; which both
+decided the only applicable license is the version 2 of the GPL.  On the
+other hand the vast majority of GNU code has been changed over to the
+GPLv3 a couple of years ago.&lt;/p&gt;
+&lt;p&gt;The fun effect of this now is that it's absolutely clear that there are
+two different worlds in which GNU and Linux are living.  There is a
+certain irony that “GNU/Linux” is now a sort of license conflict.  Since
+the vast majority of GNU projects are on GPLv3 only and Linux will always
+be GPLv2 there is no more code sharing that can happen between these
+projects as a result.&lt;/p&gt;
+&lt;p&gt;The GPLv3 switch of projects primarily shows up because these pieces of
+software stop being updated in Apple products or get removed entirely.
+The bash on my Mac is now seven years old because that was the last
+version released under GPLv2 and Apple does not allow GPLv3 software on
+their systems.  It's not just my bash that has not been updated, most
+famously for developers GCC on OS X is stuck a few year in the past.  This
+has also resulted in Apple backing clang and LLVM instead of the GNU
+compiler collection.&lt;/p&gt;
+&lt;p&gt;But why is Apple so opposed to newer versions of the GPL?  The problem is
+that it has become clear in 2007 the GPL has become more of a political
+platform instead of a software license and started to put restrictions
+into the code that make it much harder to deal with.  At one point the GPL
+primarily ensured that someone who distributes a piece of software under
+the GPL has to ensure that derived works are provided under compatible
+license terms.  Now however the license does more than that.&lt;/p&gt;
+&lt;p&gt;The biggest issue for companies with the GPLv3 is most likely the
+“anti-tivoization” part of the license that has a whole extra section on
+how the license interacts when it's part of a consumer product.  The exact
+definition of what a consumer product is a vague definition of “any
+tangible personal property which is normally used for personal, family or
+house hold purposes” or alternatively “anything designed or sold for
+incorporation into a dwelling”.  It also says that in case of doubt a
+product should be seen as consumer product.&lt;/p&gt;
+&lt;p&gt;What happens if the product is a consumer product?  In essence the license
+requires that a modified version of the software must be guaranteed to run
+on an unmodified device.  The license requires that signing keys are in
+the open, that the manual must include information about how modified
+software can be installed and that the device has to ensure that modified
+software can generally be run.  Thankfully the license does not require
+that the distributor is not allowed to void the warranty in that case.&lt;/p&gt;
+&lt;p&gt;Generally however the license terms are a huge problem for companies.  For
+instance Apple sells devices with a secured bootloader that is a consumer
+product (all iPads and iPhones).  It would be impossible for them to
+comply with the GPLv3 license requirements unless they completely get rid
+of the devices' security systems.  And it's not just Apple.  You won't be
+able to get your GPLv3 software in any app store, no matter how hard you
+try.  The license restrictions of the AppStore, Google's Play Store and
+similar distribution systems and the GPLv3 are just not compatible.&lt;/p&gt;
+&lt;table class=&quot;docutils footnote&quot; frame=&quot;void&quot; id=&quot;gplstat&quot; rules=&quot;none&quot;&gt;
+&lt;colgroup&gt;&lt;col class=&quot;label&quot; /&gt;&lt;col /&gt;&lt;/colgroup&gt;
+&lt;tbody valign=&quot;top&quot;&gt;
+&lt;tr&gt;&lt;td class=&quot;label&quot;&gt;&lt;a class=&quot;fn-backref&quot; href=&quot;#id1&quot;&gt;[1]&lt;/a&gt;&lt;/td&gt;&lt;td&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://blogs.the451group.com/opensource/2011/12/15/on-the-continuing-decline-of-the-gpl/&quot;&gt;the 451 group: On the continuing decline of the GPL&lt;/a&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;table class=&quot;docutils footnote&quot; frame=&quot;void&quot; id=&quot;gplv3&quot; rules=&quot;none&quot;&gt;
+&lt;colgroup&gt;&lt;col class=&quot;label&quot; /&gt;&lt;col /&gt;&lt;/colgroup&gt;
+&lt;tbody valign=&quot;top&quot;&gt;
+&lt;tr&gt;&lt;td class=&quot;label&quot;&gt;&lt;a class=&quot;fn-backref&quot; href=&quot;#id2&quot;&gt;[2]&lt;/a&gt;&lt;/td&gt;&lt;td&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://www.gnu.org/licenses/gpl-3.0-standalone.html&quot;&gt;GNU General Public License Version 3&lt;/a&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;table class=&quot;docutils footnote&quot; frame=&quot;void&quot; id=&quot;linuxgplv2&quot; rules=&quot;none&quot;&gt;
+&lt;colgroup&gt;&lt;col class=&quot;label&quot; /&gt;&lt;col /&gt;&lt;/colgroup&gt;
+&lt;tbody valign=&quot;top&quot;&gt;
+&lt;tr&gt;&lt;td class=&quot;label&quot;&gt;&lt;a class=&quot;fn-backref&quot; href=&quot;#id3&quot;&gt;[3]&lt;/a&gt;&lt;/td&gt;&lt;td&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://thread.gmane.org/gmane.linux.kernel/372812&quot;&gt;Linus Torvalds on the GPL Version being used (2007)&lt;/a&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;table class=&quot;docutils footnote&quot; frame=&quot;void&quot; id=&quot;busyboxgpl&quot; rules=&quot;none&quot;&gt;
+&lt;colgroup&gt;&lt;col class=&quot;label&quot; /&gt;&lt;col /&gt;&lt;/colgroup&gt;
+&lt;tbody valign=&quot;top&quot;&gt;
+&lt;tr&gt;&lt;td class=&quot;label&quot;&gt;&lt;a class=&quot;fn-backref&quot; href=&quot;#id4&quot;&gt;[4]&lt;/a&gt;&lt;/td&gt;&lt;td&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://lwn.net/Articles/202106/&quot;&gt;LWN: Busy busy busybox&lt;/a&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-stricter-gpl&quot;&gt;
+&lt;h2&gt;The Stricter GPL&lt;/h2&gt;
+&lt;p&gt;That's however not the only thing that happened in 2007.  Another license
+was published: The GNU Affero GPLv3 &lt;a class=&quot;footnote-reference&quot; href=&quot;#agplv3&quot; id=&quot;id5&quot;&gt;[5]&lt;/a&gt;.  In license text nearly
+equivalent to the GPLv3 it has some extra restrictions in that the license
+triggers in other ways than pure distribution.  The license was written to
+make it possible to enforce the GPL in environments where no traditional
+distribution takes place.  Primarily aim was taken at web services that
+use GPL software but only provide functionality through a web interface or
+API.&lt;/p&gt;
+&lt;p&gt;Since the GPL cannot be further restricted the solution to make GPLv3 and
+AGPLv3 compatible are provisions added to both licenses that all them to
+work together.&lt;/p&gt;
+&lt;p&gt;The AGPLv3 was a terrible success, especially among the startup community
+that found the perfect base license to make dual licensing with a
+commercial license feasible.  MongoDB, RethinkDB, OpenERP, SugarCRM as
+well as WURFL all now utilize the AGPLv3 as a vehicle for dual commercial
+licensing.  The AGPLv3 makes that generally easy to accomplish as the
+original copyright author has the rights to make a commercial license
+possible but nobody who receives the sourcecode itself through the APLv3
+inherits that right.&lt;/p&gt;
+&lt;p&gt;I am not sure if that was the intended use of the license, but that's at
+least what it's definitely being used for now.&lt;/p&gt;
+&lt;table class=&quot;docutils footnote&quot; frame=&quot;void&quot; id=&quot;agplv3&quot; rules=&quot;none&quot;&gt;
+&lt;colgroup&gt;&lt;col class=&quot;label&quot; /&gt;&lt;col /&gt;&lt;/colgroup&gt;
+&lt;tbody valign=&quot;top&quot;&gt;
+&lt;tr&gt;&lt;td class=&quot;label&quot;&gt;&lt;a class=&quot;fn-backref&quot; href=&quot;#id5&quot;&gt;[5]&lt;/a&gt;&lt;/td&gt;&lt;td&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://www.gnu.org/licenses/agpl-3.0-standalone.html&quot;&gt;http://www.gnu.org/licenses/agpl-3.0-standalone.html&lt;/a&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;anti-gpl-movement&quot;&gt;
+&lt;h2&gt;Anti GPL Movement&lt;/h2&gt;
+&lt;p&gt;In parallel to all the new developments in the GPL environment, outside of
+it quite a few things developed.  Not all of them had the same impact
+obviously, but they are countless and generally resulted in people looking
+at the GPL in a new light.&lt;/p&gt;
+&lt;p&gt;Toybox for instance is a project that's prime existence is to not be GPL
+licensed.  It's being developed by Rob Landley who was the previous
+maintainer of the GPLv2 licensed Busybox project of similar scope.  What's
+interesting about Rob Landley is that he's the person who pulled through
+the license clarification of Busybox to mean “GPLv2 only” instead of
+“GPLv2 or later” &lt;a class=&quot;footnote-reference&quot; href=&quot;#busyboxgplv2l&quot; id=&quot;id6&quot;&gt;[7]&lt;/a&gt;.  Shortly after he did that, he left the
+project due to being annoyed with the efforts required to clarify the
+license and the license trolling shown by some contributors to the
+project &lt;a class=&quot;footnote-reference&quot; href=&quot;#busyboxtroll&quot; id=&quot;id7&quot;&gt;[8]&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Considering that Busybox is one of the projects that got infamous for
+enforcing the GPL through the legal system it's very interesting the
+former maintainer would start a new project under Toybox based on the BSD
+license.  The change in thinking can be seen from some conversations on
+mailinglists and notes on his website.  The most glaring one is most
+likely his statement about the effectiveness of the GPL cases:&lt;/p&gt;
+&lt;blockquote&gt;
+From a purely pragmatic perspective: I spent over a year doing busybox
+license enforcement, and a dozen lawsuits later I'm still unaware of a
+SINGLE LINE OF CODE added to the busybox repository as a result...
+&lt;a class=&quot;footnote-reference&quot; href=&quot;#landleygpl&quot; id=&quot;id8&quot;&gt;[9]&lt;/a&gt;&lt;/blockquote&gt;
+&lt;p&gt;In the same blog post he mentions how the response to GPLv3 by Google and
+other companies has largely been boycott.  In regards to why he now goes
+against the whole GPL and not just the GPLv3 is that Android and other
+projects are now trying to rid the whole system of the GPL.  And that's
+something that can clearly be seen.&lt;/p&gt;
+&lt;p&gt;Android goes very far in providing a GPL free userspace.  The general
+license information &lt;a class=&quot;footnote-reference&quot; href=&quot;#androidlicense&quot; id=&quot;id9&quot;&gt;[10]&lt;/a&gt; generally tells people to license
+under the Apache License 2.0 with the exception of kernel modules which
+have to be GPLv2 licenses.  Here again the whole irony of kernel and
+userspace being incompatibly kicks in.  As to why Google likes the ASL:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;We are sometimes asked why Apache Software License 2.0 is the
+preferred license for Android. For userspace (that is, non-kernel)
+software, we do in fact prefer ASL2.0 (and similar licenses like BSD,
+MIT, etc.) over other licenses such as LGPL.&lt;/p&gt;
+&lt;p&gt;Android is about freedom and choice. The purpose of Android is promote
+openness in the mobile world, but we don't believe it's possible to
+predict or dictate all the uses to which people will want to put our
+software. So, while we encourage everyone to make devices that are
+open and modifiable, we don't believe it is our place to force them to
+do so.  Using LGPL libraries would often force them to do so.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Why are people so afraid of the GPL all the sudden?  Partially because the
+GPL has always been a radical license.  Especially in the absence of
+copyright reassignment.  For instance the GPLv2 comes with a clause that
+has been dubbed the “GPLv2 death penalty” &lt;a class=&quot;footnote-reference&quot; href=&quot;#gpldeath&quot; id=&quot;id10&quot;&gt;[11]&lt;/a&gt;.  Essentially it
+means that whoever violates the GPLv2 automatically gets the license
+terminated and not reestablished until they explicitly obtain a new
+license.  Without one authoritative copyright holder it would essentially
+mean to ask each and every contributor for a new license.&lt;/p&gt;
+&lt;p&gt;Now in reality GPL violations have always silently reestablished the
+license for the violator once the dispute has been resolved, but the
+license does not actually state that.  It's unlikely that this will ever
+matter as clearly enough court cases can act as an example of silently
+establishing the license again, but it does leave an ugly aftertaste.&lt;/p&gt;
+&lt;p&gt;More than anything it has become clear however that some think the FSF
+just cannot be trusted.  There are two camps now around the FSF: the ones
+that believe into the general ideology pioneered by Richard Stallman and
+the ones that think the GPLv2 license is okay but that they are not okay
+with the direction the license is taking.  Linus Torvalds obviously being
+a more prominent supporter of the latter camp.  That camp exists because
+the Free Software Foundation is largely stuck in their own world
+&lt;a class=&quot;footnote-reference&quot; href=&quot;#fslosing&quot; id=&quot;id11&quot;&gt;[12]&lt;/a&gt; where cloud computing is the devil, cell phones are
+exclusively tracking devices and Android is something the GPL should
+prevent from happening.  There are GPL supporters that don't support the
+current view of the Free Software Foundation which is dangerous,
+considering they are the only ones that are in the position to shape the
+future versions of the GPL.  Even some GNU projects seem to be disagreeing
+with the goals of the GNU project and the Free Software Foundation.  On
+December 10th 2012 GnuTLS split off the GNU project &lt;a class=&quot;footnote-reference&quot; href=&quot;#gnusplit&quot; id=&quot;id12&quot;&gt;[6]&lt;/a&gt;.&lt;/p&gt;
+&lt;table class=&quot;docutils footnote&quot; frame=&quot;void&quot; id=&quot;gnusplit&quot; rules=&quot;none&quot;&gt;
+&lt;colgroup&gt;&lt;col class=&quot;label&quot; /&gt;&lt;col /&gt;&lt;/colgroup&gt;
+&lt;tbody valign=&quot;top&quot;&gt;
+&lt;tr&gt;&lt;td class=&quot;label&quot;&gt;&lt;a class=&quot;fn-backref&quot; href=&quot;#id12&quot;&gt;[6]&lt;/a&gt;&lt;/td&gt;&lt;td&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://article.gmane.org/gmane.network.gnutls.general/3026&quot;&gt;Nikos Mavrogiannopoulos: gnutls is moving&lt;/a&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-new-licensing&quot;&gt;
+&lt;h2&gt;The New Licensing&lt;/h2&gt;
+&lt;p&gt;As I mentioned before the reason I got interested with licenses again was
+GitHub.  Or more to the point, a presentation by Aaron Williamson
+&lt;a class=&quot;footnote-reference&quot; href=&quot;#githublicenses&quot; id=&quot;id13&quot;&gt;[13]&lt;/a&gt; from the Software Freedom Law Center in combination
+with GitHub's latest changes of adding a license selector.&lt;/p&gt;
+&lt;p&gt;Aaron Williamson's unscientific study of scraping 28% of the oldest GitHub
+repositories yielded the disappointing statistic that only ~15% of all
+repositories had license files, and ~25% of those have the license only
+mentioned in the Readme file.  Out of those licensed repositories the vast
+majority are either MIT/BSD or Apache 2 licensed.  Only about third of all
+projects where under a Copyleft license.&lt;/p&gt;
+&lt;p&gt;This general trend with throwing random code into the internet without
+license declarations is debatable and asks some questions.  However I
+think it shows more that people think licensing is unimportant and only
+needs a bit of attention more than that people are unaware of the
+existence of licenses.  As such I see GitHub's newly added license
+choosing helper dialog problematic.  When you make a new repository it
+gives you a dialog to pick a license without any explanation of what the
+licenses mean.  It even bolds some licenses for you.  The ones that it
+deems more important than others are “Apache v2 License”, “GPLv2” and
+“MIT”.  The irony is that two of the licenses that the dialog deems
+important are actually incompatible with each other.  (Apache and GPLv2).&lt;/p&gt;
+&lt;p&gt;If people did not spend any time before adding a license to their
+repository they will spend no time thinking about the consequences of
+licensing.  And with all the different forms of the GPL now and all the
+legal implications that come from it, I am afraid this license selector is
+going to make things worse rather than better.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-license-compatibility-clusterfuck&quot;&gt;
+&lt;h2&gt;The License Compatibility Clusterfuck&lt;/h2&gt;
+&lt;p&gt;When the GPL is involved the complexities of licensing becomes a non fun
+version of a riddle.  So many things to consider and so many interactions
+to consider.&lt;/p&gt;
+&lt;p&gt;And that GPL incompatibilities are still an issue that actively effects
+people is something many appear to forget.&lt;/p&gt;
+&lt;p&gt;For instance one would think that the incompatibility of the GPLv2 with
+the Apache Software License 2.0 should be a thing of the past now that
+everything upgrades to GPLv3, but it turns out that enough people are
+either stuck with GPLv2 only or do not agree with the GPLv3 that some
+Apache Software licensed projects are required to migrate.  For instance
+Twitter's Bootstrap is currently &lt;a class=&quot;reference external&quot; href=&quot;https://github.com/twbs/bootstrap/issues/2054&quot;&gt;migrating from ASL2.0 to MIT&lt;/a&gt; precisely because
+some people still need GPLv2 compatibility.  Among those projects that
+were affected were Drupal, WordPress, Joomla, the MoinMoin Wiki and
+others.  And even that case shows that people don't care that much about
+licenses any more as Joomla 3 just bundled bootstrap even though they were
+not licenses in a compatible way (GPLv2 vs ASL 2.0).&lt;/p&gt;
+&lt;p&gt;The other traditional case of things not being GPL compatible is the
+OpenSSL project which has a license that does not go well with the GPL.
+That license is also still incompatible with the GPLv3.&lt;/p&gt;
+&lt;p&gt;The whole ordeal is particularly interesting as some not so nice parties
+have started doing license trolling through GPL licenses.  The most recent
+case is Oracle that relicensed Berkeley DB from BSD to APGLv3 which
+started a lengthy discussion on debian-legal &lt;a class=&quot;footnote-reference&quot; href=&quot;#bdbapgl&quot; id=&quot;id14&quot;&gt;[14]&lt;/a&gt;.  Primarily
+because due to that package becoming AGPLv3 it implicitly changes the
+effective license for 106 other packages to AGPLv3 as well.  Considering
+the license change happens on a Debian installation and not in the
+original source software this showcases how complicated licenses can
+become.  The original software that depends on the Berkeley DB can remain
+under its own license just fine if it just always depends on the old
+version of the library that was BSD licensed.  But if Debian would decide
+to make that software depend on the new version that is AGPLv3 licensed
+then the whole software would change license to AGPLv3 as well.&lt;/p&gt;
+&lt;table class=&quot;docutils footnote&quot; frame=&quot;void&quot; id=&quot;busyboxgplv2l&quot; rules=&quot;none&quot;&gt;
+&lt;colgroup&gt;&lt;col class=&quot;label&quot; /&gt;&lt;col /&gt;&lt;/colgroup&gt;
+&lt;tbody valign=&quot;top&quot;&gt;
+&lt;tr&gt;&lt;td class=&quot;label&quot;&gt;&lt;a class=&quot;fn-backref&quot; href=&quot;#id6&quot;&gt;[7]&lt;/a&gt;&lt;/td&gt;&lt;td&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://article.gmane.org/gmane.linux.busybox/16880&quot;&gt;Rob Landley: GPL version 2 only for BusyBox 1.3.0&lt;/a&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;table class=&quot;docutils footnote&quot; frame=&quot;void&quot; id=&quot;busyboxtroll&quot; rules=&quot;none&quot;&gt;
+&lt;colgroup&gt;&lt;col class=&quot;label&quot; /&gt;&lt;col /&gt;&lt;/colgroup&gt;
+&lt;tbody valign=&quot;top&quot;&gt;
+&lt;tr&gt;&lt;td class=&quot;label&quot;&gt;&lt;a class=&quot;fn-backref&quot; href=&quot;#id7&quot;&gt;[8]&lt;/a&gt;&lt;/td&gt;&lt;td&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://thread.gmane.org/gmane.linux.busybox/17254&quot;&gt;Rob Landley: I'm going out now. I may be some time&lt;/a&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;table class=&quot;docutils footnote&quot; frame=&quot;void&quot; id=&quot;landleygpl&quot; rules=&quot;none&quot;&gt;
+&lt;colgroup&gt;&lt;col class=&quot;label&quot; /&gt;&lt;col /&gt;&lt;/colgroup&gt;
+&lt;tbody valign=&quot;top&quot;&gt;
+&lt;tr&gt;&lt;td class=&quot;label&quot;&gt;&lt;a class=&quot;fn-backref&quot; href=&quot;#id8&quot;&gt;[9]&lt;/a&gt;&lt;/td&gt;&lt;td&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://landley.net/notes-2011.html#13-11-2011&quot;&gt;Rob Landley on Toybox being BSD&lt;/a&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;table class=&quot;docutils footnote&quot; frame=&quot;void&quot; id=&quot;androidlicense&quot; rules=&quot;none&quot;&gt;
+&lt;colgroup&gt;&lt;col class=&quot;label&quot; /&gt;&lt;col /&gt;&lt;/colgroup&gt;
+&lt;tbody valign=&quot;top&quot;&gt;
+&lt;tr&gt;&lt;td class=&quot;label&quot;&gt;&lt;a class=&quot;fn-backref&quot; href=&quot;#id9&quot;&gt;[10]&lt;/a&gt;&lt;/td&gt;&lt;td&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://source.android.com/source/licenses.html&quot;&gt;Android Licensing Information&lt;/a&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;table class=&quot;docutils footnote&quot; frame=&quot;void&quot; id=&quot;gpldeath&quot; rules=&quot;none&quot;&gt;
+&lt;colgroup&gt;&lt;col class=&quot;label&quot; /&gt;&lt;col /&gt;&lt;/colgroup&gt;
+&lt;tbody valign=&quot;top&quot;&gt;
+&lt;tr&gt;&lt;td class=&quot;label&quot;&gt;&lt;a class=&quot;fn-backref&quot; href=&quot;#id10&quot;&gt;[11]&lt;/a&gt;&lt;/td&gt;&lt;td&gt;&lt;a class=&quot;reference external&quot; href=&quot;https://lwn.net/Articles/455013/&quot;&gt;LWN: Android and the GPLv2 death penalty&lt;/a&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;table class=&quot;docutils footnote&quot; frame=&quot;void&quot; id=&quot;fslosing&quot; rules=&quot;none&quot;&gt;
+&lt;colgroup&gt;&lt;col class=&quot;label&quot; /&gt;&lt;col /&gt;&lt;/colgroup&gt;
+&lt;tbody valign=&quot;top&quot;&gt;
+&lt;tr&gt;&lt;td class=&quot;label&quot;&gt;&lt;a class=&quot;fn-backref&quot; href=&quot;#id11&quot;&gt;[12]&lt;/a&gt;&lt;/td&gt;&lt;td&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://www.datamation.com/open-source/7-reasons-why-free-software-is-losing-influence.html&quot;&gt;7 Reasons Why Free Software Is Losing Influence&lt;/a&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;table class=&quot;docutils footnote&quot; frame=&quot;void&quot; id=&quot;githublicenses&quot; rules=&quot;none&quot;&gt;
+&lt;colgroup&gt;&lt;col class=&quot;label&quot; /&gt;&lt;col /&gt;&lt;/colgroup&gt;
+&lt;tbody valign=&quot;top&quot;&gt;
+&lt;tr&gt;&lt;td class=&quot;label&quot;&gt;&lt;a class=&quot;fn-backref&quot; href=&quot;#id13&quot;&gt;[13]&lt;/a&gt;&lt;/td&gt;&lt;td&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://www.softwarefreedom.org/resources/2013/lcs-slides-aaronw/&quot;&gt;Licensing of Software on GitHub: A Quantitative
+Analysis by Aaron Williamson&lt;/a&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;table class=&quot;docutils footnote&quot; frame=&quot;void&quot; id=&quot;bdbapgl&quot; rules=&quot;none&quot;&gt;
+&lt;colgroup&gt;&lt;col class=&quot;label&quot; /&gt;&lt;col /&gt;&lt;/colgroup&gt;
+&lt;tbody valign=&quot;top&quot;&gt;
+&lt;tr&gt;&lt;td class=&quot;label&quot;&gt;&lt;a class=&quot;fn-backref&quot; href=&quot;#id14&quot;&gt;[14]&lt;/a&gt;&lt;/td&gt;&lt;td&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://lists.debian.org/debian-legal/2013/07/msg00000.html&quot;&gt;Berkeley DB 6.0 license change to AGPLv3&lt;/a&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;licenses-and-intentions&quot;&gt;
+&lt;h2&gt;Licenses and Intentions&lt;/h2&gt;
+&lt;p&gt;You get a headache quite quickly thinking about all these ramifications
+and reading debian-legal is a weird experience.  This gets worse when you
+think about how people might have different interpretations of the
+license.&lt;/p&gt;
+&lt;p&gt;On one hand it's entertaining, on the other it shows you how many people
+pick licenses with ulterior motives that might not have been written into
+the original license text.  One of my favourite threads on that issue is
+the one about &lt;a class=&quot;reference external&quot; href=&quot;http://lists.debian.org/debian-legal/2012/01/msg00012.html&quot;&gt;Nuitka and GPLv3&lt;/a&gt; which at
+it's core is a discussion if the GPLv3 can be used to make it impossible
+for others to commercialize the software.&lt;/p&gt;
+&lt;p&gt;This is especially bad in the GPLv3 which picks specific usecases that
+were relevant at the time the license was written.  The license might now
+be absolutely useless for new devices that will come up in a few years.
+At that point it might be impossible to relicense the software because
+some contributors might disagree or are no longer available.  This has
+been a problem for many years already.  MariaDB had to rewrite libmysql
+because it was GPL licensed.  Xapian is trying for years to get GPL code
+out of the codebase as the original copyright holders are no longer
+interested in the project or unavailable.&lt;/p&gt;
+&lt;p&gt;What if it will become illegal to sell consumer devices without signature
+checks for all software running on it.  What if certification will be
+required for system software?  The GPLv3 is already pretty irrelevant in
+many areas as software companies have figured out that rewriting is less
+of an issue than license fulfilment.&lt;/p&gt;
+&lt;p&gt;It's not just GPL though that is a problem here.  The Apache Software
+License is quite a mouthful as well and I am pretty sure that not
+everybody that licensed code under it read all of the implications of the
+license.&lt;/p&gt;
+&lt;p&gt;As you remove text from the license other parts might be coming in.  The
+MIT license is barely two paragraphs and a warranty statement, but how it
+interacts with local law is not something everybody is aware of.  The
+implicit assumption for many people is that somehow American law applies
+but that's not always the case.  Open Source is international and not
+every country is the same.  Germany and Austria for instance have very
+few provisions bound to the Copyright itself and don't even provide
+mechanisms to transfer it.  More is bound to the Usage right which the
+copyright holder can sublicense.  Considering that doesn't actually happen
+in the license declarations I sometimes wonder if someone could hang my
+software up on that formality.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-mashup-generation&quot;&gt;
+&lt;h2&gt;The Mashup Generation&lt;/h2&gt;
+&lt;p&gt;I believe what's currently happening is something that's new with my
+generation and that's probably the biggest reason of decline for the GPL
+going forwards.  My generation sees copyrights has a concept that should
+be much more restricted and have a smaller lifetime.  This is
+interestingly enough exactly what Richard Stallman does not want.  He's
+painfully aware that Copyleft is based on Copyright and as such can only
+be enforced if there is a strong Copyright behind it.&lt;/p&gt;
+&lt;p&gt;People that license software under the BSD or MIT license probably would
+not mind that much if copyrights would be abolished or greatly restricted.
+Richard Stallman's world on the other hand would would fall apart.  He
+even made a statement about how the Pirate Party will backfire on Free
+Software &lt;a class=&quot;footnote-reference&quot; href=&quot;#pirates&quot; id=&quot;id15&quot;&gt;[15]&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The new generation has a new view on sharing and money as it stands.  They
+want to make it easy to share content and software and also make it easy
+at the same time to enable independent monetization.  This generation is
+the generation that goes on youtube and makes reinterpretations of other
+people's music,  that create narrated play-throughs through interactive
+entertainment media like computer games,  that provide lessons involved
+other people's content etc.&lt;/p&gt;
+&lt;table class=&quot;docutils footnote&quot; frame=&quot;void&quot; id=&quot;pirates&quot; rules=&quot;none&quot;&gt;
+&lt;colgroup&gt;&lt;col class=&quot;label&quot; /&gt;&lt;col /&gt;&lt;/colgroup&gt;
+&lt;tbody valign=&quot;top&quot;&gt;
+&lt;tr&gt;&lt;td class=&quot;label&quot;&gt;&lt;a class=&quot;fn-backref&quot; href=&quot;#id15&quot;&gt;[15]&lt;/a&gt;&lt;/td&gt;&lt;td&gt;&lt;a class=&quot;reference external&quot; href=&quot;http://www.gnu.org/philosophy/pirate-party.html&quot;&gt;Richard Stallman: How the Swedish Pirate Party Platform
+Backfires on Free Software&lt;/a&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;real-help-with-licensing&quot;&gt;
+&lt;h2&gt;Real Help with Licensing&lt;/h2&gt;
+&lt;p&gt;Will this general approach cause problems?  Probably.  The current state
+of licensing and license ignoring on GitHub is probably a good indication
+that there will be problems.  But I think we should start to seriously
+consider simplifying our software licensing environment as we otherwise
+will have no ideas what will happen in a few years from now.&lt;/p&gt;
+&lt;p&gt;I think at that point it would be interesting to think about how to
+explain people in the clearest possible way way the implications of
+software licenses are and how they can reach their goal.  And that would
+include some flow graphs that point out the problems with cross license
+compatibility, what the lack of a contributor statement could mean, what
+happens if copyright holders die or become unavailable and similar things.&lt;/p&gt;
+&lt;p&gt;I am pretty sure some clever UX designer could make that into an engaging
+experience that gives people a licensing 101 in 10 minutes that includes
+all important details in an interesting way.  But it would have to be
+backed by information that an actual lawyer checked together with members
+of the community to come to some conclusions about what it means for the
+ecosystem.&lt;/p&gt;
+&lt;p&gt;Right now I believe, the license choosing wizard of GitHub is a shitty
+“solution” to the problem of people not adding licenses to their code.
+And it's probably not just a bad solution, it's one that might actually be
+hurtful if people are not aware of what the effects of the respective
+license are.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Open Source and Games</title>
+    <id>http://lucumr.pocoo.org/2010/12/24/open-source-and-games</id>
+    <updated>2010-12-24T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2010/12/24/open-source-and-games" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;A few days ago the &lt;a class=&quot;reference external&quot; href=&quot;http://www.humblebundle.com/&quot;&gt;Humble Indie Bundle 2&lt;/a&gt;
+released.  It contains five independently developed games including the
+universally acclaimed “Braid” puzzle and “Machinarium” adventure games.
+As with last year they upgraded the bundle after a certain amount of
+revenue was made.  This year they included last year's bundle in its
+entirety for all people that bought it before a certain time and for
+everyone that pays more than the average.&lt;/p&gt;
+&lt;p&gt;Additionally yesterday they announced that “Revenge of the Titans” will
+become open source.  This is similar to last year where “Gish”, “Aquaria”,
+“Lugaru HD” and “Penumbra Overture” went Open Source.  However here the
+important part is that all of these titles went Open Source for their
+sourcecode only.  This does not include the assets.  I totally understand
+the motivation behind that and I welcome any open sourcing of games as it
+makes it a lot easier to dive into game development.  This is similar to
+how Quake went Open Source after a while (under the restrictive GPL
+license).  I have not checked each and every Open Source release from the
+Humble Indie Bundle so far but I think all of them are GPL 2 or 3 and none
+of them include any assets of the games.&lt;/p&gt;
+&lt;p&gt;Which I personally can totally understand but I find it a little bit sad.
+Mainly I find it sad because I don't care too much about the sourcecode.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;motivations-for-open-sourcing&quot;&gt;
+&lt;h2&gt;Motivations for Open Sourcing&lt;/h2&gt;
+&lt;p&gt;Why do people Open Source code in general?  Looking at a lot of Open
+Source code I came in contact with I can probably assign each piece of
+code into one of four categories:&lt;/p&gt;
+&lt;dl class=&quot;docutils&quot;&gt;
+&lt;dt&gt;&lt;em&gt;Working with Others&lt;/em&gt;&lt;/dt&gt;
+&lt;dd&gt;If you want to work together with other people, Open Sourcing code is
+a great idea.  If you want to connect different systems it makes a lot
+of sense to make the communication interface open source so that
+everybody can work on that.  I think the buzzword for that is probably
+“interoperability”.&lt;/dd&gt;
+&lt;dt&gt;&lt;em&gt;Community Maintenance&lt;/em&gt;&lt;/dt&gt;
+&lt;dd&gt;If a company went out of business or is no longer maintaining a
+particular piece of software, projects are often opened for everybody.&lt;/dd&gt;
+&lt;dt&gt;&lt;em&gt;Marketing&lt;/em&gt;&lt;/dt&gt;
+&lt;dd&gt;Some people open source code for marketing reasons.  These releases
+come often with ridiculous strings attached to the license or are
+missing essential bits.  At the very least, these projects are not
+noticed as Open Source projects, even if they are technically Open
+Source.&lt;/dd&gt;
+&lt;dt&gt;&lt;em&gt;Because it makes sense&lt;/em&gt;&lt;/dt&gt;
+&lt;dd&gt;Certain things only make sense to be distributed as open source.
+Either because people expect it to be open source (like libraries for
+Python or other dynamic programming languages) or because there is
+just no reason to keep it closed.  My stuff falls under this category
+for instance.  None of the Pocoo projects would work in any way if
+they would not be Open Source.&lt;/dd&gt;
+&lt;/dl&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;users-of-open-source-code&quot;&gt;
+&lt;h2&gt;Users of Open Source Code&lt;/h2&gt;
+&lt;p&gt;However, independently of that there are also motivations for using Open
+Source code.  And that's actually the more tricky piece.  There are people
+that use Open Source code for political reasons, for learning, because
+they are the best solution available or because they like the fact that
+they have access to the code and are more flexible that way.&lt;/p&gt;
+&lt;dl class=&quot;docutils&quot;&gt;
+&lt;dt&gt;&lt;em&gt;Political Reasons&lt;/em&gt;&lt;/dt&gt;
+&lt;dd&gt;The Free Software Foundation, the majority of the people working on
+the GNU projects and more are probably doing their development for
+political reasons.  They write the software for the sake of the
+software being free.  Those are noble reasons but quite irrelevant for
+the rest of the world unless those tools become the best tools
+available.&lt;/dd&gt;
+&lt;dt&gt;&lt;em&gt;Learning&lt;/em&gt;&lt;/dt&gt;
+&lt;dd&gt;Whenever I try to learn something new that relates to programming, I
+will try to either study similar Open Source code upfront of compare
+my own code with it.  That works quite well independently of whatever
+license the code is under, because things I do for the sake of
+learning are usually not released to other people.  And even if I
+would release that code, I have no troubles using a matching license.&lt;/dd&gt;
+&lt;dt&gt;&lt;em&gt;Best Solution Available&lt;/em&gt;&lt;/dt&gt;
+&lt;dd&gt;Apple for instance chose the GCC compiler toolkit because it was the
+best one available for the price.  Apple's motivation was that they
+can distribute the compiler to anyone as cheaply as possible.  At the
+same time however Apple was always terribly afraid of the “must remain
+open” part of the license.  They would much rather have a license
+without that clause attached.  That might also explain a lot why they
+invest a lot of time and money into the development of the LLVM
+infrastructure and the clang compiler that is based on it.&lt;/dd&gt;
+&lt;dt&gt;&lt;em&gt;Working with Others&lt;/em&gt;&lt;/dt&gt;
+&lt;dd&gt;This might actually be the only part where the reasons for open
+sourcing match perfectly up with the user's reasoning.  If you want to
+work together the lines between user and developer blur.  It's very
+likely that contributions will come from both sides with the intent to
+make the system better.  Unless of course one side wants to harm the
+other one, but then one can hardly speak about “working together” any
+more.&lt;/dd&gt;
+&lt;/dl&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;in-an-ideal-world&quot;&gt;
+&lt;h2&gt;In An Ideal World …&lt;/h2&gt;
+&lt;p&gt;So as mentioned earlier the Humble Indie Bundle campaign managed to
+convince developers to send a “Thank You” to the community by releasing
+the code under open source licenses.  The motivation there is both a
+marketing reason (might convince other people to spend more money) and
+because it made sense for them.  They earned a lot of money with that and
+they can strengthen the trust with the community by giving back.&lt;/p&gt;
+&lt;p&gt;Now in an ideal world they could open source everything, but that won't
+work in practice.  From what I have seen it is very hard to make a living
+just from independent game development.  If you would give away all your
+assets you are basically removing any reason for people to still buy the
+game.  Even with the income spike of the Humble Indie Bundle it's not very
+likely that the developer will have enough money to create another game.
+At least not with a reasonable buffer in case times become rough.  Giving
+away everything under an open source license does not seem to be a wise
+step.&lt;/p&gt;
+&lt;p&gt;But who would be the users of such Open Source game?  The average gamer
+does not have anything from available sourcecode.  Except for maybe a few
+modifications more that wouldn't have been possible without access to the
+source.  Maybe also a few bugfixes more for issues the original developers
+could not reproduce.  People that want to earn money with a derived game
+can't use it obviously.  These open source releases are all under the GPL
+license.  No sane developer that wants to sell software would attempt to
+base his game on a GPL software when there are no commercial licensing
+terms available.  And if there are, there are better engines available
+then the ones these developers wrote for themselves.  Not because they
+wrote bad software — not at all — but because they wrote engines for their
+specific games.  Those were never designed to be used for arbitrary games
+unlike real commercial engines.  Even if you would accept the GPL
+licensing terms you could never ever bring your game to a mobile console,
+the XBOX 360 or something similar.  These systems are fundamentally
+incompatible with the GPL's license terms.&lt;/p&gt;
+&lt;p&gt;So this pretty much leaves people that want to learn game development or
+people that would write open source games for political reasons.  And on
+top of that: people that profit from the available code for better mods
+(the hardcore community of the game).&lt;/p&gt;
+&lt;p&gt;I personally would love to actually have the photoshop/gimp etc. source
+files for the assets to see how those were created.  I don't care too much
+about the actual license of those.  I wouldn't have any problems with a
+non open source license like a creative commons noncommercial/attribution
+one.  However if people would want to create a real Open Source version of
+the game, they could do that step by step.  And seeing how much work went
+into the assets of these games I doubt a true Open Source version would be
+ready before the developer creates it's next game.  It's even questionable
+if these derived games would even have the same quality as the original
+one.&lt;/p&gt;
+&lt;p&gt;The most interesting part here however is piracy.  What are piracy rates
+for indie games?  Something way above 80% last time I looked.  That's a
+damn lot.  The fact that independent developers make any game seems to be
+that they have a trustworthy community that honors their achievements in
+game design and artstyle.  Independent developers don't have the money
+(and don't want) to sue people downloading pirated copies from their
+favorite bittorrent tracker.  From that point of view, it does not matter
+if a gamer downloads the game for free on a website that uploaded a
+compiled version of the open sourced game or from piratebay.&lt;/p&gt;
+&lt;p&gt;I am quite sure that with a carefully crafted license one could still sell
+the game and also have it under an Open Source-ish license.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-issue-is-a-cultural-one&quot;&gt;
+&lt;h2&gt;The Issue is a Cultural One&lt;/h2&gt;
+&lt;p&gt;The core issue here however is not that the assets are special: the
+assets are not more special than the code is.  But one needs both to do
+something with it.  And people chose to open source the code and not the
+assets for two simple reasons:&lt;/p&gt;
+&lt;ol class=&quot;arabic simple&quot;&gt;
+&lt;li&gt;Assets are visible to the player.  The player can't see the code, but
+the player can see the 3D models, textures.  The player can listen to
+the music, hear the sounds and more.&lt;/li&gt;
+&lt;li&gt;Programmers love Open Source, Artists not so much.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;I find that very interesting.  It's not hard to spot an engine by its
+characteristics even if you don't have access to the code.  A lot of quake
+engines don't even try to hide their origin and still provide the same
+console commands and movement behavior.  The Unreal engine can be easily
+noticed from looking at the file system and depending on the version of
+the engine and the environment it's running in, you can tell it by the way
+it loads textures.&lt;/p&gt;
+&lt;p&gt;And programmers always modify the engine to do something new with it.
+Just using something unchanged is uninteresting.  I don't think this is
+unique to programmers, that's how we work as humans.  I think if one would
+release the assets instead of the source code under an open source license
+we wouldn't suddenly see the same unmodified textures, sprites and models
+appearing in every single open source game.  But what we might see are
+more people opening those up in their 3D programs and playing around with
+them.&lt;/p&gt;
+&lt;p&gt;We as programmers often grew up in Open Source environments.  Yet we do
+understand that Open Source code does not necessarily mean we make money
+from it.  Only if we're lucky and use the downsides of open code to our
+advantage.  We have so many Open Source projects that we can't even count
+them.&lt;/p&gt;
+&lt;p&gt;But what about artists?  Yes there is Jamendo and a few other places where
+you can find Creative Commons licensed music, but the general consensus is
+that once you're known, you move away from it.  The few people I know that
+make music never every consider giving away music.  And from the well
+known musicians only Trent Reznor comes to mind when talking about
+Creative Commons licensed music.&lt;/p&gt;
+&lt;p&gt;The whole modding community for computer games to a large degree consists
+of people doing 3D models, textures, mapping and more.  Very few of these
+mods are actually released with sources.  They don't even have any kind of
+license attached most of the time.  Yet they depend on the ability to
+remix an existing game.&lt;/p&gt;
+&lt;p&gt;Independent developers often claim to make up for their smaller budget
+with deeper game concepts and stories.  And looking at games like “Braid”
+I can only agree with that.  However what about stepping into a new
+direction the next time you open source something, and actually share the
+assets too?  Maybe on a game where the financial hit wouldn't be too
+terrible.  I don't think anyone actually attempted having an open source
+game that at the same time still sells.&lt;/p&gt;
+&lt;p&gt;And if that does not work out, why not open source assets and music
+instead of the code?  Especially if the assets require attribution, there
+is no reason why it shouldn't drive traffic back to the original creators.&lt;/p&gt;
+&lt;p&gt;And with that: Happy Christmas everybody and a big “Thank You” to the
+independent game community and all people behind the Humble Indie Bundle.
+Indie games are what brought me back to graphic programming because they
+show that even with a limited budged and simpler artstyle you can create
+great games.  And without realization that I wouldn't have learned a whole
+lot new things over the last few months.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+</feed>
+

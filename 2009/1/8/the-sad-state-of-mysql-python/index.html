@@ -1,0 +1,102 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>The Sad State of MySQL Python | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">The Sad State of MySQL Python</h1>
+
+  
+  <p class=date>written on Thursday, January 8, 2009
+  
+
+  <p>I admit it. I was a friend of <a class="reference external" href="http://mysql.org/">MySQL</a>. Two years
+ago MySQL was the only database server I was using at all. Lately
+however I replaced nearly all applications that were still using MySQL
+with postgres and even SQLite. One of the applications that is still
+using MySQL is <a class="reference external" href="http://ubuntuusers.de/inyoka/">Inyoka</a>, the portal
+software deployed <a class="reference external" href="http://ubuntuusers.de/">ubuntuusers</a>. For reasons
+you don't want to know we are unable to switch the deployment setup from
+MySQL to postgres.</p>
+<p>Now that would be fine if <a class="reference external" href="http://sourceforge.net/projects/mysql-python">mysql-python</a> aka <cite>MySQLdb</cite> would not
+suck so much. Besides not supporting the latest MySQL features it also
+leaks memory a lot. A friend of mine who discovered the problem, noticed
+a couple of lost megabytes the minute on ubuntuusers — that's a lot.</p>
+<p>That problem seems to be fixed in the SVN trunk but the latest activity
+there was more than 9 months ago which is a problem. Neither the
+cheeseshop`^W^W`pypi has non-leaking packages, also not Linux
+distributions such as debian or ubuntu. The <a class="reference external" href="http://mysql-python.blogspot.com/">development blog</a> was last updated in May of 2008
+which makes me even more concerned.</p>
+<p>Now I wonder if anyone has experience with the MySQL library and the
+Python API to take over the development. I guess there are still some
+MySQL users left, even though the project has an incredible bad
+reputation lately <a class="reference external" href="http://monty-says.blogspot.com/2008/11/oops-we-did-it-again-mysql-51-released.html">due to problems in the release management</a>.</p>
+<p>As a temporary workaround I can recommend either updating to the trunk
+version (which seems to be unstable according to one of the last commit
+messages) or disable unicode support where the leak apparently is. Nice
+libraries such as <a class="reference external" href="http://sqlalchemy.org/">SQLAlchemy</a> can convert
+bytestrings to unicode automatically on their own as well if you <a class="reference external" href="http://www.sqlalchemy.org/trac/wiki/DatabaseNotes#MySQL">tell
+them to</a>.</p>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/mysql/">mysql</a> and 
+      <a href="/tags/python/">python</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,434 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Armin Ronacher's Thoughts and Writings</title>
+  <id>http://lucumr.pocoo.org/feed.atom</id>
+  <updated>2010-12-05T00:00:00Z</updated>
+  <link href="http://lucumr.pocoo.org/" />
+  <link href="http://lucumr.pocoo.org/feed.atom" rel="self" />
+  <subtitle type="text">Armin Ronacher's personal blog about programming, games and random thoughts that come to his mind.</subtitle>
+  <generator>Werkzeug</generator>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Django’s Problems and Why 2.0 is a Bad Idea</title>
+    <id>http://lucumr.pocoo.org/2007/12/12/djangos-problems-and-why-2-0-is-a-bad-idea</id>
+    <updated>2007-12-12T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2007/12/12/djangos-problems-and-why-2-0-is-a-bad-idea" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;I stumbled about &lt;a class=&quot;reference external&quot; href=&quot;http://groups.google.com/group/django-developers/browse_thread/thread/b4c237ad76f9eeca&quot;&gt;this thread on django-developers&lt;/a&gt;
+which proposes calling the Django 1.0 release Django 2.0. One the one
+hand version numbers say nothing. Just take Wine or Trac as two examples
+that are already very stable but still below the magical 1.0 release.
+Open Source software often takes some time until a 1.0 is released and
+that's perfectly fine. However skipping a version number is purely a
+marketing trick IMO. Just think of Java which currently names 1.6 Java 6
+whereas 1.4 still was Java 2.&lt;/p&gt;
+&lt;p&gt;With django it looks like the plan is to keep up with Rails which went
+to 2.0 a few days ago. While I love to see that django kicks ass and
+it's moving toward a stable release I have a bad feeling naming it 2.0.
+Because there is currently a huge gap between rails and django
+unfortunately. Rails has gained really good integrated migrations, REST
+webservices, a debugger and many other things django is still lacking.&lt;/p&gt;
+&lt;p&gt;Django makes an incredible good framework if you get your problem into
+the use case of django. But as soon as you break out of it and need
+something that goes beyond what's possible in django you wish you have
+chosen something else. The django ORM is far from optimal, the admin
+rocks but as soon as the number of users exceeds 10.000 users it's
+impossible to use it (chose yourself in a dropdown of 50.000 users …) or
+becomes utterly complex. Complex data models also look awkward in the
+admin or become too complicated to manage. And if you want to stick with
+the admin you cannot replace the user model. Now what do you do if you
+have a forum and want to count the posts? Use a UserProfile module? And
+how do you want to display a list of users sorted by their number of
+posts?&lt;/p&gt;
+&lt;p&gt;Yes there are ways to hack around it but the more complex the
+application becomes the more you of django's strengths become obsolete.
+The application I'm working on right now now is only using two more
+contrib modules. The auth and the admin, and it looks like we have to
+drop them too, due to the limitations. All applications in that project
+hack around ORM limitations, we have an incredible number of recreated
+base middlewares, we have to monkey patch the request object to hack in
+subdomain support.&lt;/p&gt;
+&lt;p&gt;I was talking with David Cramer from curse gaming about some of the
+issues and he told me that they have forked django at a given point and
+patched the ORM. The django template engine was replaced by Jinja (our
+application does the same) and they are caching the hell out of the
+application to scale it. Bryan McLemore from the curse team told me some
+time ago that some pages have up to 30 queries on a page.&lt;/p&gt;
+&lt;p&gt;I don't want to say that django fails in what it's doing. But it's far
+from 2.0.&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Not So Stupid Template Languages</title>
+    <id>http://lucumr.pocoo.org/2010/12/5/not-so-stupid-template-languages</id>
+    <updated>2010-12-05T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2010/12/5/not-so-stupid-template-languages" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Daniel Greenfeld &lt;a class=&quot;reference external&quot; href=&quot;http://pydanny.blogspot.com/2010/12/stupid-template-languages.html&quot;&gt;recently criticized&lt;/a&gt;
+templating languages such as Mako, Genshi, Jinja2 or others for being more
+than a stupid template language.  That of course might be valid criticism,
+but there seems to be some major misunderstanding out there about what
+Jinja2 compared to Django's templating system actually is.&lt;/p&gt;
+&lt;p&gt;As said by Daniel:&lt;/p&gt;
+&lt;blockquote&gt;
+I often work on projects crafted by others, some who decided for
+arcane/brilliant/idiotic reasons to mix the kernel of their
+applications in template function/macros. This is only possible in
+Smart Template Languages! If they were using a Stupid Template
+Language they would have been forced put their kernel code in a Python
+file where it applies, not in a template that was supposed to just
+render HTML or XML or plain text.&lt;/blockquote&gt;
+&lt;p&gt;I suppose the macro part there is written especially with Jinja2 in mind
+there because I know very few templating systems calling things “macros”.
+In fact, the only reason Jinja2 calls its functions “macros” is that
+“enddef” sounded stupid as a keyword and “endfunction” was past the
+threshold of keyword lengths I was happy with.&lt;/p&gt;
+&lt;p&gt;So what is a macro in Jinja2 and why does it exist in the first place?  A
+macro is basically nothing more than a template that is meant for
+including, but with the additional information about what variables it
+wants.  It's the Python principle of “explicit is better than implicit”
+applied for templating languages.&lt;/p&gt;
+&lt;p&gt;Take the following Django template as example:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;ul&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;{%&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;user&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;users&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;%}&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;li&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;{%&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;include&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;_render_user.html&amp;quot;&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;%}&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;li&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;{%&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;endfor&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;%}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;ul&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;From looking at that specific code it's completely impossible to figure
+out what variables the included template depends on.  One might guess that
+user is used, but there are two other variables available for sure: first
+of all “users” is clearly available for the included template, however
+django also adds “forloop” implicitly into the context, so the template
+that was included could use that too.  Additionally however it might access
+the current request, current user or tons of other variables.&lt;/p&gt;
+&lt;p&gt;Jinja2 makes this an explicit thing: don't use includes, import macros and
+explicitly pass the variables there.  It's a little bit more to write but
+comes with three nice advantages:&lt;/p&gt;
+&lt;ol class=&quot;arabic simple&quot;&gt;
+&lt;li&gt;it's explicit which makes it a lot easier to figure out what exactly
+is happening in a template.  Especially if you want to look over
+templates written by someone else it's a huge time saver.&lt;/li&gt;
+&lt;li&gt;it allows the templating system to apply huge performance
+improvements.  “forloop” / “loop” is never referenced?  No point in
+creating an object then.&lt;/li&gt;
+&lt;li&gt;Macros are functions and thus can be used in an expression context.
+This – among other things – makes it possible to expand / call macros
+in the context of internationalized blocks.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;This example here makes this pretty obvious:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;{%&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;_user.html&amp;quot;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;render_user&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;%}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;ul&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;{%&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;user&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;users&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;%}&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;li&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;{{&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;render_user&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;user&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;}}&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;li&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;{%&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;endfor&lt;/span&gt; &lt;span class=&quot;cp&quot;&gt;%}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;ul&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Here Daniel is just wrong:&lt;/p&gt;
+&lt;blockquote&gt;
+What it comes down to is that Smart Template Languages designers
+assume that developers are smart enough to avoid making this mistake.
+Stupid Template Languages designers assume that developers generally
+lack the discipline to avoid creating horrific atrocities that because
+of unnecessary complexity have a bus factor of 1.&lt;/blockquote&gt;
+&lt;p&gt;I don't know about how other template engine authors are handling the
+issue, but I am well aware of the fact that users will find ways to shoot
+themselves into the foot with any tool you give them which obviously
+includes Jinja2.  Which is why Jinja2 also provides much superior ways to
+Django to prevent this from happening.&lt;/p&gt;
+&lt;p&gt;Ever had the problem that a template accidentally triggered a database
+query?  In Django land this is a very, very common problem and the exact
+location of that query can be hard to pinpoint.  If you are passing
+arbitrary Python models into the template there will always be ways to
+trigger queries.&lt;/p&gt;
+&lt;p&gt;Jinja2 allows you to easily prevent accidental queries by using a
+sandboxed environment and overriding the callback functions.  In fact,
+preventing queries from model attributes could probably be implemented in
+less than 10 lines of code.  If one would argue that the sandbox adds
+inacceptable overhead, I could generally agree.  At least for some kinds
+of applications.  At the same time however there is no reason why you
+shouldn't use such a sandbox during development and disable it for the
+production system.&lt;/p&gt;
+&lt;p&gt;I have seen some really horrible and bad abuse of the Django template
+language which leads me to the believe that the bus factor is a much
+harder problem in the Django template world than anywhere else.
+Undocumented custom template tags written by someone on the project doing
+some things in one way and other things in a different way, not behaving
+as intended but still in use are very, very common.  It becomes especially
+hairy if people start using custom template tags in internationalized
+applications where suddenly they can't use particular constructs in block
+translation blocks.  Then tags are extended to now also write into
+variables and not render anything.  Worse: because the intended syntax
+clashes due to the custom parsing code with stuff that was already valid
+before leads to inconsistent syntax rules.  A giant mess.&lt;/p&gt;
+&lt;p&gt;I'm not arguing there that Django's template system would be bad, I think
+it's good enough for what it does.  I however disagree strongly with the
+fact that “non stupid template languages” are too complex for people to
+handle or give them additional power to make your code unmaintainable.&lt;/p&gt;
+&lt;p&gt;Those are different systems with different ideas and different
+consequences.  The “unrestricted template languages are bad and result in
+PHP spaghetti code” straw man argument is just that: a straw man.  I have
+seen equally bad Django, PHP, Jinja2 and Mako templates.&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Opinionated Frameworks</title>
+    <id>http://lucumr.pocoo.org/2009/1/6/opinionated-frameworks</id>
+    <updated>2009-01-06T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2009/1/6/opinionated-frameworks" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Once again &lt;a class=&quot;reference external&quot; href=&quot;http://lucumr.pocoo.org/2008/9/16/why-jinja-is-not-django-and-why-django-should-have-a-look-at-it&quot;&gt;my post about Jinja and the Django template engine&lt;/a&gt;
+appeared on &lt;a class=&quot;reference external&quot; href=&quot;http://reddit.com/&quot;&gt;reddit&lt;/a&gt;. The second time in the last
+two weeks, probably because my feeds changed and planets re-displayed
+it.&lt;/p&gt;
+&lt;p&gt;I originally wrote the post a few months ago to promote &lt;a class=&quot;reference external&quot; href=&quot;http://jinja.pocoo.org/&quot;&gt;Jinja&lt;/a&gt; a bit. I was and still am very happy with
+Jinja2 and wanted to write some lines about what I like about it and how
+it works. And I also was hoping that the Django guys have a look at it
+and copy some features of it. Mainly because every once in a while I
+contribute code to a Django powered project or have my fingers in some
+way in such a project's code. And every time I'm kinda puzzled how
+simple some really complex tasks in Django are.&lt;/p&gt;
+&lt;p&gt;So what has changed in Django's templates the last four months? Not that
+much. The only changes in the Django template engine was the addition of
+&lt;cite&gt;{% empty %}&lt;/cite&gt; blocks in &lt;cite&gt;{% for %}&lt;/cite&gt; loops (which does exactly what
+Jinja's &lt;cite&gt;{% else %}&lt;/cite&gt; does for loops) and some bug fixing. Is that a
+problem? I don't know, but probably not.&lt;/p&gt;
+&lt;p&gt;Django's templates are still slow and limited as they were, but it's not
+causing problems so that users &lt;em&gt;have&lt;/em&gt; to switch. Every once in a while I
+notice that people switch to Jinja from Django templates because of
+performance of the limitations, but very often they throw away half the
+framework because they discover that Python has more to offer than just
+Django. And with that in mind I guess the Django guys are doing the
+right thing.&lt;/p&gt;
+&lt;p&gt;Django is designed for content driven websites not so much for
+independently deployed applications (like trac, WordPress, MediaWiki and
+others). So not so much for applications and also not so much for stuff
+where you need crazy database queries that are not possible with Django.
+The template engine is designed for simple HTML generation and that's
+it. If you want more, you often want something different than Django
+anyways.&lt;/p&gt;
+&lt;p&gt;I know many successful projects that are running Django without problems
+and it works out for them, because their requirements match (nearly)
+exactly what the framework was developed for. And I know many that
+adopted Django because of the fuzz but what they actually want to do
+does not fit into the Django style of development.&lt;/p&gt;
+&lt;p&gt;In many ways Django reminds me a bit of unpacking cool stuff. You
+download it and are instantly blown away how cool it is. Database just
+works, templating is awesome, URL routing gives you these incredible
+neat looking URLs and much more. It's so cool that many are trying to
+suddenly do everything with it. And that's kinda where the problem lays.
+You are forcing Django to do things it's not designed for.&lt;/p&gt;
+&lt;p&gt;I &lt;em&gt;think&lt;/em&gt; what is missing is a website that explains the advantages and
+disadvantages of the particular solutions and what projects work best
+with what solution. There are &lt;a class=&quot;reference external&quot; href=&quot;http://pylonshq.com/&quot;&gt;Pylons&lt;/a&gt;,
+&lt;a class=&quot;reference external&quot; href=&quot;http://werkzeug.pocoo.org/&quot;&gt;Werkzeug&lt;/a&gt;, &lt;a class=&quot;reference external&quot; href=&quot;http://pythonpaste.org/&quot;&gt;Paste&lt;/a&gt;, &lt;a class=&quot;reference external&quot; href=&quot;http://repoze.org/&quot;&gt;Repoze&lt;/a&gt; and a lot
+more frameworks and utility libraries that focus on different kinds of
+web applications. And that does not only apply to full blown frameworks
+or WSGI utilities, but also template engines, database libraries and
+even databases themselves. It would prevent a lot of frustration if
+people could find the framework or toolchain of choice &lt;em&gt;before&lt;/em&gt; they
+start developing their project.&lt;/p&gt;
+&lt;p&gt;But such a page would have to be designed by someone unbiased. And
+neither me, nor anyone else who develops on/for a Python powered
+framework should create such a comparison page. But I would encourage
+everybody with experiences in multiple frameworks to write down their
+experiences with different Python frameworks, template engines, database
+adapters and combinations thereof.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Update:&lt;/strong&gt; Fixed misleading sentence. Swapped complex and simple.&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Pro/Cons about Werkzeug, WebOb and Django</title>
+    <id>http://lucumr.pocoo.org/2009/8/5/pro-cons-about-werkzeug-webob-and-django</id>
+    <updated>2009-08-05T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2009/8/5/pro-cons-about-werkzeug-webob-and-django" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Yesterday I had a discussion with &lt;a class=&quot;reference external&quot; href=&quot;http://twitter.com/benbangert&quot;&gt;Ben Bangert&lt;/a&gt; from the Pylons team, &lt;a class=&quot;reference external&quot; href=&quot;http://twitter.com/pjenvey&quot;&gt;Philip Jenvey&lt;/a&gt; and zepolen from the pylons IRC channel.
+The topic of the discussion was why we have Request and Response objects
+in &lt;a class=&quot;reference external&quot; href=&quot;http://werkzeug.pocoo.org/&quot;&gt;Werkzeug&lt;/a&gt;, &lt;a class=&quot;reference external&quot; href=&quot;http://pythonpaste.org/webob/&quot;&gt;WebOb&lt;/a&gt; and &lt;a class=&quot;reference external&quot; href=&quot;http://djangoproject.com/&quot;&gt;Django&lt;/a&gt; and what we could to to improve the
+situation a bit.&lt;/p&gt;
+&lt;p&gt;We decided on writing down what we like or dislike on these three
+systems in order to find out in which direction to go, so this is my
+attempt. Please keep in mind that this are my opinions only!&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;id1&quot;&gt;
+&lt;h2&gt;WebOb&lt;/h2&gt;
+&lt;p&gt;Let's start with WebOb which is the smallest of the three libraries in
+question. WebOb really just sticks to the basics and provides request
+and response objects and some data structures required.&lt;/p&gt;
+&lt;p&gt;The philosophy of WebOb is to stay as compatible to paste as possible
+and that modifications on the request object appear in the WSGI
+environment. That basically means that when you do anything on the
+request object and you create another one later from the same
+environment you will see your modifications again.&lt;/p&gt;
+&lt;p&gt;This is without doubt something that neither Werkzeug or Django do. Both
+Werkzeug and Django consider the incoming request something you should
+not modify, after all it came from the client. If you need to create a
+request or WSGI environment in Werkzeug you get a separate utility for,
+that is designed for exactly that purpose.&lt;/p&gt;
+&lt;p&gt;While I have to admit that the idea of a reflecting request object is
+tempting, I don't think it's a good idea. Using the WSGI environment as
+a communication channel seems wrong to me. The main problem with it is
+that WebOb cannot achieve what it's doing with standard environment
+keys. There are currently five WebOb keys in the environment for
+“caching” purposes and for compatibility with paste it also understands
+a couple of paste environment keys.&lt;/p&gt;
+&lt;p&gt;The idea is that other applications can get a request again at a
+completely different point, but I'm not sure if WSGI is the correct
+solution for that particular problem. Reusable applications based on the
+complex WSGI middleware system seems to be the wrong layer to me.&lt;/p&gt;
+&lt;p&gt;Some other parts where I don't agree with the WebOb concepts:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;The parsing of the data is implemented either in private functions
+or directly in the request object. I strongly prefer giving the user
+the choice to access the parser separately. Sometimes you really just
+need a cookie parsed, why create a full request object then?&lt;/li&gt;
+&lt;li&gt;WebOb uses &lt;cite&gt;request.GET&lt;/cite&gt; and &lt;cite&gt;request.POST&lt;/cite&gt; for URL parameters and
+form data. Because you can have URL parameters in non-GET requests as
+well this is misleading, for POST data it's wrong as well because form
+data is available in more than just POST requests. Accessing
+&lt;cite&gt;request.POST&lt;/cite&gt; to get form data in a PUT request seems wrong.&lt;/li&gt;
+&lt;li&gt;WebOb still uses &lt;cite&gt;cgi.FieldStorage&lt;/cite&gt; and not only internally but also
+it puts those objects into the &lt;cite&gt;POST&lt;/cite&gt; dict. This is not the best idea
+for multiple reasons. First of all users are encouraged to trust their
+submitted data and blindly expect a field storage object if they have
+a upload field in their form. One could easily cause trouble by
+sending forged requests to the application. If logging is set up the
+administrator is sent tons of error mails instantly. I strongly prefer
+storing uploaded files in a separate dictionary like Django and
+Werkzeug do. The other problem with using &lt;cite&gt;FieldStorage&lt;/cite&gt; as parser is
+that it's not WSGI compliant by requiring a size argument on the
+readline function and that it has a weird API. You can't easily tell
+it to not accept more than n bytes in memory and to switch between in
+memory uploading and a temporary file based on the length of the
+transmitted data. Also &lt;cite&gt;cgi.FieldStorage&lt;/cite&gt; supports nested files which
+no browser supports and which could cause internal server errors as
+well because very few developers know that a) nested uploads exist and
+b) that the field storage object behaves differently if a nested
+uploaded file is transmitted.&lt;/li&gt;
+&lt;li&gt;Also WebOb barks on invalid cookies and throws away all of them if
+one is broken. This is especially annoying if you're dealing with
+cookies outside of your control that use invalid characters (stuff
+such as advertisement cookies)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Now to the parts where WebOb wins over Django and Werkzeug:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;Unlike Django and Werkzeug WebOb provides not only a unicode API but
+also a bytestring based API. This could help existing applications
+that are not unicode ready yet. Downside is that with the current
+plans of Graham for WSGI on Python 3 there do not seem to be ways to
+support it on Python 3.&lt;/li&gt;
+&lt;li&gt;WebOb supports the HTTP range feature.&lt;/li&gt;
+&lt;li&gt;The charset can be switched on the fly in WebOb, in Werkzeug you set
+the charset for your request/response object and from that point
+nowards it's used no matter what. In Django the charset is application
+wide.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;An interesting thing is that WebOb uses &lt;cite&gt;datetime&lt;/cite&gt; objects with timezone
+informations. The tzinfo attribute is set to a tzinfo object with an UTC
+offset of zero. That's different to Werkzeug and Django which use
+offset-naive &lt;cite&gt;datetime&lt;/cite&gt; objects. Because Python treats them differently
+and does not support operations that mix those. Unfortunately the
+&lt;cite&gt;datetime&lt;/cite&gt; module makes it hard to decide what to do. Personally I
+decided to use &lt;cite&gt;datetime&lt;/cite&gt; objects that have no tzinfo set and only dates
+in UTC.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;id2&quot;&gt;
+&lt;h2&gt;Werkzeug&lt;/h2&gt;
+&lt;p&gt;In terms of code base size Werkzeug's next. The problem with Werkzeug
+certainly is that it does not really know what belongs into it and what
+not. That situation will slightly improve with the next version of it
+when some deprecated interfaces go away and when the debugger is moved
+into a new library together with all sorts of debugging tools such as
+profilers, leak finders and more (enter &lt;a class=&quot;reference external&quot; href=&quot;http://dev.pocoo.org/projects/flickzeug/&quot;&gt;flickzeug&lt;/a&gt;).&lt;/p&gt;
+&lt;p&gt;Werkzeug is based on the principle that things should have a nice API
+but at the same time allow you to use the underlying functions. For
+example you can easily access &lt;cite&gt;request.form&lt;/cite&gt; to get a dict of uploaded
+form data, but at the same time you can call &lt;cite&gt;werkzeug.parse_form_data&lt;/cite&gt;
+to parse the stuff into a multidict. You can even go a layer down and
+tell Werkzeug to not use the multidict and provide a custom container or
+a standard dict, list, whatever.&lt;/p&gt;
+&lt;p&gt;Also Werkzeug has a slightly different goal than WebOb. WebOb focuses on
+the request and response object only, Werkzeug provides all kind of
+useful helpers for web applications. The idea is that if there is a
+function you can use, you are more likely to use it than that you
+reimplement it. For example many applications take the uploaded file
+name and just create a file with the same name. This however turns out
+to be a security problem so Werkzeug gives you a function
+(&lt;cite&gt;werkzeug.secure_filename&lt;/cite&gt;) you can use to get a secure version of the
+filename that also is limited to ASCII characters.&lt;/p&gt;
+&lt;p&gt;So obviously there is a lot of stuff in Werkzeug you probably would not
+expect there.&lt;/p&gt;
+&lt;p&gt;So here some of the things I like especially about Werkzeug:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;The request/response objects. They are designed to be lightweight
+and can be extended using mixins. Werkzeug also provides full-featured
+request objects that implement all shipped mixins. Also the
+request/response objects are not doing any parsing or dumping, that is
+all available through separate functions as well which makes the code
+readable and easy to extend.&lt;/li&gt;
+&lt;li&gt;It fixes many problems with the standard library or reimplements
+broken features. It does not depend on the &lt;cite&gt;cgi.FieldStorage&lt;/cite&gt; since
+0.5, allows you to limit the uploaded data before it's consumed. That
+way an attacker cannot exhaust server resources.&lt;/li&gt;
+&lt;li&gt;The data structures provide handy helpers such as raising key errors
+that are also bad request exceptions so that if you're not catching
+them, you are at least not generating internal server errors as long
+as the base &lt;cite&gt;HTTPException&lt;/cite&gt; is catched.&lt;/li&gt;
+&lt;li&gt;Werkzeug uses a non-data descriptor for the properties on the
+request and response objects. The first time you access the property
+code is executed and that is stuffed into the dict. After that there
+is no runtime penalty when accessing the attributes.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;And of course here the list of things that are not that nice:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;It's too large for a library that only wants to implement request
+and response objects.&lt;/li&gt;
+&lt;li&gt;There is no support for if-range and friends.&lt;/li&gt;
+&lt;li&gt;The response stream is useless because each &lt;cite&gt;write()&lt;/cite&gt; ends up as a
+separate “item” in the application iterator. Because each item is
+followed by a flush it makes the response stream essentially useless.&lt;/li&gt;
+&lt;li&gt;The &lt;cite&gt;MultiDict&lt;/cite&gt; is unordered which means that some information is
+lost.&lt;/li&gt;
+&lt;li&gt;The response object modifies itself on &lt;cite&gt;__call__&lt;/cite&gt;. This allows some
+neat things like automatically fixing the location header, but in
+general that should happen temporarily when called as WSGI application
+instead of modifying the object.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;id3&quot;&gt;
+&lt;h2&gt;Django&lt;/h2&gt;
+&lt;p&gt;Now Django isn't exactly a reusable library for WSGI applications but it
+does have a request and response object with an API, so here my thoughts
+on it:&lt;/p&gt;
+&lt;ul class=&quot;simple&quot;&gt;
+&lt;li&gt;URL arguments are called &lt;cite&gt;request.GET&lt;/cite&gt; like in WebOb, but files and
+form data was split up into &lt;cite&gt;request.POST&lt;/cite&gt; and &lt;cite&gt;request.FILES&lt;/cite&gt;.&lt;/li&gt;
+&lt;li&gt;The request object is unicode only and the encoding can be set
+dynamically.&lt;/li&gt;
+&lt;li&gt;Problem is, they don't work with non-Django WSGI applications.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;chances-on-a-common-request-object&quot;&gt;
+&lt;h2&gt;Chances on a common Request Object?&lt;/h2&gt;
+&lt;p&gt;WebOb and Werkzeug will stick around, and the chances that Django starts
+depending on external libraries for the Request object are very, very
+low. However it could be possible to share the implementation of the
+HTTP parsers etc.&lt;/p&gt;
+&lt;p&gt;To be humble, I would not want to break Werkzeug into two libraries for
+utlities and request/response objects and parsers because of the current
+packaging situation. A lot of small stuff I work on works perfectly fine
+with nothing but what Werkzeug provides which is pretty handy. So yes,
+it's selfish to not break it up, but that's how I feel about the
+situation currently.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+</feed>
+

@@ -1,0 +1,411 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>You can&#39;t Rust that | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">You can't Rust that</h1>
+
+  
+  <p class=date>written on Saturday, March 31, 2018
+  
+
+  <p>The last year has been fun because I could build a lot for really nice
+stuff for <a class="reference external" href="https://sentry.io/">Sentry</a> in Rust and for the first time
+the development experience was without bigger roadblocks.  While we have
+been using Rust before it now feels different because the ecosystem is so
+much more stable and we ran less against language or tooling issues.</p>
+<p>However talking to people new to Rust (and even brainstorming APIs with
+coworkers) it's hard to get rid of the feeling that Rust can be a mind
+bending adventure and that the best way to have a stress free experience
+is knowing upfront what you cannot (or should not attempt to) do.  Knowing
+that certain things just cannot be done helps putting your mind back back
+on the right track.</p>
+<p>So here are things not to do in Rust and what to do instead which I think
+should be better known.</p>
+<div class="section" id="things-move">
+<h2>Things Move</h2>
+<p>The biggest difference between Rust and C++ for me is the address-of
+operator (<cite>&amp;</cite>).  In C++ (like C) that thing just returns the address of
+whatever its applied to and while the language might put some restrictions
+on you when doing so is a good idea, there is generally nothing stopping
+you from taking an address of a value and then using it.</p>
+<p>In Rust this is just usually not useful.  First of all the moment you
+take a reference in Rust the borrow checker looms over your code and
+prevents you from doing anything stupid.  More importantly however is that
+even if it's safe to take a reference it's not nearly as useful as you
+might think.  The reason for this is that objects in Rust generally move
+around.</p>
+<p>Just take how objects are typically constructed in Rust:</p>
+<div class="highlight"><pre><span></span><span class="k">struct</span> <span class="nc">Point</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">x</span>: <span class="kt">u32</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">y</span>: <span class="kt">u32</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">Point</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">x</span>: <span class="kt">u32</span><span class="p">,</span><span class="w"> </span><span class="n">y</span>: <span class="kt">u32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Point</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">Point</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>Here the <cite>new</cite> method (not taking <cite>self</cite>) is a static method on the
+implementation.  It also returns <cite>Point</cite> here by value.  This is
+<em>generally</em> how values are constructed.  Because of this taking a
+reference in the function does not do anything useful as the value is
+potentially moved to a new location on calling.  This is very different to
+how this whole thing works in C++:</p>
+<div class="highlight"><pre><span></span><span class="k">struct</span> <span class="n">Point</span> <span class="p">{</span>
+    <span class="kt">uint32_t</span> <span class="n">x</span><span class="p">;</span>
+    <span class="kt">uint32_t</span> <span class="n">y</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="n">Point</span><span class="o">::</span><span class="n">Point</span><span class="p">(</span><span class="kt">uint32_t</span> <span class="n">x</span><span class="p">,</span> <span class="kt">uint32_t</span> <span class="n">y</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">this</span><span class="o">-&gt;</span><span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="p">;</span>
+    <span class="k">this</span><span class="o">-&gt;</span><span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+<p>A constructor in C++ is already operating on an allocated piece of memory.
+Before the constructor even runs something already provided the memory
+where <cite>this</cite> points to (typically either somewhere on the stack or through
+the <cite>new</cite> operator on the heap).  This means that C++ code can generally
+assume that an instance does not move around.  It's not uncommon that C++
+code does really stupid things with the <cite>this</cite> pointer as a result (like
+storing it in another object).</p>
+<p>This difference might sound very minor but it's one of the most
+fundamental ones that has huge consequences for Rust programmers.  In
+particular it is one of the reasons you cannot have self referential
+structs.  While there is talk about expressing types that cannot be moved
+in Rust there is no reasonable workaround for this at the moment (The
+future direction <a class="reference external" href="https://github.com/rust-lang/rfcs/pull/2349">is the pinning system from RFC 2349</a>).</p>
+<p>So what do we do currently instead?  This depends a bit on the situation
+but generally the answer is to replace pointers with some form of Handle.
+So instead of just storing an absolute pointer in a struct one would
+instead store the offset to some reference value.  Later if the pointer
+is needed it's calculated on demand.</p>
+<p>For instance we use a pattern like this to work with memory mapped data:</p>
+<div class="highlight"><pre><span></span><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="p">{</span><span class="n">marker</span><span class="p">,</span><span class="w"> </span><span class="n">mem</span>::<span class="p">{</span><span class="n">transmute</span><span class="p">,</span><span class="w"> </span><span class="n">size_of</span><span class="p">},</span><span class="w"> </span><span class="n">slice</span><span class="p">,</span><span class="w"> </span><span class="n">borrow</span>::<span class="n">Cow</span><span class="p">};</span><span class="w"></span>
+
+<span class="cp">#[repr(C)]</span><span class="w"></span>
+<span class="k">struct</span> <span class="nc">Slice</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">offset</span>: <span class="kt">u32</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">len</span>: <span class="kt">u32</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">phantom</span>: <span class="nc">marker</span>::<span class="n">PhantomData</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="cp">#[repr(C)]</span><span class="w"></span>
+<span class="k">struct</span> <span class="nc">Header</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">targets</span>: <span class="nc">Slice</span><span class="o">&lt;</span><span class="kt">u32</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">Data</span><span class="o">&lt;</span><span class="na">&#39;a</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">bytes</span>: <span class="nc">Cow</span><span class="o">&lt;</span><span class="na">&#39;a</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">]</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">impl</span><span class="o">&lt;</span><span class="na">&#39;a</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Data</span><span class="o">&lt;</span><span class="na">&#39;a</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="o">&lt;</span><span class="n">B</span>: <span class="nb">Into</span><span class="o">&lt;</span><span class="n">Cow</span><span class="o">&lt;</span><span class="na">&#39;a</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">]</span><span class="o">&gt;&gt;&gt;</span><span class="p">(</span><span class="n">bytes</span>: <span class="nc">B</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Data</span><span class="o">&lt;</span><span class="na">&#39;a</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">Data</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">bytes</span>: <span class="nc">bytes</span><span class="p">.</span><span class="n">into</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">get_target</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">idx</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">u32</span> <span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">load_slice</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">.</span><span class="n">header</span><span class="p">().</span><span class="n">targets</span><span class="p">)[</span><span class="n">idx</span><span class="p">]</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">    </span><span class="k">fn</span> <span class="nf">bytes</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">start</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">len</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">bytes</span><span class="p">[</span><span class="n">start</span><span class="p">..</span><span class="n">start</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">len</span><span class="p">].</span><span class="n">as_ptr</span><span class="p">()</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">header</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kp">&amp;</span><span class="nc">Header</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">transmute</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">bytes</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">size_of</span>::<span class="o">&lt;</span><span class="n">Header</span><span class="o">&gt;</span><span class="p">()))</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">load_slice</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">s</span>: <span class="kp">&amp;</span><span class="nc">Slice</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kp">&amp;</span><span class="p">[</span><span class="n">T</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">size_of</span>::<span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">()</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">len</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">bytes</span><span class="p">(</span><span class="n">s</span><span class="p">.</span><span class="n">offset</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">size</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">slice</span>::<span class="n">from_raw_parts</span><span class="p">(</span><span class="n">bytes</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">T</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">len</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>In this case <cite>Data&lt;'a&gt;</cite> only holds a copy-on-write reference to the
+backing byte storage (an owned <cite>Vec&lt;u8&gt;</cite> or a borrowed <cite>&amp;[u8]</cite> slice).
+The byte slice starts with the bytes from <cite>Header</cite> and they are resolved
+on demand when <cite>header()</cite> is called.  Likewise a single slice is resolved
+similarly by the call to <cite>load_slice()</cite> which takes a stored slice and
+then looks it up by offsetting on demand.</p>
+<p><em>To recap: instead of storing a pointer to an object itself, store some
+information so that you can calculate the pointer later.  This is also
+commonly called using “handles”.</em></p>
+</div>
+<div class="section" id="refcounts-are-not-dirty">
+<h2>Refcounts are not Dirty</h2>
+<p>Another quite interesting case that is surprisingly easy to run into also
+has to do with the borrow checker.  The borrow checker doesn't let you do
+stupid things with data you do not own and sometimes that can feel like
+running into a wall because you think you know better.  In many of those
+cases the answer is just one <cite>Rc&lt;T&gt;</cite> away however.</p>
+<p>To make this less mysterious let's look at the following piece of C++
+code:</p>
+<div class="highlight"><pre><span></span><span class="k">thread_local</span> <span class="k">struct</span> <span class="p">{</span>
+    <span class="kt">bool</span> <span class="n">debug_mode</span><span class="p">;</span>
+<span class="p">}</span> <span class="n">current_config</span><span class="p">;</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="n">current_config</span><span class="p">.</span><span class="n">debug_mode</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">current_config</span><span class="p">.</span><span class="n">debug_mode</span><span class="p">)</span> <span class="p">{</span>
+        <span class="c1">// do something</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+<p>This seems pretty innocent but it has a problem: nothing stops you from
+borrowing a field from <cite>current_config</cite> and then passing it somewhere
+else.  This is why in Rust the direct equivalent of that looks
+significantly more complicated:</p>
+<div class="highlight"><pre><span></span><span class="cp">#[derive(Default)]</span><span class="w"></span>
+<span class="k">struct</span> <span class="nc">Config</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">debug_mode</span>: <span class="kt">bool</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">thread_local</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">CURRENT_CONFIG</span>: <span class="nc">Config</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Default</span>::<span class="n">default</span><span class="p">();</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">CURRENT_CONFIG</span><span class="p">.</span><span class="n">with</span><span class="p">(</span><span class="o">|</span><span class="n">config</span><span class="o">|</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="c1">// here we can *immutably* work with config</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">config</span><span class="p">.</span><span class="n">debug_mode</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="c1">// do something</span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">});</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>This should make it immediately obvious that this API is not fun.  First
+of all the config is immutable.  Secondly we can only access the config
+object within the closure passed to the <cite>with</cite> function.  Any attempt of
+trying to borrow from this config object and have it outlive the closure
+will fail (probably with something like “cannot infer an appropriate
+lifetime”).  There is no way around it!</p>
+<p>This API is clearly objectively bad.  Imagine we want to look up more of
+those thread local variables.  So let's look at both of those issues
+separately.  As hinted above ref counting is generally a really nice
+solution to deal with the underlying issue here: it's unclear who the
+owner is.</p>
+<p>Let's imagine for a second this config object just happens to be bound to
+the current thread but is not really owned by the current thread.  What
+happens if the config is passed to another thread but the current thread
+shuts down?  This is a typical example where one can think of logically
+the config having multiple owners.  Since we might want to pass from one
+thread to another we want an atomically reference counted wrapper for our
+config: an <cite>Arc&lt;Config&gt;</cite>.  This lets us increase the refcount in the with
+block and return it.  The refactored version looks like this:</p>
+<div class="highlight"><pre><span></span><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">sync</span>::<span class="n">Arc</span><span class="p">;</span><span class="w"></span>
+
+<span class="cp">#[derive(Default)]</span><span class="w"></span>
+<span class="k">struct</span> <span class="nc">Config</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">debug_mode</span>: <span class="kt">bool</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">Config</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">current</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Config</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">CURRENT_CONFIG</span><span class="p">.</span><span class="n">with</span><span class="p">(</span><span class="o">|</span><span class="n">c</span><span class="o">|</span><span class="w"> </span><span class="n">c</span><span class="p">.</span><span class="n">clone</span><span class="p">())</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">thread_local</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">CURRENT_CONFIG</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Config</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="nb">Default</span>::<span class="n">default</span><span class="p">());</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Config</span>::<span class="n">current</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="c1">// here we can *immutably* work with config</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">config</span><span class="p">.</span><span class="n">debug_mode</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="c1">// do something</span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>The change here is that now the thread local holds a reference counted
+config.  As such we can introduce a function that returns an
+<cite>Arc&lt;Config&gt;</cite>.  In the closure from the TLS we increment the refcount with
+the <cite>clone()</cite> method on the <cite>Arc&lt;Config&gt;</cite> and return it.  Now any caller
+to <cite>Config::current</cite> gets that refcounted config and can hold on to it for
+as long as necessary.  For as long as there is code holding the Arc, the
+config within it is kept alive.  Even if the originating thread died.</p>
+<p>So how do we make it mutable like in the C++ version?  We need something
+that provides us with interior mutability.  There are two options for
+this.  One is to wrap the <cite>Config</cite> in something like an <cite>RwLock</cite>.  The
+second one is to have the <cite>Config</cite> use locking internally.  For instance
+one <em>might</em> want to do this:</p>
+<div class="highlight"><pre><span></span><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">sync</span>::<span class="p">{</span><span class="n">Arc</span><span class="p">,</span><span class="w"> </span><span class="n">RwLock</span><span class="p">};</span><span class="w"></span>
+
+<span class="cp">#[derive(Default)]</span><span class="w"></span>
+<span class="k">struct</span> <span class="nc">ConfigInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">debug_mode</span>: <span class="kt">bool</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">struct</span> <span class="nc">Config</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">inner</span>: <span class="nc">RwLock</span><span class="o">&lt;</span><span class="n">ConfigInner</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">Config</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Config</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">Config</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">inner</span>: <span class="nc">RwLock</span>::<span class="n">new</span><span class="p">(</span><span class="nb">Default</span>::<span class="n">default</span><span class="p">())</span><span class="w"> </span><span class="p">})</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">current</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Config</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">CURRENT_CONFIG</span><span class="p">.</span><span class="n">with</span><span class="p">(</span><span class="o">|</span><span class="n">c</span><span class="o">|</span><span class="w"> </span><span class="n">c</span><span class="p">.</span><span class="n">clone</span><span class="p">())</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">debug_mode</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">bool</span> <span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">read</span><span class="p">().</span><span class="n">unwrap</span><span class="p">().</span><span class="n">debug_mode</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">set_debug_mode</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">value</span>: <span class="kt">bool</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">write</span><span class="p">().</span><span class="n">unwrap</span><span class="p">().</span><span class="n">debug_mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">value</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">thread_local</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">CURRENT_CONFIG</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Config</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Config</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Config</span>::<span class="n">current</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="n">config</span><span class="p">.</span><span class="n">set_debug_mode</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">config</span><span class="p">.</span><span class="n">debug_mode</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="c1">// do something</span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>If you do not need this type to work with threads you can also replace
+<cite>Arc</cite> with <cite>Rc</cite> and <cite>RwLock</cite> with <cite>RefCell</cite>.</p>
+<p><em>To recap: when you need to borrow data that outlives the lifetime of
+something you need refcounting.  Don't be afraid of using `Arc` but be
+aware that this locks you to immutable data.  Combine with interior
+mutability (like `RwLock`) to make the object mutable.</em></p>
+</div>
+<div class="section" id="kill-all-setters">
+<h2>Kill all Setters</h2>
+<p>But the above pattern of effectively having <cite>Arc&lt;RwLock&lt;Config&gt;&gt;</cite> can be a
+bit problematic and swapping it for <cite>RwLock&lt;Arc&lt;Config&gt;&gt;</cite> can be
+significantly better.</p>
+<p>Rust done well is a liberating experience because if programmed well it's
+shockingly easy to parallelize your code after the fact.  Rust encourages
+immutable data and that makes everything so much easier.  However in the
+previous example we just introduced interior mutability.  Imagine we have
+multiple threads running, all referencing the same config but one flips a
+flag.  What happens to concurrently running code that now is not expecting
+the flag to randomly flip?  Because of that interior mutability should be
+used carefully.  Ideally an object once created does not change its state
+in such a way.  In general I think such a type of setter should be an anti
+pattern.</p>
+<p>So instead of doing this what about we take a step back to where we were
+earlier where configs were not mutable?  What if we never mutate the
+config after we created it but we add an API to promote another config to
+current.  This means anyone who is currently holding on to a config can
+safely know that the values won't change.</p>
+<div class="highlight"><pre><span></span><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">sync</span>::<span class="p">{</span><span class="n">Arc</span><span class="p">,</span><span class="w"> </span><span class="n">RwLock</span><span class="p">};</span><span class="w"></span>
+
+<span class="cp">#[derive(Default)]</span><span class="w"></span>
+<span class="k">struct</span> <span class="nc">Config</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">debug_mode</span>: <span class="kt">bool</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">Config</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">current</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Config</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">CURRENT_CONFIG</span><span class="p">.</span><span class="n">with</span><span class="p">(</span><span class="o">|</span><span class="n">c</span><span class="o">|</span><span class="w"> </span><span class="n">c</span><span class="p">.</span><span class="n">read</span><span class="p">().</span><span class="n">unwrap</span><span class="p">().</span><span class="n">clone</span><span class="p">())</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">make_current</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">CURRENT_CONFIG</span><span class="p">.</span><span class="n">with</span><span class="p">(</span><span class="o">|</span><span class="n">c</span><span class="o">|</span><span class="w"> </span><span class="o">*</span><span class="n">c</span><span class="p">.</span><span class="n">write</span><span class="p">().</span><span class="n">unwrap</span><span class="p">()</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">thread_local</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">CURRENT_CONFIG</span>: <span class="nc">RwLock</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">Config</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RwLock</span>::<span class="n">new</span><span class="p">(</span><span class="nb">Default</span>::<span class="n">default</span><span class="p">());</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">Config</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">debug_mode</span>: <span class="nc">true</span><span class="w"> </span><span class="p">}.</span><span class="n">make_current</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">Config</span>::<span class="n">current</span><span class="p">().</span><span class="n">debug_mode</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="c1">// do something</span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>Now configs are still initialized automatically by default but a new
+config can be set by constructing a <cite>Config</cite> object and calling
+<cite>make_current</cite>.  That will move the config into an <cite>Arc</cite> and then bind it
+to the current thread.  Callers to <cite>current()</cite> will get that <cite>Arc</cite> back
+and can then again do whatever they want.</p>
+<p>Likewise you can again switch <cite>Arc</cite> for <cite>Rc</cite> and <cite>RwLock</cite> for <cite>RefCell</cite> if
+you do not need this to work with threads.  If you are just working with
+thread locals you can also combine <cite>RefCell</cite> with <cite>Arc</cite>.</p>
+<p><em>To recap: instead of using interior mutability where an object changes
+its internal state, consider using a pattern where you promote new state
+to be current and current consumers of the old state will continue to hold
+on to it by putting an `Arc` into an `RwLock`.</em></p>
+</div>
+<div class="section" id="in-conclusion">
+<h2>In Conclusion</h2>
+<p>Honestly I wish I would have learned the above three things earlier than I
+did.  Mostly because even if you know the patterns you might not
+necessarily know when to use them.  So I guess the following mantra is now
+what I want to print out and hang somewhere:</p>
+<ul class="simple">
+<li>Handles, not self referential pointers</li>
+<li>Reference count your way out of lifetime / borrow checker hell</li>
+<li>Consider promoting new state instead of interior mutability</li>
+</ul>
+</div>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/rust/">rust</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

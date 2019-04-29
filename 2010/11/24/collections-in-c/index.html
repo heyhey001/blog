@@ -1,0 +1,447 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>Collections in C | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">Collections in C</h1>
+
+  
+  <p class=date>written on Wednesday, November 24, 2010
+  
+
+  <p>Inspired by Minecraft (like countless other people out there) I decided to
+give a clone a try to see how this can be accomplished.  My last few
+adventures into the 3D world went through C++ but that always presented me
+with a problem: The C++ code I write does not scale well to computer
+games.  This time I thought I can probably try to work around the problem
+by forcing myself to simple C.</p>
+<p>This worked really well up to the point where I needed two kinds of lists.
+One that accepted floats and another one that works with arbitrary
+pointers.</p>
+<p>The C++ way for this is obvious: use templates.  That's also one of the
+best features in C++ and works surprisingly well for the (I imagine) great
+hack it is.  However in C we don't have that but the closest to templates
+in C (or code generation in general) is the preprocessor.</p>
+<p>A warning upfront: all these examples use very generic names.  This is a
+very bad idea.  If you want to use something like this in your own code,
+make sure to prefix all macros, functions, types etc. with a unique
+prefix.  (For instance instead of <tt class="docutils literal">CAT</tt> name it <tt class="docutils literal">MYLIB_CAT</tt>).</p>
+<div class="section" id="abusing-the-preprocessor">
+<h2>Abusing the Preprocessor</h2>
+<p>Generally there are two ways to do code generation for C.  One involves
+external tools that create new C files, the other involves the C
+preprocessor which is normally intended to expand macros, include other
+files or remove comments before the compiler goes over your code.</p>
+<p>I normally like to avoid tools that generate new C files for the very
+simple reason that these usually generate ugly looking code I then have to
+look at which is annoying or at least require yet another tool in my
+toolchain which causes headaches when compiling code on more than on
+operating system.  A simple Python script that generates a C file sounds
+simple, but it stops being simple if you also want that thing to be part
+of your windows installation where Python is usually not available or
+works differently.</p>
+<p>So for my collections I went straight with the C preprocessor.  When you
+limit yourself to the C preprocessor (CCAT) there are two common usage
+patterns:</p>
+<ul>
+<li><p class="first">The most common is generating code in a macro.  This has the downside
+that macros are always expanded into a single line which has brings
+nearly useless error messages if you make a mistake on expanding.</p>
+<p>The second downside of this approach is that macros generally are
+really unfriendly to write.  They must be in a single line and when
+you need more than one you have to backslash escape the newline.  If
+you forget about that, welcome to interesting compiler errors.</p>
+<p>Macros are fine if they are small, bug looking at endless lines of
+generated C code from the preprocessor can be hairy and frustrating.</p>
+</li>
+<li><p class="first">The second approach is to move your implementation into a standard C
+file and use macros to replace the dynamic parts of the
+implementation.  (Such as the function names, storage types and other
+things).</p>
+<p>This is what I ended up doing for my collection classes.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="features-of-the-preprocessor">
+<h2>Features of the Preprocessor</h2>
+<p>Before we head over to the details of the implementation, let's have a
+look at some of the features of the C preprocssor.</p>
+<dl class="docutils">
+<dt><tt class="docutils literal">#include &quot;file&quot;</tt></dt>
+<dd>This is the best known feature of the preprocessor.  It includes
+another file from the search path and inserts it at the same location.
+Unless you protect your file from multiple inclusions with include
+guards (macros that are set and detected) you can include a file more
+than once.  This is actually quite helpful in our case.</dd>
+<dt><tt class="docutils literal">#error &quot;message&quot;</tt></dt>
+<dd>With this directive you can emit an error message that will abort the
+compilation.  You can combine it with preprocessor conditionals to
+notify the user about unsupported configurations, platforms etc.  In
+our case it can help us giving the user feedback about missing
+defines.</dd>
+<dt><tt class="docutils literal">#ifdef / #ifndef</tt></dt>
+<dd>Executes code only if a macro of a given name was defined or not.
+This does not support checking for more than one macro, so often it
+makes more sense to use <tt class="docutils literal">#if defined(MACRO)</tt>.</dd>
+<dt><tt class="docutils literal">#if / #elif / #else</tt></dt>
+<dd>Can test arbitrary preprocessor conditions.  It can perform basic
+arithmetic and check if other macros are defined (<tt class="docutils literal">defined(X)</tt>).</dd>
+<dt><tt class="docutils literal">#define MACRO value</tt></dt>
+<dd>Defines a new simple macro.  From that point onwards each occurrence
+of <cite>MACRO</cite> will be replaced with <cite>value</cite>.  In fact, after <cite>MACRO</cite> more
+than one C token of any form can be placed if necessary.  You can let
+a macro be replaced by a full function definition.</dd>
+<dt><tt class="docutils literal">#define MACRO(X) X</tt></dt>
+<dd><p class="first">Macros can also have parameters that are simple tokens.  Whenever that
+token appears in the list of tokens that will act as replacement, that
+token is replaced with the actual token that was passed to the macro.</p>
+<p>For example this is a very simple and stupid way to specify an <cite>abs()</cite>
+macro that will take a value and return the absolute value:</p>
+<div class="highlight"><pre><span></span><span class="cp">#define ABS(X) ((X) &lt; 0 ? -(X) : (X))</span>
+</pre></div>
+<p>The preprocessor will then expand the macro upon usage:</p>
+<div class="highlight"><pre><span></span><span class="kt">int</span> <span class="n">x</span> <span class="o">=</span> <span class="n">ABS</span><span class="p">(</span><span class="o">-</span><span class="mi">42</span><span class="p">);</span>
+
+<span class="cm">/* this is expanded to this: */</span>
+
+<span class="kt">int</span> <span class="n">x</span> <span class="o">=</span> <span class="p">((</span><span class="o">-</span><span class="mi">42</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="o">?</span> <span class="o">-</span><span class="p">(</span><span class="o">-</span><span class="mi">42</span><span class="p">)</span> <span class="o">:</span> <span class="p">(</span><span class="o">-</span><span class="mi">42</span><span class="p">))</span>
+</pre></div>
+<p>The additional parentheses are there to avoid ambuiguities in case
+there are operators involved in the passed expression.</p>
+<p class="last">Because macro arguments work by replacing tokens I always use
+uppercase letters as first letter of a macro argument.  The reason for
+this is that nothing in my C code is written in camelcase and thus
+there is no way this could clash with an actual token that might be in
+use.</p>
+</dd>
+<dt><tt class="docutils literal">#</tt></dt>
+<dd><p class="first">Inside macro expressions the <tt class="docutils literal">#</tt> operator can be used to convert the
+following macro argument token passed into a string.  Please keep in
+mind that this only works for macro arguments, not arbitrary tokens.
+This is very helpful if you want to implement things like <cite>assert()</cite>
+and have helpful error messages:</p>
+<div class="highlight"><pre><span></span><span class="cp">#define assert(Expr) do { \</span>
+<span class="cp">    if (!(Expr)) fail_with_message(&quot;Assertion failed: &quot; #Expr, \</span>
+<span class="cp">                                   __LINE__, __FILE__); \</span>
+<span class="cp">} while (0)</span>
+</pre></div>
+<p>This also showcases two other things you have to keep in mind when
+using the preprocessor:</p>
+<ol class="last arabic simple">
+<li>The macro might be used in the body of an if expression and using
+a sole <cite>if</cite> there might cause the dangling else problem.  As a
+simple workaround, always wrap your macros in a loop that only
+runs once (<tt class="docutils literal">do { ... } while (0)</tt>).  Also make sure to not
+include a trailing semicolon.  The user of the macro should add
+the semicolon, not the author of the macro.</li>
+<li>If a macro spans more than one line you have to escape the
+newlines by adding a backslash before them.  Also be sure not to
+add any other whitespace before the newline or this will break.</li>
+</ol>
+</dd>
+<dt><tt class="docutils literal">##</tt></dt>
+<dd><p class="first">The <tt class="docutils literal">##</tt> operator can be used to concatenate a macro argument token
+with any other token.  Again, this only works if a macro argument
+token is involved, it will not work on arbitrary tokens.</p>
+<p>This can for example be used to dynamically generate functions that
+are prefixed with something else:</p>
+<div class="last"><div class="highlight"><pre><span></span><span class="cp">#define TEST(TestName) int mylib_##TestName(void)</span>
+
+<span class="n">TEST</span><span class="p">(</span><span class="n">foo</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">assert</span><span class="p">(</span><span class="n">foo</span> <span class="o">==</span> <span class="mi">42</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div></dd>
+</dl>
+</div>
+<div class="section" id="preprocessor-utilities">
+<h2>Preprocessor Utilities</h2>
+<p>Now that we know the basics of the preprocessor we can also infer what
+problems might exist.  Mainly the interesting operators for code
+generation (<tt class="docutils literal">#</tt> and <tt class="docutils literal">##</tt>) can only operate on macro arguments.  This
+is not a problem for the former, but it will become somewhat of a
+limitation in case of the latter.  Thankfully this can be countered
+nicely with another macro</p>
+<div class="highlight"><pre><span></span><span class="cp">#define _CAT(A, B) A##B</span>
+<span class="cp">#define CAT(A, B) _CAT(A, B)</span>
+</pre></div>
+<p>Why do we need two macros here?  Wouldn't the first macro be enough to
+concatenate macros?  Unfortunately not because when a macro argument is
+another macro argument it wouldn't be expanded.  Look here:</p>
+<div class="highlight"><pre><span></span><span class="cp">#define CAT(A, B) A##B</span>
+
+<span class="kt">int</span>
+<span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="kt">int</span> <span class="n">CAT</span><span class="p">(</span><span class="n">foo</span><span class="p">,</span> <span class="n">CAT</span><span class="p">(</span><span class="n">bar</span><span class="p">,</span> <span class="n">baz</span><span class="p">));</span>
+<span class="p">}</span>
+</pre></div>
+<p>This would generate the following C code:</p>
+<div class="highlight"><pre><span></span><span class="cp">#define CAT(A, B) A##B</span>
+
+<span class="kt">int</span>
+<span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="kt">int</span> <span class="n">fooCAT</span><span class="p">(</span><span class="n">bar</span><span class="p">,</span> <span class="n">baz</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+<p>The extra indirection solves this problem nicely.</p>
+<p>The second macro I like to declare for code generation is an <tt class="docutils literal">UCAT</tt>
+macro that concatenates two tokens with an underscore instead of
+concatenating them directly:</p>
+<div class="highlight"><pre><span></span><span class="cp">#define UCAT(A, B) CAT(A, CAT(_, B))</span>
+</pre></div>
+</div>
+<div class="section" id="creating-a-list-header">
+<h2>Creating a List Header</h2>
+<p>Now we have everything to get started implementing a simple list type.
+For this we first create a header where we declare all list types we want
+to use.  In my case I am interested in a list for pointers and floats.
+The header looks like this:</p>
+<div class="highlight"><pre><span></span><span class="cp">#ifndef _INC_LIST_H_</span>
+<span class="cp">#define _INC_LIST_H_</span>
+
+<span class="cm">/* list of pointers */</span>
+<span class="cp">#define _COLLECTION_TYPE void *</span>
+<span class="cp">#define _COLLECTION_NAME list</span>
+<span class="cp">#include</span> <span class="cpf">&quot;_list.h&quot;</span><span class="cp"></span>
+
+<span class="cm">/* list of floats */</span>
+<span class="cp">#define _COLLECTION_TYPE float</span>
+<span class="cp">#define _COLLECTION_NAME floatlist</span>
+<span class="cp">#include</span> <span class="cpf">&quot;_list.h&quot;</span><span class="cp"></span>
+
+<span class="cp">#endif</span>
+</pre></div>
+<p>As you can see we have a standard include guard and then we include
+another header in there twice (once for each list type we want to have).
+Before including that header, we also define the type for the list and the
+name we want to use.</p>
+<p>That header then declares the struct for the list and the methods we want
+to have.  For this to work we will need another header that is used both
+by this header as well as the implementation C file.  Let's call this
+header <cite>_collection_pre.inc</cite>.  Because we have a <cite>pre</cite> header we will also need
+a <cite>post</cite> header (<cite>_collection_post.inc</cite>).  The purpose of the <cite>pre</cite> header is
+to declare some helper macros that return function names prefixed with the
+necessary name and the idea of the <cite>post</cite> header is to get rid of these
+macros again to allow the inclusion of this header another time (for the
+next type).</p>
+<p>This is what these headers look like:</p>
+<p><cite>_collection_pre.inc</cite>:</p>
+<div class="highlight"><pre><span></span><span class="cm">/* include the header that declares CAT and UCAT */</span>
+<span class="cp">#include</span> <span class="cpf">&quot;pputils.h&quot;</span><span class="cp"></span>
+
+<span class="cm">/* ensure that the includer set type and name */</span>
+<span class="cp">#if !defined(_COLLECTION_TYPE) || !defined(_COLLECTION_NAME)</span>
+<span class="cp">#  error &quot;Includer has to set _COLLECTION_TYPE and _COLLECTION_NAME&quot;</span>
+<span class="cp">#endif</span>
+
+<span class="cm">/* helper macros to declare types and methods */</span>
+<span class="cp">#define _COLLECTION_TYPENAME SC_PP_UCAT(_COLLECTION_NAME, t)</span>
+<span class="cp">#define _COLLECTION_METHOD(Name) SC_PP_UCAT(_COLLECTION_NAME, Name)</span>
+</pre></div>
+<p><cite>_collection_post.inc</cite>:</p>
+<div class="highlight"><pre><span></span><span class="cm">/* get rid of everything declared in _collection_pre.h and the includer */</span>
+<span class="cp">#undef _COLLECTION_NAME</span>
+<span class="cp">#undef _COLLECTION_TYPE</span>
+<span class="cp">#undef _COLLECTION_TYPENAME</span>
+<span class="cp">#undef _COLLECTION_METHOD</span>
+</pre></div>
+<p>Now we finally have everything in place to implement our <cite>_list.h</cite> header
+that declares types and methods.  This is how it can look like:</p>
+<div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&quot;_collection_pre.inc&quot;</span><span class="cp"></span>
+
+<span class="k">typedef</span> <span class="k">struct</span> <span class="p">{</span>
+    <span class="kt">size_t</span> <span class="n">size</span><span class="p">;</span>
+    <span class="kt">size_t</span> <span class="n">allocated</span><span class="p">;</span>
+    <span class="n">_COLLECTION_TYPE</span> <span class="o">*</span><span class="n">items</span><span class="p">;</span>
+<span class="p">}</span> <span class="n">_COLLECTION_TYPENAME</span><span class="p">;</span>
+
+<span class="cm">/* creates a new list */</span>
+<span class="n">_COLLECTION_TYPENAME</span> <span class="o">*</span><span class="nf">_COLLECTION_METHOD</span><span class="p">(</span><span class="n">new</span><span class="p">)(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="cm">/* frees the list */</span>
+<span class="kt">void</span> <span class="nf">_COLLECTION_METHOD</span><span class="p">(</span><span class="n">free</span><span class="p">)(</span><span class="n">_COLLECTION_TYPENAME</span> <span class="o">*</span><span class="n">self</span><span class="p">);</span>
+
+<span class="cm">/* appends a new item to the list */</span>
+<span class="kt">int</span> <span class="nf">_COLLECTION_METHOD</span><span class="p">(</span><span class="n">append</span><span class="p">)(</span><span class="n">_COLLECTION_TYPENAME</span> <span class="o">*</span><span class="n">self</span><span class="p">,</span> <span class="n">_COLLECTION_TYPE</span> <span class="n">item</span><span class="p">);</span>
+
+<span class="cm">/* removes the last item from the list */</span>
+<span class="n">_COLLECTION_TYPE</span> <span class="nf">_COLLECTION_METHOD</span><span class="p">(</span><span class="n">pop</span><span class="p">)(</span><span class="n">_COLLECTION_TYPENAME</span> <span class="o">*</span><span class="n">self</span><span class="p">);</span>
+
+<span class="cp">#include</span> <span class="cpf">&quot;_collection_post.inc&quot;</span><span class="cp"></span>
+</pre></div>
+<p>The preprocessor will then use this to generate a <cite>list_t</cite>, <cite>floatlist_t</cite>,
+<cite>list_new()</cite>, <cite>floatlist_new()</cite> etc.</p>
+</div>
+<div class="section" id="implementing-the-list">
+<h2>Implementing the List</h2>
+<p>The actual implementation of the list (<cite>list.c</cite>) looks similar to our
+<cite>list.h</cite> header, just that we are including <cite>_list.inc</cite> instead of
+<cite>_list.h</cite>.  In both cases however we are using the same tricks as we did
+with our header files:</p>
+<p><cite>list.c</cite>:</p>
+<div class="highlight"><pre><span></span><span class="cm">/* list of pointers */</span>
+<span class="cp">#define _COLLECTION_TYPE void *</span>
+<span class="cp">#define _COLLECTION_NAME list</span>
+<span class="cp">#include</span> <span class="cpf">&quot;_list.inc&quot;</span><span class="cp"></span>
+
+<span class="cm">/* list of floats */</span>
+<span class="cp">#define _COLLECTION_TYPE float</span>
+<span class="cp">#define _COLLECTION_NAME floatlist</span>
+<span class="cp">#include</span> <span class="cpf">&quot;_list.inc&quot;</span><span class="cp"></span>
+</pre></div>
+<p><cite>_list.inc</cite>:</p>
+<div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&quot;_collection_pre.inc&quot;</span><span class="cp"></span>
+
+<span class="n">_COLLECTION_TYPENAME</span> <span class="o">*</span>
+<span class="nf">_COLLECTION_METHOD</span><span class="p">(</span><span class="n">new</span><span class="p">)(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">_COLLECTION_TYPENAME</span> <span class="o">*</span><span class="n">rv</span> <span class="o">=</span> <span class="n">malloc</span><span class="p">(</span><span class="k">sizeof</span><span class="p">(</span><span class="n">_COLLECTION_TYPENAME</span><span class="p">));</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">rv</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">NULL</span><span class="p">;</span>
+    <span class="n">rv</span><span class="o">-&gt;</span><span class="n">size</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="n">rv</span><span class="o">-&gt;</span><span class="n">allocated</span> <span class="o">=</span> <span class="mi">32</span><span class="p">;</span>
+    <span class="n">rv</span><span class="o">-&gt;</span><span class="n">items</span> <span class="o">=</span> <span class="n">malloc</span><span class="p">(</span><span class="k">sizeof</span><span class="p">(</span><span class="n">_COLLECTION_TYPE</span><span class="p">)</span> <span class="o">*</span> <span class="n">rv</span><span class="o">-&gt;</span><span class="n">allocated</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">rv</span><span class="o">-&gt;</span><span class="n">items</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">free</span><span class="p">(</span><span class="n">rv</span><span class="p">);</span>
+        <span class="k">return</span> <span class="nb">NULL</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">rv</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">void</span>
+<span class="nf">_COLLECTION_METHOD</span><span class="p">(</span><span class="n">free</span><span class="p">)(</span><span class="n">_COLLECTION_TYPENAME</span> <span class="o">*</span><span class="n">self</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">self</span><span class="p">)</span>
+        <span class="k">return</span><span class="p">;</span>
+    <span class="n">free</span><span class="p">(</span><span class="n">self</span><span class="o">-&gt;</span><span class="n">items</span><span class="p">);</span>
+    <span class="n">free</span><span class="p">(</span><span class="n">self</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">int</span>
+<span class="nf">_COLLECTION_METHOD</span><span class="p">(</span><span class="n">append</span><span class="p">)(</span><span class="n">_COLLECTION_TYPENAME</span> <span class="o">*</span><span class="n">self</span><span class="p">,</span> <span class="n">_COLLECTION_TYPE</span> <span class="n">item</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">self</span><span class="o">-&gt;</span><span class="n">size</span> <span class="o">&gt;=</span> <span class="n">self</span><span class="o">-&gt;</span><span class="n">allocated</span><span class="p">)</span> <span class="p">{</span>
+        <span class="kt">size_t</span> <span class="n">new_size</span> <span class="o">=</span> <span class="p">(</span><span class="kt">size_t</span><span class="p">)(</span><span class="n">self</span><span class="o">-&gt;</span><span class="n">allocated</span> <span class="o">*</span> <span class="mf">1.33f</span><span class="p">);</span>
+        <span class="n">_COLLECTION_TYPE</span> <span class="o">*</span><span class="n">rv</span> <span class="o">=</span> <span class="n">realloc</span><span class="p">(</span><span class="n">self</span><span class="o">-&gt;</span><span class="n">items</span><span class="p">,</span>
+                                       <span class="k">sizeof</span><span class="p">(</span><span class="n">_COLLECTION_TYPE</span><span class="p">)</span> <span class="o">*</span> <span class="n">new_size</span><span class="p">);</span>
+        <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">rv</span><span class="p">)</span>
+            <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+        <span class="n">self</span><span class="o">-&gt;</span><span class="n">allocated</span> <span class="o">=</span> <span class="n">new_size</span><span class="p">;</span>
+        <span class="n">self</span><span class="o">-&gt;</span><span class="n">items</span> <span class="o">=</span> <span class="n">rv</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="n">self</span><span class="o">-&gt;</span><span class="n">items</span><span class="p">[</span><span class="n">self</span><span class="o">-&gt;</span><span class="n">size</span><span class="o">++</span><span class="p">]</span> <span class="o">=</span> <span class="n">item</span><span class="p">;</span>
+    <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="n">_COLLECTION_TYPE</span>
+<span class="nf">_COLLECTION_METHOD</span><span class="p">(</span><span class="n">pop</span><span class="p">)(</span><span class="n">_COLLECTION_TYPENAME</span> <span class="o">*</span><span class="n">self</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">return</span> <span class="n">self</span><span class="o">-&gt;</span><span class="n">items</span><span class="p">[</span><span class="o">--</span><span class="n">self</span><span class="o">-&gt;</span><span class="n">size</span><span class="p">];</span>
+<span class="p">}</span>
+
+<span class="cp">#include</span> <span class="cpf">&quot;_collection_post.inc&quot;</span><span class="cp"></span>
+</pre></div>
+</div>
+<div class="section" id="usage">
+<h2>Usage</h2>
+<p>And this is then how you would use that list:</p>
+<div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&quot;list.h&quot;</span><span class="cp"></span>
+
+<span class="kt">int</span>
+<span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">floatlist_t</span> <span class="o">*</span><span class="n">list</span> <span class="o">=</span> <span class="n">floatlist_new</span><span class="p">();</span>
+    <span class="n">floatlist_append</span><span class="p">(</span><span class="n">list</span><span class="p">,</span> <span class="mf">42.0f</span><span class="p">);</span>
+    <span class="n">floatlist_append</span><span class="p">(</span><span class="n">list</span><span class="p">,</span> <span class="mf">23.0f</span><span class="p">);</span>
+    <span class="n">assert</span><span class="p">(</span><span class="n">list</span><span class="o">-&gt;</span><span class="n">size</span> <span class="o">==</span> <span class="mi">2</span><span class="p">);</span>
+    <span class="n">assert</span><span class="p">(</span><span class="n">list</span><span class="o">-&gt;</span><span class="n">items</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mf">42.0f</span><span class="p">);</span>
+    <span class="n">assert</span><span class="p">(</span><span class="n">list</span><span class="o">-&gt;</span><span class="n">items</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mf">23.0f</span><span class="p">);</span>
+    <span class="n">assert</span><span class="p">(</span><span class="n">floatlist_pop</span><span class="p">(</span><span class="n">list</span><span class="p">)</span> <span class="o">==</span> <span class="mf">23.0f</span><span class="p">);</span>
+    <span class="n">floatlist_free</span><span class="p">(</span><span class="n">list</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<div class="section" id="language-limits">
+<h2>Language Limits</h2>
+<p>On top of that general concept you can then implement arbitrary data
+structures.  The main problem with this over the template system from C++
+is not only that it needs more files or does not have virtual functions,
+but that it requires you to explicitly specify the types you want in the
+header and implementation files and then generate specific typedefs and
+functions for it.  There is really nothing you can do to change this, this
+is how the language works.</p>
+<p>Another problem is that you can't use the preprocessor to generate other
+macros.  So if you want to declare a type specific macro that returns an
+item from the list after doing an size assertion, you are out of luck.
+However all modern compilers do support inlines, so what you want is to
+create a static, inline function in the header instead of a macro.</p>
+<p>Generally speaking though, this is probably good enough to cover the
+majority of use cases and small applications.  It did the trick for me at
+least.</p>
+</div>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/c/">c</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

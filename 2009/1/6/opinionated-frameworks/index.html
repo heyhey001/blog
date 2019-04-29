@@ -1,0 +1,134 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>Opinionated Frameworks | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">Opinionated Frameworks</h1>
+
+  
+  <p class=date>written on Tuesday, January 6, 2009
+  
+
+  <p>Once again <a class="reference external" href="http://lucumr.pocoo.org/2008/9/16/why-jinja-is-not-django-and-why-django-should-have-a-look-at-it">my post about Jinja and the Django template engine</a>
+appeared on <a class="reference external" href="http://reddit.com/">reddit</a>. The second time in the last
+two weeks, probably because my feeds changed and planets re-displayed
+it.</p>
+<p>I originally wrote the post a few months ago to promote <a class="reference external" href="http://jinja.pocoo.org/">Jinja</a> a bit. I was and still am very happy with
+Jinja2 and wanted to write some lines about what I like about it and how
+it works. And I also was hoping that the Django guys have a look at it
+and copy some features of it. Mainly because every once in a while I
+contribute code to a Django powered project or have my fingers in some
+way in such a project's code. And every time I'm kinda puzzled how
+simple some really complex tasks in Django are.</p>
+<p>So what has changed in Django's templates the last four months? Not that
+much. The only changes in the Django template engine was the addition of
+<cite>{% empty %}</cite> blocks in <cite>{% for %}</cite> loops (which does exactly what
+Jinja's <cite>{% else %}</cite> does for loops) and some bug fixing. Is that a
+problem? I don't know, but probably not.</p>
+<p>Django's templates are still slow and limited as they were, but it's not
+causing problems so that users <em>have</em> to switch. Every once in a while I
+notice that people switch to Jinja from Django templates because of
+performance of the limitations, but very often they throw away half the
+framework because they discover that Python has more to offer than just
+Django. And with that in mind I guess the Django guys are doing the
+right thing.</p>
+<p>Django is designed for content driven websites not so much for
+independently deployed applications (like trac, WordPress, MediaWiki and
+others). So not so much for applications and also not so much for stuff
+where you need crazy database queries that are not possible with Django.
+The template engine is designed for simple HTML generation and that's
+it. If you want more, you often want something different than Django
+anyways.</p>
+<p>I know many successful projects that are running Django without problems
+and it works out for them, because their requirements match (nearly)
+exactly what the framework was developed for. And I know many that
+adopted Django because of the fuzz but what they actually want to do
+does not fit into the Django style of development.</p>
+<p>In many ways Django reminds me a bit of unpacking cool stuff. You
+download it and are instantly blown away how cool it is. Database just
+works, templating is awesome, URL routing gives you these incredible
+neat looking URLs and much more. It's so cool that many are trying to
+suddenly do everything with it. And that's kinda where the problem lays.
+You are forcing Django to do things it's not designed for.</p>
+<p>I <em>think</em> what is missing is a website that explains the advantages and
+disadvantages of the particular solutions and what projects work best
+with what solution. There are <a class="reference external" href="http://pylonshq.com/">Pylons</a>,
+<a class="reference external" href="http://werkzeug.pocoo.org/">Werkzeug</a>, <a class="reference external" href="http://pythonpaste.org/">Paste</a>, <a class="reference external" href="http://repoze.org/">Repoze</a> and a lot
+more frameworks and utility libraries that focus on different kinds of
+web applications. And that does not only apply to full blown frameworks
+or WSGI utilities, but also template engines, database libraries and
+even databases themselves. It would prevent a lot of frustration if
+people could find the framework or toolchain of choice <em>before</em> they
+start developing their project.</p>
+<p>But such a page would have to be designed by someone unbiased. And
+neither me, nor anyone else who develops on/for a Python powered
+framework should create such a comparison page. But I would encourage
+everybody with experiences in multiple frameworks to write down their
+experiences with different Python frameworks, template engines, database
+adapters and combinations thereof.</p>
+<p><strong>Update:</strong> Fixed misleading sentence. Swapped complex and simple.</p>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/django/">django</a>, 
+      <a href="/tags/jinja/">jinja</a> and 
+      <a href="/tags/python/">python</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

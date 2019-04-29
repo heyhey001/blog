@@ -1,0 +1,407 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Armin Ronacher's Thoughts and Writings</title>
+  <id>http://lucumr.pocoo.org/feed.atom</id>
+  <updated>2015-08-09T00:00:00Z</updated>
+  <link href="http://lucumr.pocoo.org/" />
+  <link href="http://lucumr.pocoo.org/feed.atom" rel="self" />
+  <subtitle type="text">Armin Ronacher's personal blog about programming, games and random thoughts that come to his mind.</subtitle>
+  <generator>Werkzeug</generator>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Emotional Programming in Open Source</title>
+    <id>http://lucumr.pocoo.org/2013/11/28/emotional-programming</id>
+    <updated>2013-11-28T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2013/11/28/emotional-programming" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;I firmly believe that one of the biggest reasons for the perceived high
+quality of lots of Open Source code is that the developers are generally
+happier writing it.  Lots of people in the Open Source community develop
+something that solve particular problems they have themselves.  But what
+happens when you no longer have problems to solve?&lt;/p&gt;
+&lt;p&gt;I found it quite hard this year to work on my own projects because the
+bug trackers were full of things I personally did not really care about.
+The things I wrote over the last few years all work so well &lt;em&gt;for me&lt;/em&gt;, that
+I don't need to fix problems or add things.  When there is something that
+needs fixing, I will work on it, but otherwise I don't necessarily get the
+motivation to work on it.&lt;/p&gt;
+&lt;p&gt;A big reason for this is that I need to split my available time between
+work, my open source projects, learning new things and private life.
+Lately when I open the bug-tracker for my projects I get an overwhelming
+feeling of failure.  github shows me 500 unprocessed notifications and my
+inbox is now up to 100 unreplied mails, many of which I regret not
+replying, but after a while it seems pointless to reply.&lt;/p&gt;
+&lt;p&gt;The unfortunate truth is that some things in my life started acting on
+their own without me having much control over it.  Somehow it happened
+that on PyPI I am (was?) one of the authors with the most downloads and
+split across multiple projects and that sort-of happened by itself.  It's
+incredible motivating to see people using my software but at the same time
+I fundamentally failed on reducing the bus factor so far.&lt;/p&gt;
+&lt;p&gt;This year I have spent a lot more time with keeping Splash Damage and
+Fireteam stuff running than with my Open Source projects.  Not because
+there was a lot of need for it, but because I had more fun with it.  I
+mentioned this up before, but the whole porting to Python 3 thing has
+killed so much motivation for working on my project for me.  I cannot use
+Python 3 in practice and having to deal with issues I don't have myself is
+one of the most frustrating things.&lt;/p&gt;
+&lt;p&gt;I think this is however also always the biggest advantage of Open Source,
+especially if it's BSD licensed.  Even though the project's author might
+at one point not be contributing as much to the project as before, you
+have full access to everything.  You will never end up in an unfixable
+situation.  This is in a strong contrast to how the proprietary world
+looks like.  Commercial funding in a project might generally keep it more
+active, at least for as long as money flows, but commercial interests
+might not be yours.  Companies get acquired, licensing deals change and
+you might be left from one day to the other in a situation where you need
+to switch technology because it's just no longer available.  I have seen
+this happening.&lt;/p&gt;
+&lt;p&gt;With all that in mind I am currently trying to get things sorted out to
+everybody's satisfaction.  It's unacceptable that issues hang around
+unprocessed this long.&lt;/p&gt;
+&lt;p&gt;Open Source can be hard sometimes.&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">On Countries, Citizenships, Residence and Paying Taxes</title>
+    <id>http://lucumr.pocoo.org/2015/8/9/on-countries-and-citizenships</id>
+    <updated>2015-08-09T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2015/8/9/on-countries-and-citizenships" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;Like many software engineers my life involved moving from one country to
+another for work.  Since that moment this whole concept of relocation
+fascinated me because almost everyone in my circle of friends ended up in
+a place far from where they came but their stories were different.
+I learned that the topic of relocation and immigration is a very complex
+and diverse one.  How widely different the experience can be for different
+people!  Most interesting about this however is how little people not
+affected by this understand the complexities of being an immigrant in
+another country.&lt;/p&gt;
+&lt;p&gt;While my experience of moving to another country was the easiest
+imaginable, it was harder for my wife.  How different immigration can be
+is hard to imagine from the outside.&lt;/p&gt;
+&lt;p&gt;Since immigration is a big topic again I figured I might share some of my
+experience on the topic to shed some light on how all that stuff actually
+works.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-basics&quot;&gt;
+&lt;h2&gt;The Basics&lt;/h2&gt;
+&lt;p&gt;The most important part is to understand the legal basis for pretty much
+all topics related to entering and leaving a country and the permits.
+This is surprisingly complex because of the huge variety of different
+terms for related topics.&lt;/p&gt;
+&lt;dl class=&quot;docutils&quot;&gt;
+&lt;dt&gt;Citizenship&lt;/dt&gt;
+&lt;dd&gt;Citizenship is typically what you get at birth and it makes you the
+citizen of a certain country.  In the majority of countries being a
+citizen gives you certain rights but also obligations.  For instance
+in Austria citizenship gives you the right to vote, but you are
+required to defend your country.  Citizenship also almost always gives
+you the right to live in a country though there might be further
+requirements.&lt;/dd&gt;
+&lt;dt&gt;Multiple Citizenships&lt;/dt&gt;
+&lt;dd&gt;This refers to the idea of holding two (or more) active citizenships.
+This is one of the more complex topics because of how different
+countries approach this.  On the one hand are countries like Austria
+which have the concept of dual citizenships but make it very hard to
+hold multiple.  On the other there are countries like the US which do
+not recognize other citizenships at all but will not prevent you from
+holding multiple.  Lastly there are countries which outlaw multiple
+citizenships altogether.&lt;/dd&gt;
+&lt;dt&gt;Visas&lt;/dt&gt;
+&lt;dd&gt;If you are not a citizen of a country you might need a visa to enter
+or leave a country.  Visas in itself however do not necessarily give
+you the right to actually be in a country.  A good example for that
+would be a person who immigrates into a European country for work from
+a country with a passport that requires you to have a visa.  In that
+case you need a visa to cross the border and then you need a permit to
+stay / permit to work.&lt;/dd&gt;
+&lt;dt&gt;Permits&lt;/dt&gt;
+&lt;dd&gt;Permits come in different flavours and not all countries have the same
+approach to them.  In most countries there are permits to stay and
+separate permits to work and sometimes there are residence permits
+which work differently.  In Austria for instance there are permits
+called “Aufenthaltstitel” which literally translates to “entitlement
+for stay” which also usually comes with an indication if you are
+allowed to become part of the workforce or not.  For instance a family
+member permit gives you the right to work whereas a permit for stay
+for students will only give you limited permissions for working.&lt;/dd&gt;
+&lt;dt&gt;Passports&lt;/dt&gt;
+&lt;dd&gt;&lt;p class=&quot;first&quot;&gt;Passports are travel documents and means to identify yourself
+internationally.  As of a few years ago any person travelling will
+need one of those which includes little children.  Interestingly
+however passports are a lot more complex than you might think because
+they are not directly linked to citizenship.  More about this later.&lt;/p&gt;
+&lt;p class=&quot;last&quot;&gt;A passport gets you across a border and in many cases can act as an
+universally accepted way to proof something about yourself.  For most
+states in the world the passports follow a generally accepted format
+which makes them very convenient and they are on of the few documents
+you never need to translate.  Because of this, they will become your
+best friend when you are not at home though they are by no means the
+only document you need to reside in another country.&lt;/p&gt;
+&lt;/dd&gt;
+&lt;/dl&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;relationship-citizenship-and-passport&quot;&gt;
+&lt;h2&gt;Relationship Citizenship and Passport&lt;/h2&gt;
+&lt;p&gt;Most people would assume that having a passport of one country makes you a
+citizen thereof.  That however is not at all correct.  There are different
+reasons for this and I can't go into all here.  The biggest reason why you
+might have a passport of a country you are not a citizen of is because you
+are a stateless person.&lt;/p&gt;
+&lt;p&gt;For most people in the world once they hold a citizenship they cannot
+become stateless.  The reason for this is that there are international
+treaties where if ratified in a country you cannot lose your citizenship
+unless you acquire another one.  There are some countries where this is
+not the case.  The United States being the most popular of them.  A US
+national can give up their US citizenship and become a stateless person
+this way.  The reason this works is because you do not need to be a US
+citizen to be a US national.  For instance people born in American Samoa
+are US nationals but they are not US citizens.  This is also the part
+where citizenship and nationality becomes unclear.  A person born in
+American Samoa will for all intents and purposes be seen as a US citizen
+as their passport will indicate that they have US nationality.&lt;/p&gt;
+&lt;p&gt;On the other hand there are many stateless people living in Estona and
+Lativa who are officially stateless.  The reason for this is that they are
+Russian speaking and are either not entitled to Estonian or Latvian
+citizenship or have no interest in applying for one.  They are issued a
+special passport for stateless people which however some some special
+powers an Estonian passport does not have: they can travel to Russia visa
+free.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;how-do-i-migrate&quot;&gt;
+&lt;h2&gt;How Do I Migrate?&lt;/h2&gt;
+&lt;p&gt;This for many is the million dollar question.  How can I immigrate in a
+foreign country?  Generally this question heavily depends on your own
+citizenship and the laws of the country you want to become a resident of.&lt;/p&gt;
+&lt;p&gt;Here are the most common ways to immigrate:&lt;/p&gt;
+&lt;dl class=&quot;docutils&quot;&gt;
+&lt;dt&gt;Freedom of Movement&lt;/dt&gt;
+&lt;dd&gt;&lt;p class=&quot;first&quot;&gt;Sometimes you are entitled just like that to live in another country
+like a citizen of that country would be.  This for instance is the
+case within the European Union.  If you are German but you feel like
+living in the Czech Republic, you can do so.  Just head there and
+you're done.  That's not entirely true, you still need to do some
+paper work in some cases (like registering etc.), but there is no rule
+that prevents you.&lt;/p&gt;
+&lt;p class=&quot;last&quot;&gt;This is by far the easiest route but it's restricted to a certain
+population of the world, and there is good chance you as a reader are
+not in that group.&lt;/p&gt;
+&lt;/dd&gt;
+&lt;dt&gt;Marry a Citizen&lt;/dt&gt;
+&lt;dd&gt;&lt;p class=&quot;first&quot;&gt;Marriage is still the best way to get a permit of residence and it's
+becoming an even better by the day because the requirements are so
+stict nowadays.  However marriage does not immediately give you
+residence and most people will probably have noticed that.  As an
+example in order for me and my wife (who is not Austrian) to legally
+live together with our child in Austria we need to have household
+income of 17.500 EUR per year after taxes.  That does not sound like a
+lot, but for many people it's not the easiest thing to show,
+especially because those earnings need to exist regardless of the
+outcome of your residence application.  For most people this means
+showing that you have that much in cash available as you probably do
+not live in the country yet to demonstrate a regular income through
+paychecks.&lt;/p&gt;
+&lt;p class=&quot;last&quot;&gt;In the United Kingdom the income requirement is currently 18.600 GBP /
+year and you need to show income for 2.5 years.  Which means that if
+you want to show it in savings, you need to have at least 62.500 GBP
+on an account somewhere.&lt;/p&gt;
+&lt;/dd&gt;
+&lt;dt&gt;Be Exceptional&lt;/dt&gt;
+&lt;dd&gt;The only other way to immigrate is typically to be exceptional.  In
+most countries this is either by being rich enough to invest into the
+country and get residence or citizenship in the process or by being
+extraordinary intelligent or in demand.  This works well for engineers
+because engineers are in demand in almost all places.  However that is
+no guarantee yet, as in most countries visas and permits are
+restricted by numbers and there is a certain amount of luck
+requirement to get one.&lt;/dd&gt;
+&lt;dt&gt;Become a Citizen&lt;/dt&gt;
+&lt;dd&gt;Most people cannot become a citizen from one day to another, but
+sometimes they can.  In that case that is the way to go.  Typically
+this is done by a prior claim to citizenship that you forgot about
+(for instance to be born to a parent with a certain citizenship).
+This most of the time is only possible for as long as you did not turn
+18 yet.&lt;/dd&gt;
+&lt;dt&gt;Claim Asylum&lt;/dt&gt;
+&lt;dd&gt;In certain situations you might be getting away with claiming asylum.
+Pretty sure the chances that you are a reader of this blog and you
+quality for this route are very dim.  Asylum is restricted to people
+who come from situations where their life is in danger.&lt;/dd&gt;
+&lt;/dl&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;legal-immigration-is-hard&quot;&gt;
+&lt;h2&gt;Legal Immigration is Hard&lt;/h2&gt;
+&lt;p&gt;Legal immigration is expensive and a lot of work.  Besides the proof of
+income (which just requires you to have money), there is a lot of time and
+effort required.  All the documents you need (birth certificate, proof of
+being in good legal standing, citizen certificate, proof of registration
+in the original country, prior academic records, drivers license, etc.)
+need to be apostiled or otherwise made work for international usage and
+translated.  In some country many of those documents can only be retrieved
+in a single place and then you need to go through notaries to get them
+attested.  All steps need to be done in one exact order as each border
+crossing needs to be planned and there is time involved in the paperwork.&lt;/p&gt;
+&lt;p&gt;On top of that you often need to pass language exams so there is some
+learning to do.  In Austria for instance you have to leave the country if
+you cannot show German on an A2 level and you cannot even apply without
+A1.  There are some exceptions to the rule (for instance this does not
+apply to asylum seekers or people immigrating via freedom of movement) but
+for the most part everybody has to go through.&lt;/p&gt;
+&lt;p&gt;Finally:  Where do you pay taxes?  In most countries you pay taxes in the
+country you have your primary residence.  However there are some
+exceptions.  The US will tax you no matter where in the world you are, but
+they will try to not double tax you for some time.  The US will also tax
+you if you stop being a citizen and they think you relinquished your
+citizenship to dodge taxes.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;the-illegal-route&quot;&gt;
+&lt;h2&gt;The Illegal Route&lt;/h2&gt;
+&lt;p&gt;Many people I met over the years just never legally immigrated somewhere.
+That however does not mean that they are illegally in the country.  It can
+also mean that they just never immigrated to begin with and just hop from
+country to country.  They are there as submarines either by pretending to
+be tourists and regularly changing the place of living.&lt;/p&gt;
+&lt;p&gt;This is a bit different from the traditional method of not crossing the
+border much which many migrant workers do.  This however can turn terrible
+the moment someone catches you.  Overstaying your permitted time in
+Schengen for instance will lock you out for 5 years from almost the entire
+European Union.&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+  <entry xml:base="http://lucumr.pocoo.org/feed.atom">
+    <title type="text">Status Update 2010</title>
+    <id>http://lucumr.pocoo.org/2010/1/6/status-update-2010</id>
+    <updated>2010-01-06T00:00:00Z</updated>
+    <link href="http://lucumr.pocoo.org/2010/1/6/status-update-2010" />
+    <author>
+      <name>Armin Ronacher</name>
+    </author>
+    <content type="html">&lt;p&gt;As you can see from the archives, the activity in this blog was rather
+low the last couple of weeks. But not only the blog, also my visible
+programming activity and everything related. There are a couple of
+reason for that but unfortunately I'm not entirely sure how this will
+change in the next few weeks.&lt;/p&gt;
+&lt;p&gt;University turned out to be boring and stressful at the same time and is
+the main limiting factor of my productivity. While at the same time many
+courses bore or frustrate me, there is still a lot of stuff that has to
+be delivered or learned for.&lt;/p&gt;
+&lt;p&gt;While this is the primary reason for not being active at all, there are
+a couple of other reasons as well. What I spend most of my time with the
+last couple of years was certainly Open Source (I guess even free
+software), Python and web applications. For a time I am interested in
+other topics as well, I just never had the impression that I would be
+able to learn was has to be learned to succeed at it.&lt;/p&gt;
+&lt;p&gt;I still don't know, but without trying I will never know. So my Python /
+Webdev activity will most likely stay as low as it currently is for a
+while. That however does not mean that my projects will be unmaintained.&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;project-maintenance&quot;&gt;
+&lt;h2&gt;Project Maintenance&lt;/h2&gt;
+&lt;p&gt;So what's happening to the projects in the near future?&lt;/p&gt;
+&lt;div class=&quot;section&quot; id=&quot;werkzeug-s-future&quot;&gt;
+&lt;h3&gt;Werkzeug's Future&lt;/h3&gt;
+&lt;p&gt;So this little bugger will certainly get a new release soon. I was
+actually planning a release before the beginning of the new year but
+there are a couple of things that I want to have sorted out first. I was
+planning to move the debugger together with a couple of things into a
+new library called Flickzeug, but because I don't think I will
+personally need debugging tools any time soon, I will put that plan on
+hold.&lt;/p&gt;
+&lt;p&gt;If anyone is interested in helping out there, just drop me a line and I
+will help you as good as I can. The design of the library is pretty much
+finished, just the implementation is unfinished.&lt;/p&gt;
+&lt;p&gt;Until something for Flickzeug is planned, the debugging component will
+stay in Werkzeug and not be deprecated. The same cannot be said about
+the Werkzeug templates however. Because it depends on a library that
+goes away in Python 3 I will only deprecate it for future Werkzeug
+Python 3 versions.&lt;/p&gt;
+&lt;p&gt;This is also my biggest grief at the moment. I am totally unhappy how
+Python is developing currently and especially with the implementation of
+Python 3 and the plans for it. Graham Dumpleton is doing an insanely
+great job with maintaining mod_wsgi and I am sure whatever he decides on
+for Python 3's WSGI will become the standard everybody is using. And I
+trust him enough that I know whatever is chosen, is an acceptable
+solution everybody can be happy with. Until then however, I do not plan
+to port Werkzeug to Python 3.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;jinja&quot;&gt;
+&lt;h3&gt;Jinja&lt;/h3&gt;
+&lt;p&gt;Jinja is a little bit more complicated. The hg tip should work on Python
+3 already if you run it through 2to3, so with the next release we should
+have acceptable builtin Python 3 support. What keeps me from releasing a
+new version is that the compiler has a couple of scoping issues that
+arrive from edge cases where Jinja scoping does not properly translate
+to Python scoping.&lt;/p&gt;
+&lt;p&gt;All that would not be an issue if I could generate bytecode directly,
+but that unfortunately is not portable and does not work on the
+appengine at all, so I can only add further workarounds into the code
+generator.&lt;/p&gt;
+&lt;p&gt;Right now I am looking for code that breaks on Jinja2 tip and come up
+with solutions for these edge cases. If you have templates that break on
+tip, let me know and file tickets for those.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;zine&quot;&gt;
+&lt;h3&gt;Zine&lt;/h3&gt;
+&lt;p&gt;Now this is the most tricky project. When I started working on Zine I
+was extremely motived doing that, mostly because at that time WordPress
+was really weak and easy to catch up to. However Zine is still a one man
+project and because it is built in Python it is mostly interesting for
+other Python developers and as such missing its market.&lt;/p&gt;
+&lt;p&gt;The hg version is a lot better than the latest release so what I will do
+is integrating the missing changes into it and release a new version at
+the beginning of February. From that point onwards however I have no
+plans.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;why-all-that&quot;&gt;
+&lt;h2&gt;Why all that&lt;/h2&gt;
+&lt;p&gt;So why the sudden switch away from what I did the last years? It's not
+that I lost motivation in general for what web development but I don't
+want to limit myself to that area. There is more I am interested in and
+because I picked the wrong studies all over again I won't learn enough I
+will have to start learning that next to my regular studies.&lt;/p&gt;
+&lt;p&gt;Alex Gaynor wrote an essay about &lt;a class=&quot;reference external&quot; href=&quot;http://lazypython.blogspot.com/2009/12/few-thoughts-on-education.html&quot;&gt;education&lt;/a&gt;
+a while ago to which I wanted to respond, but I never had the time to.
+Lately however that comes back more and more to me because the situation
+in Austria regarding education and university is currently just weird
+for a couple of reasons.&lt;/p&gt;
+&lt;p&gt;Basically it boils down to me at the same time being incredible unhappy
+with the way university works in Austria but finding myself over and
+over again in the situation where I have to defend the system against
+other stupid students that think it's a good idea to &lt;a class=&quot;reference external&quot; href=&quot;http://www.austriantimes.at/news/General_News/2009-12-21/19038/Student_protesters_%27shocked%27_after_auditorium_evictions&quot;&gt;occupy a large
+auditorium&lt;/a&gt;
+to get more money from the state (and by doing so disrupting other
+students whose exams get relocated, access to library denied and so
+forth).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;call-for-volunteers&quot;&gt;
+&lt;h2&gt;Call for Volunteers&lt;/h2&gt;
+&lt;p&gt;So a while ago there were a couple of people contributing code to
+various Pocoo projects. This is still true but even though the number of
+people using Werkzeug, Jinja2 and Zine increased (not mentioning
+Pygments here which Georg maintains) the number of patches and active
+developers decreased. This is unfortunate because right now I'm pretty
+much alone on these and working alone means that in times where I have
+few time to spare, the amound of new features, improvements and
+everything declines.&lt;/p&gt;
+&lt;p&gt;Two projects of mine (CleverCSS and GHRML) either found new owners by
+sending me a mail or got some better maintained branches on github and I
+would love to either hand over the project completely (including the
+pypi page) or getting you on the pocoo team and giving you commit access
+here.&lt;/p&gt;
+&lt;p&gt;For Werkzeug, Jinja2 and Zine my plan is to clean up the trackers a lot
+so that it's easier to work on small tasks which hopefully will both
+enable external contributions and make it possible for me to work on
+these next to what I will do otherwise :)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;section&quot; id=&quot;happy-new-2010&quot;&gt;
+&lt;h2&gt;Happy new 2010&lt;/h2&gt;
+&lt;p&gt;So for all of you, a Happy new 2010 and may it have more, and more
+stable releases, than 2009!&lt;/p&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+</feed>
+

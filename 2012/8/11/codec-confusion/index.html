@@ -1,0 +1,187 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>Codec Confusion in Python | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">Codec Confusion in Python</h1>
+
+  
+  <p class=date>written on Saturday, August 11, 2012
+  
+
+  <p>Alright, I admit Alex Gaynor is a pretty clever guy but I was very close
+to strangling him today for <a class="reference external" href="https://twitter.com/alex_gaynor/status/234050951173005312">this tweet</a>:</p>
+<blockquote>
+&#64;alex_gaynor: WTF does str.encode or unicode.decode even do on Python2?</blockquote>
+<p>And that's because on the way to Python 3 these functions were removed
+because they cause confusion with people, but this broke a lot of really
+good use cases for them in the process.  On top of that I truly believe
+the mere presence of these function did not actually cause confusion, but
+an unintended side effect did.  And all in all I believe that's a really
+sad example of where wrong conclusions were drawn.</p>
+<p>One thing I believe is pretty true is that you should never ask people
+about their opinions directly.  You should observe them, figure out what's
+wrong and then slowly figure out where the true problem lies.  In this
+particular case it seems like many people missed the true problem and
+stopped noticing that the true solution was much simpler.  I can't blame
+anyone for that and I did not notice it either until the damage was
+already done.</p>
+<p>So what do <cite>str.encode</cite> and <cite>str.decode</cite> actually do in Python 2.x?  They
+are roughly implemented like this:</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">codecs</span>
+
+<span class="k">class</span> <span class="nc">basestring</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="o">...</span>
+    <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">encoding</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s1">&#39;strict&#39;</span><span class="p">):</span>
+        <span class="n">rv</span> <span class="o">=</span> <span class="n">codecs</span><span class="o">.</span><span class="n">lookup</span><span class="p">(</span><span class="n">encoding</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">errors</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">rv</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;encoder did not return a string/unicode object&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">rv</span>
+
+    <span class="k">def</span> <span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">encoding</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s1">&#39;strict&#39;</span><span class="p">):</span>
+        <span class="n">rv</span> <span class="o">=</span> <span class="n">codecs</span><span class="o">.</span><span class="n">lookup</span><span class="p">(</span><span class="n">encoding</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">errors</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">rv</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;encoder did not return a string/unicode object&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">rv</span>
+
+<span class="k">class</span> <span class="nc">str</span><span class="p">(</span><span class="nb">basestring</span><span class="p">):</span>
+    <span class="o">...</span>
+
+<span class="k">class</span> <span class="nc">unicode</span><span class="p">(</span><span class="nb">basestring</span><span class="p">):</span>
+    <span class="o">...</span>
+</pre></div>
+<p>Alright, so they are just shortcuts for functionality hidden in another
+module.  One important thing of note here is that this is talking about
+encodings, not about charsets.  Very important difference!</p>
+<p>The most important part here is that codecs in Python are not restricted
+to strings at all.  If you look into the original Python sources you will
+see that the codecs module talks about objects and not strings.</p>
+<p>So what is actually the confusing part?  The confusing part is not the
+codecs API but the Python default encoding.  Let me show you the problem
+on a simple example.  Alex was arguing against <cite>str.encode</cite> because of
+this:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;</span><span class="se">\xe2\x98\x83</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+<span class="gt">Traceback (most recent call last):</span>
+  File <span class="nb">&quot;&lt;stdin&gt;&quot;</span>, line <span class="m">1</span>, in <span class="n">&lt;module&gt;</span>
+<span class="gr">UnicodeDecodeError</span>: <span class="n">&#39;ascii&#39; codec can&#39;t decode byte 0xe2 in position 0: ordinal not in range(128)</span>
+</pre></div>
+<p>What's happening here?  The call did not make any sense.  The utf-8 codec
+encodes from Unicode to bytes, not from bytes to bytes like in the given
+example.  Now that might let you believe the correct solution is just to
+get rid of the <cite>encode</cite> function on strings.  However there are
+legitimate cases for string to string encodings:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;foo&#39;</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;base64&#39;</span><span class="p">)</span>
+<span class="go">&#39;Zm9v\n&#39;</span>
+</pre></div>
+<p>Alright, so we want to preserve that.  So why exactly is the first example
+confusing anyways?  I mean, it gives an exception.  The problem is the
+wording of the exception.  Where is the ascii codec coming from all the
+sudden?  That's actually coming from something completely unrelated and
+that is Python's default encoding which caused us all the problems in the
+first place.  What's happening in the above code is that the codec
+function is written in a way that it looks at the incoming object and it
+sees that it expects an unicode object but it got a bytestring object.  As
+the next step that function takes that bytestring object and asks the
+interpreter state what it should do with that.  The interpreter has a
+special setting which defines the default encoding.  In Python 2.x this
+historically has been set to ascii.  Now the function will ask the ascii
+codec to decode the string to Unicode.  Because the string did not fit
+into ASCII range it will error out with that horrible error message.</p>
+<p>Not only is that error message misleading, it also does not show up at all
+if the string does indeed fit into ascii:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;foo&#39;</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+<span class="go">&#39;foo&#39;</span>
+</pre></div>
+<p>There it does foo (bytes) -&gt; ascii decode -&gt; foo (Unicode) -&gt; utf-8 encode
+-&gt; foo (bytes).</p>
+<p>Now let me blow your mind: this was actually envisioned when the module
+was created initially.  You can in fact still take a stock Python 2.x
+interpreter and disable that behavior:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">sys</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">reload</span><span class="p">(</span><span class="n">sys</span><span class="p">)</span>
+<span class="go">&lt;module &#39;sys&#39; (built-in)&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">sys</span><span class="o">.</span><span class="n">setdefaultencoding</span><span class="p">(</span><span class="s1">&#39;undefined&#39;</span><span class="p">)</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;</span><span class="se">\xe2\x98\x83</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+<span class="gt">Traceback (most recent call last):</span>
+  File <span class="nb">&quot;&lt;stdin&gt;&quot;</span>, line <span class="m">1</span>, in <span class="n">&lt;module&gt;</span>
+<span class="gr">UnicodeError</span>: <span class="n">undefined encoding</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;foo&#39;</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+<span class="gt">Traceback (most recent call last):</span>
+  File <span class="nb">&quot;&lt;stdin&gt;&quot;</span>, line <span class="m">1</span>, in <span class="n">&lt;module&gt;</span>
+<span class="gr">UnicodeError</span>: <span class="n">undefined encoding</span>
+</pre></div>
+<p>(The reload on sys is necessary because after site.py did it's job there
+is no way to change the default encoding any more).</p>
+<p>So there you have it.  If we would have just never started doing the
+implicit ASCII codec we would have solved so much confusion early on and
+everything would have been more explicit.  When going to Python 3 all we
+would have had to do was to add a <cite>b</cite> prefix for bytestrings and made the
+<cite>u</cite> implied.  And we would not now end up with inferior codec support in
+Python 3 because the byte to byte and Unicode to Unicode codecs were
+removed.</p>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/codecs/">codecs</a>, 
+      <a href="/tags/python/">python</a> and 
+      <a href="/tags/thoughts/">thoughts</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

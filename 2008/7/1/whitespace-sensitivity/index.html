@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>Whitespace Sensitivity | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">Whitespace Sensitivity</h1>
+
+  
+  <p class=date>written on Tuesday, July 1, 2008
+  
+
+  <p>I was reading a thread on ruby-forum.com about Python that said that the
+whitespace-sensitivity of Python is from hell or something. There are
+people from every programming language that can rant about Whitespace
+sensitivity in Python but clearly not Ruby programmers. Why? Because
+Python doesn't care about Whitespace at all. The only thing that
+somewhat has to do with whitespace is the indentation that the lexer
+convers into indent and outdent tokens. But after that, no whitespace
+any more, the parser doesn't know anything about that.</p>
+<p>That however is not true for Ruby! <cite>foo[42]</cite> does a completely different
+thing than <cite>foo [42]</cite>. The first calls foo without argument and calls
+the <cite>[]</cite> method of the return value with 42 as argument, the latter
+calls foo with <cite>[42]</cite> as Argument which happens to be an Array with one
+element. But there are more examples.</p>
+<p>Take this example:</p>
+<div class="highlight"><pre><span></span><span class="n">foo</span> <span class="o">=</span> <span class="mi">23</span>
+<span class="k">def</span> <span class="nf">bar</span>
+  <span class="mi">42</span>
+<span class="k">end</span>
+
+<span class="nb">puts</span> <span class="n">bar</span><span class="o">/</span><span class="n">foo</span>
+</pre></div>
+<p>That prints “1”. That prints “1”.However take this minor modification:</p>
+<div class="highlight"><pre><span></span><span class="n">foo</span> <span class="o">=</span> <span class="mi">23</span>
+<span class="k">def</span> <span class="nf">bar</span>
+  <span class="mi">42</span>
+<span class="k">end</span>
+
+<span class="nb">puts</span> <span class="n">bar</span> <span class="sr">/foo</span>
+</pre></div>
+<p>Now this gives you an error that the regular Expression literal is
+unterminated. That's what I call whitespace sensitivity :)</p>
+<p>You're wonderhing why I'm using a method for “bar” and not a locale
+variable? Because the parser keeps track of all assigned local variables
+or methods (Not sure what exactly it does) and the syntax ambiguities
+are resolved that way.</p>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/python/">python</a> and 
+      <a href="/tags/ruby/">ruby</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

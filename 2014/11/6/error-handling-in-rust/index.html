@@ -1,0 +1,493 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>Improved Error Handling in Rust | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">Improved Error Handling in Rust</h1>
+
+  
+  <p class=date>written on Thursday, November 6, 2014
+  
+
+  <p>Rust just got a huge update: it landed multidispatch and the <a class="reference external" href="https://github.com/rust-lang/rfcs/blob/master/text/0201-error-chaining.md">FromError
+trait</a>.
+The combination of both of those things improves error handling in Rust
+significantly.  The change is in fact so significant that you can expect
+many APIs to change greatly in the upcoming weeks.</p>
+<p>While error handling in Rust is definitely not a closed case, I assume that
+the paradigm enabled through these changes is going to hang around for a
+long, long time.</p>
+<p>This article is going to give a quick introduction in how error handling
+works from this moment forward and why.</p>
+<div class="section" id="the-problem">
+<h2>The Problem</h2>
+<p>I have <a class="reference external" href="/2014/10/16/on-error-handling/">written about this problem a bit before</a> but in essence the core issue with
+error handling is that possible errors become part of your API contract.
+This means that if you modify the implementation of your function, any new
+error case you introduce, modifies your contract to your caller ever so
+slightly.  This is especially an issue as you refactor your function to
+call into a new range of functions that can fail with a whole new set of
+errors.</p>
+<p>The problem is to find a middle ground between extensibility and API
+stability.  As an API developer you want to be able to be future proof in
+the sense that you can change your implementation and call into entire new
+libraries that you did not envision in the past.  For instance your cache
+layer of choice might so far only have failed with general IO errors but
+now you change your implementation to use a new library which all the
+sudden wants to fail with redis errors.  While you could just hide those
+errors and report them under a new name, it's really more interesting to
+the user to <em>also</em> expose the original root cause of the error.</p>
+<p>And whatever you do, you do not want to negatively affect your existing
+users.</p>
+<p>It's not just evolving APIs though.  If you have a function that can fail
+with two different errors, you want to have to write as little boilerplate
+as necessary to handle the errors from different origins.</p>
+<p>To be a bit more concrete: imagine you build a command line application
+that does HTTP requests to the internet.  Such an application will have to
+deal with a whole range of failures: command line argument parsing errors,
+IO errors, HTTP failures, SSL failures etc.  Some of those errors you want
+to be able to act on (for instance to convert HTTP status codes for
+timeouts from an error into an implicit retry), others you want to bubble
+up until you eventually show them to the user.  And all of that with as
+little code as possible.</p>
+</div>
+<div class="section" id="the-solution">
+<h2>The Solution</h2>
+<p>Rust's solution for this problem is the <tt class="docutils literal">FromError</tt> trait.  The idea is
+simple but clever.  The <tt class="docutils literal">FromError</tt> trait provides a standardized
+conversion of errors into another error.  This conversion however for the
+most part will not actually &quot;convert&quot; the error but &quot;wrap&quot; it.  There is
+no requirement for this however, you have all the freedom you need.  If
+you want you can completely hide the original error.  In addition to that
+it does not actually restrict it to other errors, so you can convert quite
+freely between different things.  If you want you can convert error codes
+into fully fleshed out error structs through the same machinery.</p>
+<p>Errors in Rust are as of now, supposed to implement this trait:</p>
+<div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">Error</span>: <span class="nb">Send</span> <span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">description</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kp">&amp;</span><span class="kt">str</span><span class="p">;</span><span class="w"></span>
+
+<span class="w">    </span><span class="k">fn</span> <span class="nf">detail</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">cause</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>This is not a lot of information, and it's quite likely that this trait
+will grow in the future, but for the moment it holds at least some
+information that we can show error messages.  <cite>description</cite> returns a
+string slice to a general description that is available whereas <cite>detail</cite>
+holds optional information that can provide more details.  The latter is
+considered to be information that might be required to compute.</p>
+<p>The third trait method is <cite>cause</cite> which allows an error to point to
+another error which was the cause.  For instance if you have a library
+that does HTTP calls, and one API method fails on the IO layer your error
+could point to the originating <tt class="docutils literal">IoError</tt> as cause.</p>
+<p>The actual conversion between errors is kicked off by the <tt class="docutils literal">FromError</tt>
+trait which you need to implement for all compatible errors.  For instance
+for the HTTP library example it could look like this:</p>
+<div class="highlight"><pre><span></span><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="p">{</span><span class="n">io</span><span class="p">,</span><span class="w"> </span><span class="n">error</span><span class="p">};</span><span class="w"></span>
+
+<span class="k">enum</span> <span class="nc">LibError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">BadStatusCode</span><span class="p">(</span><span class="n">int</span><span class="p">),</span><span class="w"></span>
+<span class="w">    </span><span class="n">IoError</span><span class="p">(</span><span class="n">io</span>::<span class="n">IoError</span><span class="p">),</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">FromError</span><span class="o">&lt;</span><span class="n">io</span>::<span class="n">IoError</span><span class="o">&gt;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">LibError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">from_error</span><span class="p">(</span><span class="n">err</span>: <span class="nc">io</span>::<span class="n">IoError</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">LibError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">IoError</span><span class="p">(</span><span class="n">err</span><span class="p">)</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>In this case we have our own error type <cite>LibError</cite> which has two possible
+failures: A <cite>BadStatusCode</cite> which is a failure that clearly indicates a
+problem in our own library as well as <cite>IoError</cite> which wraps another error
+from another library (in this case the IO system in Rust).  Through the
+<cite>FromError</cite> trait we now get a standardized conversion from <cite>IoError</cite> to
+<cite>LibError</cite> from our own library.  This functionality is provided through
+multidispatch.  All this dispatching however is done at compile time.</p>
+<p>At this point we can also to implement the actual error trait to make our
+error useful.  It looks like this:</p>
+<div class="highlight"><pre><span></span><span class="k">impl</span><span class="w"> </span><span class="n">error</span>::<span class="n">Error</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">LibError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">description</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kp">&amp;</span><span class="kt">str</span> <span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="o">*</span><span class="bp">self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">BadStatusCode</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;bad status code&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">IoError</span><span class="p">(</span><span class="n">err</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;encountered an I/O error&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">    </span><span class="k">fn</span> <span class="nf">detail</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="o">*</span><span class="bp">self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">BadStatusCode</span><span class="p">(</span><span class="n">code</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">format</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;status code was {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">code</span><span class="p">)),</span><span class="w"></span>
+<span class="w">            </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="nb">None</span><span class="p">,</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">    </span><span class="k">fn</span> <span class="nf">cause</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="n">error</span>::<span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="o">*</span><span class="bp">self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">IoError</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">err</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">err</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">&amp;</span><span class="n">error</span>::<span class="n">Error</span><span class="p">),</span><span class="w"></span>
+<span class="w">            </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="nb">None</span><span class="p">,</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>How exactly your error however looks is entirely up to you.  For instance
+you could convert certain <cite>IoError</cite>s into errors of your type entirely.
+For instance one could imagine converting an <cite>FileNotFound</cite> IO error into
+something else.</p>
+</div>
+<div class="section" id="utility-macros">
+<h2>Utility Macros</h2>
+<p>Now at this point you will be asking: what actually uses <cite>FromError</cite>?  The
+answer is that right now in Rust there is only a single place where this
+is being used and that's in the <cite>try!</cite> macro.  It looks like this:</p>
+<div class="highlight"><pre><span></span><span class="n">macro_rules</span><span class="o">!</span><span class="w"> </span><span class="n">try</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
+<span class="w">    </span><span class="p">(</span><span class="cp">$expr</span>:<span class="nc">expr</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">({</span><span class="w"></span>
+<span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="cp">$expr</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="nb">Ok</span><span class="p">(</span><span class="n">val</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">val</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="nb">Err</span><span class="p">(</span><span class="n">err</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nb">Err</span><span class="p">(</span>::<span class="n">std</span>::<span class="n">error</span>::<span class="n">FromError</span>::<span class="n">from_error</span><span class="p">(</span><span class="n">err</span><span class="p">))</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">})</span><span class="w"></span>
+<span class="p">)</span><span class="w"></span>
+</pre></div>
+<p>As you can see it implements processing of a <cite>Result</cite> value.  If the value
+is <cite>Ok</cite> it will return the wrapped value, otherwise it will issue an early
+return where the conversion goes through <cite>FromError</cite>.  How does it know
+which error it should convert to?  From the signature of the function it's
+being used in:</p>
+<div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">make_request</span><span class="p">(</span><span class="n">method</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">,</span><span class="w"> </span><span class="n">url</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Result</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="n">LibError</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">host</span><span class="p">,</span><span class="w"> </span><span class="n">port</span><span class="p">,</span><span class="w"> </span><span class="n">path</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">parse_url</span><span class="p">(</span><span class="n">url</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">socket</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">try</span><span class="o">!</span><span class="p">(</span><span class="n">open_socket</span><span class="p">(</span><span class="n">host</span><span class="p">,</span><span class="w"> </span><span class="n">port</span><span class="p">));</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">req</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">try</span><span class="o">!</span><span class="p">(</span><span class="n">make_request</span><span class="p">(</span><span class="n">method</span><span class="p">,</span><span class="w"> </span><span class="n">host</span><span class="p">,</span><span class="w"> </span><span class="n">port</span><span class="p">,</span><span class="w"> </span><span class="n">path</span><span class="p">));</span><span class="w"></span>
+<span class="w">    </span><span class="n">try</span><span class="o">!</span><span class="p">(</span><span class="n">socket</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="n">req</span><span class="p">));</span><span class="w"></span>
+<span class="w">    </span><span class="nb">Ok</span><span class="p">(</span><span class="n">try</span><span class="o">!</span><span class="p">(</span><span class="n">socket</span><span class="p">.</span><span class="n">recv</span><span class="p">()))</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>This obviously is a bit of pseudocode but you get the idea.  Because the
+function returns a <cite>Result</cite> with <cite>LibError</cite> it will invoke the <cite>FromError</cite>
+conversion to <cite>LibError</cite> which is the type in our own library.  For as long
+as all the <cite>try!</cite> macros go to compatible errors for which we defined a
+conversion this code will work.  In this case <cite>try!</cite> macro can have code
+that either fails with <cite>IoError</cite> or <cite>LibError</cite> itself (each error
+implicitly noop converts to itself through a default generic
+implementation).</p>
+<p>There is a second macro I started using which I called <tt class="docutils literal">fail!</tt> for
+aborting with an error:</p>
+<div class="highlight"><pre><span></span><span class="n">macro_rules</span><span class="o">!</span><span class="w"> </span><span class="n">fail</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="p">(</span><span class="cp">$expr</span>:<span class="nc">expr</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">(</span><span class="w"></span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">Err</span><span class="p">(</span>::<span class="n">std</span>::<span class="n">error</span>::<span class="n">FromError</span>::<span class="n">from_error</span><span class="p">(</span><span class="cp">$expr</span><span class="p">));</span><span class="w"></span>
+<span class="w">    </span><span class="p">)</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>It's basically just the error part of the <tt class="docutils literal">try!</tt> macro but it's very
+useful because it goes through the <cite>FromError</cite> machinery.  This allows you
+to <tt class="docutils literal">fail!</tt> with any compatible error.</p>
+</div>
+<div class="section" id="non-error-conversions">
+<h2>Non-Error Conversions</h2>
+<p>The <cite>FromError</cite> trait however also has another nice benefit.  Because it
+can work with arbitrary types and not just types implementing <cite>Error</cite> you
+can build convenience methods to create errors.  In <cite>redis-rs</cite> for
+instance I implemented <cite>FromError</cite> for tuples that create the most common
+errors:</p>
+<div class="highlight"><pre><span></span><span class="k">impl</span><span class="w"> </span><span class="n">error</span>::<span class="n">FromError</span><span class="o">&lt;</span><span class="p">(</span><span class="n">ErrorKind</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="nb">&#39;static</span><span class="w"> </span><span class="kt">str</span><span class="p">)</span><span class="o">&gt;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">RedisError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">from_error</span><span class="p">((</span><span class="n">kind</span><span class="p">,</span><span class="w"> </span><span class="n">desc</span><span class="p">)</span>: <span class="p">(</span><span class="n">ErrorKind</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="nb">&#39;static</span><span class="w"> </span><span class="kt">str</span><span class="p">))</span><span class="w"> </span>-&gt; <span class="nc">RedisError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">RedisError</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">kind</span>: <span class="nc">kind</span><span class="p">,</span><span class="w"> </span><span class="n">desc</span>: <span class="nc">desc</span><span class="p">,</span><span class="w"> </span><span class="n">detail</span>: <span class="nb">None</span> <span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>With this I can now write code like that:</p>
+<div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">connect_to_url</span><span class="p">(</span><span class="n">url</span>: <span class="nc">Url</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">RedisResult</span><span class="o">&lt;</span><span class="n">Connection</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">url</span><span class="p">.</span><span class="n">scheme</span><span class="p">[]</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="s">&quot;redis&quot;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">fail</span><span class="o">!</span><span class="p">((</span><span class="n">InvalidClientConfig</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;URL provided is not a redis URL&quot;</span><span class="p">));</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="nb">Ok</span><span class="p">(</span><span class="n">try</span><span class="o">!</span><span class="p">(</span><span class="n">open_connection</span><span class="p">(</span><span class="n">url</span><span class="p">.</span><span class="n">host</span><span class="p">,</span><span class="w"> </span><span class="n">url</span><span class="p">.</span><span class="n">port</span><span class="p">)))</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>In the absence of that machinery I would have to write something like
+this:</p>
+<div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">connect_to_url</span><span class="p">(</span><span class="n">url</span>: <span class="nc">Url</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">RedisResult</span><span class="o">&lt;</span><span class="n">Connection</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">url</span><span class="p">.</span><span class="n">scheme</span><span class="p">[]</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="s">&quot;redis&quot;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">Err</span><span class="p">(</span><span class="n">RedisError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">kind</span>: <span class="nc">InvalidClientConfig</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">desc</span>: <span class="s">&quot;URL provided is not a redis URL&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">detail</span>: <span class="nb">None</span><span class="p">,</span><span class="w"></span>
+<span class="w">        </span><span class="p">});</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">open_connection</span><span class="p">(</span><span class="n">url</span><span class="p">.</span><span class="n">host</span><span class="p">,</span><span class="w"> </span><span class="n">url</span><span class="p">.</span><span class="n">port</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">IoError</span><span class="p">(</span><span class="n">err</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="nb">Err</span><span class="p">(</span><span class="n">RedisError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">                </span><span class="n">kind</span>: <span class="nc">InternalIoError</span><span class="p">(</span><span class="n">err</span><span class="p">),</span><span class="w"></span>
+<span class="w">                </span><span class="n">desc</span>: <span class="s">&quot;An internal IO error ocurred.&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">                </span><span class="n">detail</span>: <span class="nb">None</span>
+            <span class="p">}),</span><span class="w"></span>
+<span class="w">            </span><span class="nb">Ok</span><span class="p">(</span><span class="n">con</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="nb">Ok</span><span class="p">(</span><span class="n">con</span><span class="p">),</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<div class="section" id="designing-errors">
+<h2>Designing Errors</h2>
+<p>As you can see from the last example, the error type in Redis is a struct.
+That also goes for the <cite>IoError</cite> which is a struct of similar layout.  But
+you could make your error as small as an enum if you would want.  So what
+are best practices for designing your errors?</p>
+<div class="section" id="simplified-enums">
+<h3>Simplified Enums</h3>
+<p>The fastest but most inflexible error representation is an enum of simple
+individual fields.  In that case the original cause gets lost because we
+never store it.  However this can be fine in cases where the possibly
+encountered errors are of such a small subset that it's okay to lose a bit
+of information.  This pattern is especially useful in places where errors
+can happen very regularly:</p>
+<div class="highlight"><pre><span></span><span class="k">enum</span> <span class="nc">LibError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">EntryMissing</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">BadFileFormat</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">InternalError</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">CouldNotOpenFile</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">error</span>::<span class="n">Error</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">LibError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">description</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kp">&amp;</span><span class="kt">str</span> <span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="o">*</span><span class="bp">self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">EntryMissing</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;entry is missing&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">BadFileFormat</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;a bad file format encountered&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">CouldNotOpenFile</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;unable to open file&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">InternalError</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;an internal error occurred&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">FromError</span><span class="o">&lt;</span><span class="n">io</span>::<span class="n">IoError</span><span class="o">&gt;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">LibError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">from_error</span><span class="p">(</span><span class="n">err</span>: <span class="nc">io</span>::<span class="n">IoError</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">LibError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="n">err</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="p">{</span><span class="w"> </span><span class="n">kind</span>: <span class="nc">io</span>::<span class="n">FileNotFound</span><span class="p">,</span><span class="w"> </span><span class="p">..</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">CouldNotOpenFile</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="p">{</span><span class="w"> </span><span class="n">kind</span>: <span class="nc">io</span>::<span class="n">PermissionDenied</span><span class="p">,</span><span class="w"> </span><span class="p">..</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">CouldNotOpenFile</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">InternalError</span><span class="p">,</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>In that case the only description of the error you can report is a static
+string for each of those values and we do not have a cause.  For some IO
+errors we can produce different error codes and for anything else that
+comes up we will produce a fallback <cite>internal error</cite>.  If you see those
+creeping up you might want to make your <cite>LibError</cite> larger.</p>
+</div>
+<div class="section" id="complex-enums">
+<h3>Complex Enums</h3>
+<p>Similar to the simplified enums example you can take it a bit further and
+keep using simple enum values for your own errors but wrap external errors
+entirely.  This allows you to keep the original cause around:</p>
+<div class="highlight"><pre><span></span><span class="k">enum</span> <span class="nc">LibError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">EntryMissing</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">BadFileFormat</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">IoError</span><span class="p">(</span><span class="n">io</span>::<span class="n">IoError</span><span class="p">),</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">error</span>::<span class="n">Error</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">LibError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">description</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kp">&amp;</span><span class="kt">str</span> <span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="o">*</span><span class="bp">self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">EntryMissing</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;entry is missing&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">BadFileFormat</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;a bad file format encountered&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">IoError</span><span class="p">(</span><span class="n">_</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;an I/O error occurred&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">    </span><span class="k">fn</span> <span class="nf">cause</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="n">error</span>::<span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="o">*</span><span class="bp">self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">IoError</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">err</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">err</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">&amp;</span><span class="n">error</span>::<span class="n">Error</span><span class="p">),</span><span class="w"></span>
+<span class="w">            </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="nb">None</span><span class="p">,</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">FromError</span><span class="o">&lt;</span><span class="n">io</span>::<span class="n">IoError</span><span class="o">&gt;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">LibError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">from_error</span><span class="p">(</span><span class="n">err</span>: <span class="nc">io</span>::<span class="n">IoError</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">LibError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">IoError</span><span class="p">(</span><span class="n">err</span><span class="p">)</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>In this case our own internal errors are still a bit light on the error
+reporting but for any IO error we have the full original cause hanging
+around.</p>
+</div>
+<div class="section" id="struct-like-enum-variants">
+<h3>Struct-Like Enum Variants</h3>
+<p>Struct-like enum variants are a feature that until recently were behind a
+feature gate and as such not commonly used because they were too much of a
+hassle.  The idea is that a enum field can look like a struct, not just
+like an enum.  This is especially useful when dealing with errors because
+depending on which error you report, different fields might be relevant.
+For instance we can take the above example and add extra error information
+where available:</p>
+<div class="highlight"><pre><span></span><span class="k">enum</span> <span class="nc">LibError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">EntryMissing</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">name</span>: <span class="nb">String</span> <span class="p">},</span><span class="w"></span>
+<span class="w">    </span><span class="n">BadFileFormat</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">IoError</span><span class="p">(</span><span class="n">io</span>::<span class="n">IoError</span><span class="p">),</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">error</span>::<span class="n">Error</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">LibError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">description</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kp">&amp;</span><span class="kt">str</span> <span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="o">*</span><span class="bp">self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">EntryMissing</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">..</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;entry is missing&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">BadFileFormat</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;a bad file format encountered&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">IoError</span><span class="p">(</span><span class="n">_</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;an I/O error occurred&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">    </span><span class="k">fn</span> <span class="nf">detail</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="o">*</span><span class="bp">self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">EntryMissing</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">name</span>: <span class="nc">n</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">format</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;Name of entry: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">)),</span><span class="w"></span>
+<span class="w">            </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">    </span><span class="k">fn</span> <span class="nf">cause</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="n">error</span>::<span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="bp">self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="o">&amp;</span><span class="n">IoError</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">err</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="o">&amp;*</span><span class="n">err</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">&amp;</span><span class="n">error</span>::<span class="n">Error</span><span class="p">),</span><span class="w"></span>
+<span class="w">            </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{},</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">FromError</span><span class="o">&lt;</span><span class="n">io</span>::<span class="n">IoError</span><span class="o">&gt;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">LibError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">from_error</span><span class="p">(</span><span class="n">err</span>: <span class="nc">io</span>::<span class="n">IoError</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">LibError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">IoError</span><span class="p">(</span><span class="n">err</span><span class="p">)</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>Because you can do pattern matching on those struct enum variants a user
+can trivially extract the information they need if they want to act on it.
+For generic error reporting we can use that information ourselves to
+implement the <cite>detail</cite> method and generate a better error message from
+extra information available.</p>
+</div>
+<div class="section" id="fat-error-structs">
+<h3>Fat Error Structs</h3>
+<p>If you expect your errors to contain a lot of important information beyond
+just an error code it's a good idea to investigate using a struct.  How
+you lay out that struct is up to you.  The following example is how I
+set it up in <cite>redis-rs</cite>.  This pattern makes sense if you expect errors to
+be infrequent but carry a lot of information when they happen:</p>
+<div class="highlight"><pre><span></span><span class="k">enum</span> <span class="nc">ErrorKind</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">EntryMissing</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">BadFileFormat</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">IoError</span><span class="p">(</span><span class="n">io</span>::<span class="n">IoError</span><span class="p">),</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">struct</span> <span class="nc">LibError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">kind</span>: <span class="nc">ErrorKind</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">detail</span>: <span class="nb">Option</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">error</span>::<span class="n">Error</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">LibError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">description</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kp">&amp;</span><span class="kt">str</span> <span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="o">*</span><span class="bp">self</span><span class="p">.</span><span class="n">kind</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">EntryMissing</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;entry is missing&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">BadFileFormat</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;a bad file format encountered&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">IoError</span><span class="p">(</span><span class="n">_</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;an I/O error occurred&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">    </span><span class="k">fn</span> <span class="nf">detail</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">detail</span><span class="p">.</span><span class="n">clone</span><span class="p">(),</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">    </span><span class="k">fn</span> <span class="nf">cause</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="n">error</span>::<span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">cause</span><span class="p">.</span><span class="n">as_ref</span><span class="p">()</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">FromError</span><span class="o">&lt;</span><span class="n">io</span>::<span class="n">IoError</span><span class="o">&gt;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">LibError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">from_error</span><span class="p">(</span><span class="n">err</span>: <span class="nc">io</span>::<span class="n">IoError</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">LibError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">LibError</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">kind</span>: <span class="nc">IoError</span><span class="p">(</span><span class="n">err</span><span class="p">),</span><span class="w"></span>
+<span class="w">            </span><span class="n">detail</span>: <span class="nb">None</span><span class="p">,</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<p>It's a good idea to always have an error kind enum so that users of your
+library can do pattern matching on your errors to figure out what exactly
+went wrong.  This is crucial if you want to allow recovery of a problem.
+For instance code might want to act upon an <cite>EntryMissing</cite> error but not
+on any other error.</p>
+</div>
+</div>
+<div class="section" id="the-outlook">
+<h2>The Outlook</h2>
+<p>At the moment it looks like what we have currently is pretty much what we
+will be stuck with until after 1.0.  The <cite>Carrier</cite> trait that would allow
+options and results to be handled similarly will most likely not land,
+same for the syntax support.  However it's quite likely that we will see
+some experimentation in external crates and with custom macros to see
+where error handling could go from here.</p>
+<p>To be a good citizen in the Rust world I changed all my example code in
+<a class="reference external" href="http://mitsuhiko.github.io/redis-rs/redis/">the redis-rs documentation</a>
+to use <tt class="docutils literal">try!</tt> instead of <cite>unwrap</cite> and it looks pretty good.</p>
+<p>I do have some hopes that <a class="reference external" href="https://github.com/rust-lang/rfcs/issues/434">fail! will make it into the stdlib</a> but it's so easy to write
+yourself that I expect that macro to pop up in many places.  Not having it
+in the language will not be the end of the world.</p>
+</div>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/rust/">rust</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

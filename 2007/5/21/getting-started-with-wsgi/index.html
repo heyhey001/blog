@@ -1,0 +1,362 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>Getting Started with WSGI | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">Getting Started with WSGI</h1>
+
+  
+  <p class=date>written on Monday, May 21, 2007
+  
+
+  <p>I finally finished the written matura and have some more time to work on
+projects and write articles. One of the things I wanted to write for a
+long time is a WSGI tutorial that does not require a specific framework
+or implementation. So here we go.</p>
+<img alt="Getting started with WSGI" src="http://dev.pocoo.org/~mitsuhiko/wsgi-snake.png" />
+<div class="section" id="what-s-wsgi">
+<h2>What's WSGI?</h2>
+<p>Basically WSGI is lower level than CGI which you probably know. But in
+difference to CGI, WSGI does scale and can work in both multithreaded
+and multi process environments because it's a specification that doesn't
+mind how it's implemented. In fact WSGI is not CGI because it's between
+your web application and the webserver layer which can be CGI,
+mod_python, FastCGI or a webserver that implements WSGI in the core like
+the python stdlib standalone WSGI server called wsgiref.</p>
+<p>WSGI is specified in the <a class="reference external" href="http://www.python.org/dev/peps/pep-0333/">PEP 333</a> and adapted by various
+frameworks including the well known frameworks django and pylons.</p>
+<p>If you are too lazy to read the pep 333 here's a short summary:</p>
+<ul class="simple">
+<li>WSGI application are callable python objects (functions or classes
+with a <cite>__call__</cite> method that are passed two arguments: a WSGI
+environment as first argument and a function that starts the response.</li>
+<li>the application has to start a response using the function provided
+and return an iterable where each yielded item means writing and
+flushing.</li>
+<li>The WSGI environment is like a CGI environment just with some
+additional keys that are either provided by the server or a
+middleware.</li>
+<li>you can add middlewares to your application by wrapping it.</li>
+</ul>
+<p>Because that's a lot of information let's ignore it for now and have a
+look at a basic WSGI application:</p>
+</div>
+<div class="section" id="extended-hello-world">
+<h2>Extended Hello World</h2>
+<p>Here a simple, but not too simple example of a WSGI application that
+says <cite>Hello World!</cite> where World can be specified via url parameter.</p>
+<div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">cgi</span> <span class="kn">import</span> <span class="n">parse_qs</span><span class="p">,</span> <span class="n">escape</span>
+
+<span class="k">def</span> <span class="nf">hello_world</span><span class="p">(</span><span class="n">environ</span><span class="p">,</span> <span class="n">start_response</span><span class="p">):</span>
+    <span class="n">parameters</span> <span class="o">=</span> <span class="n">parse_qs</span><span class="p">(</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;QUERY_STRING&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">))</span>
+    <span class="k">if</span> <span class="s1">&#39;subject&#39;</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">:</span>
+        <span class="n">subject</span> <span class="o">=</span> <span class="n">escape</span><span class="p">(</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;subject&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">subject</span> <span class="o">=</span> <span class="s1">&#39;World&#39;</span>
+    <span class="n">start_response</span><span class="p">(</span><span class="s1">&#39;200 OK&#39;</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;Content-Type&#39;</span><span class="p">,</span> <span class="s1">&#39;text/html&#39;</span><span class="p">)])</span>
+    <span class="k">return</span> <span class="p">[</span><span class="s1">&#39;&#39;&#39;Hello </span><span class="si">%(subject)s</span><span class="s1"></span>
+<span class="s1">    Hello </span><span class="si">%(subject)s</span><span class="s1">!</span>
+
+<span class="s1">&#39;&#39;&#39;</span> <span class="o">%</span> <span class="p">{</span><span class="s1">&#39;subject&#39;</span><span class="p">:</span> <span class="n">subject</span><span class="p">}]</span>
+</pre></div>
+<p>As you can see the <cite>start_response</cite> function takes two arguments. A
+status string and a list of tuples that represent the response headers.
+What you cannot see because it's not used here and nowhere else is that
+the <cite>start_response</cite> function returns something. It returns a <cite>write</cite>
+function that directly writes to the webserver output stream. Because it
+bypasses middlewares (we'll cover that later) it's a terrible bad idea
+to use that function. For debugging purposes however it can be useful.</p>
+<p>But how to start that application now? A webserver doesn't know how to
+handle that and neither does python because nothing calls that function.
+Because we're lazy we don't setup a server with WSGI support now but use
+the <cite>wsgiref</cite> WSGI standalone server bundled with python2.5 and higher.
+(You can also download it for python2.3 or 2.4)</p>
+<p>Just add this to your file:</p>
+<div class="highlight"><pre><span></span><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">wsgiref.simple_server</span> <span class="kn">import</span> <span class="n">make_server</span>
+    <span class="n">srv</span> <span class="o">=</span> <span class="n">make_server</span><span class="p">(</span><span class="s1">&#39;localhost&#39;</span><span class="p">,</span> <span class="mi">8080</span><span class="p">,</span> <span class="n">hello_world</span><span class="p">)</span>
+    <span class="n">srv</span><span class="o">.</span><span class="n">serve_forever</span><span class="p">()</span>
+</pre></div>
+<p>When you now start the file you should be able to get a <cite>Hello John!</cite> on
+<cite>http://localhost:8080/?subject=John</cite>.</p>
+</div>
+<div class="section" id="path-dispatching">
+<h2>Path Dispatching</h2>
+<p>You probably worked with CGI or PHP before. If you did so you know that
+you most of the time have multiple public files (<cite>.pl</cite> / <cite>.php</cite>) a user
+can access and that do something. Not so in WSGI. There you only have
+one file which consumes all paths. Thus if you have your server from the
+previous example still running you should get the same content on
+<cite>http://localhost:8080/foo?subject=John</cite>.</p>
+<p>The accessed path is saved in the <cite>PATH_INFO</cite> variable in the WSGI
+environment, the real path to the application in <cite>SCRIPT_NAME</cite>. In case
+of the development server <cite>SCRIPT_NAME</cite> will be empty, but if you have a
+wiki that is mounted on <cite>http://example.com/wiki</cite> the <cite>SCRIPT_NAME</cite>
+variable would be <cite>/wiki</cite>. This information can now be used to serve
+multiple indepentent pages with nice URLs.</p>
+<p>In this example we have a bunch of regular expressions and match the
+current request against that:</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">cgi</span> <span class="kn">import</span> <span class="n">escape</span>
+
+<span class="k">def</span> <span class="nf">index</span><span class="p">(</span><span class="n">environ</span><span class="p">,</span> <span class="n">start_response</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This function will be mounted on &quot;/&quot; and display a link</span>
+<span class="sd">    to the hello world page.&quot;&quot;&quot;</span>
+    <span class="n">start_response</span><span class="p">(</span><span class="s1">&#39;200 OK&#39;</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;Content-Type&#39;</span><span class="p">,</span> <span class="s1">&#39;text/html&#39;</span><span class="p">)])</span>
+    <span class="k">return</span> <span class="p">[</span><span class="s1">&#39;&#39;&#39;Hello World Application</span>
+<span class="s1">               This is the Hello World application:</span>
+
+<span class="s1">`continue &lt;hello/&gt;`_</span>
+
+<span class="s1">&#39;&#39;&#39;</span><span class="p">]</span>
+
+<span class="k">def</span> <span class="nf">hello</span><span class="p">(</span><span class="n">environ</span><span class="p">,</span> <span class="n">start_response</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Like the example above, but it uses the name specified in the</span>
+<span class="sd">URL.&quot;&quot;&quot;</span>
+    <span class="c1"># get the name from the url if it was specified there.</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">environ</span><span class="p">[</span><span class="s1">&#39;myapp.url_args&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">args</span><span class="p">:</span>
+        <span class="n">subject</span> <span class="o">=</span> <span class="n">escape</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">subject</span> <span class="o">=</span> <span class="s1">&#39;World&#39;</span>
+    <span class="n">start_response</span><span class="p">(</span><span class="s1">&#39;200 OK&#39;</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;Content-Type&#39;</span><span class="p">,</span> <span class="s1">&#39;text/html&#39;</span><span class="p">)])</span>
+    <span class="k">return</span> <span class="p">[</span><span class="s1">&#39;&#39;&#39;Hello </span><span class="si">%(subject)s</span><span class="s1"></span>
+<span class="s1">            Hello </span><span class="si">%(subject)s</span><span class="s1">!</span>
+
+<span class="s1">&#39;&#39;&#39;</span> <span class="o">%</span> <span class="p">{</span><span class="s1">&#39;subject&#39;</span><span class="p">:</span> <span class="n">subject</span><span class="p">}]</span>
+
+<span class="k">def</span> <span class="nf">not_found</span><span class="p">(</span><span class="n">environ</span><span class="p">,</span> <span class="n">start_response</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Called if no URL matches.&quot;&quot;&quot;</span>
+    <span class="n">start_response</span><span class="p">(</span><span class="s1">&#39;404 NOT FOUND&#39;</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;Content-Type&#39;</span><span class="p">,</span> <span class="s1">&#39;text/plain&#39;</span><span class="p">)])</span>
+    <span class="k">return</span> <span class="p">[</span><span class="s1">&#39;Not Found&#39;</span><span class="p">]</span>
+
+<span class="c1"># map urls to functions</span>
+<span class="n">urls</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">(</span><span class="sa">r</span><span class="s1">&#39;^$&#39;</span><span class="p">,</span> <span class="n">index</span><span class="p">),</span>
+    <span class="p">(</span><span class="sa">r</span><span class="s1">&#39;hello/?$&#39;</span><span class="p">,</span> <span class="n">hello</span><span class="p">),</span>
+    <span class="p">(</span><span class="sa">r</span><span class="s1">&#39;hello/(.+)$&#39;</span><span class="p">,</span> <span class="n">hello</span><span class="p">)</span>
+<span class="p">]</span>
+
+<span class="k">def</span> <span class="nf">application</span><span class="p">(</span><span class="n">environ</span><span class="p">,</span> <span class="n">start_response</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The main WSGI application. Dispatch the current request to</span>
+<span class="sd">    the functions from above and store the regular expression</span>
+<span class="sd">    captures in the WSGI environment as  `myapp.url_args` so that</span>
+<span class="sd">    the functions from above can access the url placeholders.</span>
+
+<span class="sd">    If nothing matches call the `not_found` function.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;PATH_INFO&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">regex</span><span class="p">,</span> <span class="n">callback</span> <span class="ow">in</span> <span class="n">urls</span><span class="p">:</span>
+        <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">regex</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">match</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">environ</span><span class="p">[</span><span class="s1">&#39;myapp.url_args&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">groups</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">callback</span><span class="p">(</span><span class="n">environ</span><span class="p">,</span> <span class="n">start_response</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">not_found</span><span class="p">(</span><span class="n">environ</span><span class="p">,</span> <span class="n">start_response</span><span class="p">)</span>
+</pre></div>
+<p>Now that's a bunch of code. But you should get the idea how URL
+dispatching works. Basically if you now visit
+<cite>http://localhost:8080/hello/John</cite> you should get the same as above but
+with a nicer URL and a error 404 page if you enter the wrong url. Now
+you could improve that further by encapsulating <cite>environ</cite> in a request
+object and replacing the <cite>start_response</cite> call and the return iterator
+with a response objects. This is also what WSGI libraries like <a class="reference external" href="http://werkzeug.pocoo.org/">Werkzeug</a> and <a class="reference external" href="http://www.pythonpaste.org/">Paste</a> do.</p>
+<p>By adding something to the environment we did something normally
+middlewares do. So let's try to write one that catches exceptions and
+renders them in the browser:</p>
+<div class="highlight"><pre><span></span><span class="c1"># import the helper functions we need to get and render tracebacks</span>
+<span class="kn">from</span> <span class="nn">sys</span> <span class="kn">import</span> <span class="n">exc_info</span>
+<span class="kn">from</span> <span class="nn">traceback</span> <span class="kn">import</span> <span class="n">format_tb</span>
+
+<span class="k">class</span> <span class="nc">ExceptionMiddleware</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The middleware we use.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span> <span class="o">=</span> <span class="n">app</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">environ</span><span class="p">,</span> <span class="n">start_response</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Call the application can catch exceptions.&quot;&quot;&quot;</span>
+        <span class="n">appiter</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="c1"># just call the application and send the output back</span>
+        <span class="c1"># unchanged but catch exceptions</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">appiter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="p">(</span><span class="n">environ</span><span class="p">,</span> <span class="n">start_response</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">appiter</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="n">item</span>
+        <span class="c1"># if an exception occours we get the exception information</span>
+        <span class="c1"># and prepare a traceback we can render</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">e_type</span><span class="p">,</span> <span class="n">e_value</span><span class="p">,</span> <span class="n">tb</span> <span class="o">=</span> <span class="n">exc_info</span><span class="p">()</span>
+            <span class="n">traceback</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Traceback (most recent call last):&#39;</span><span class="p">]</span>
+            <span class="n">traceback</span> <span class="o">+=</span> <span class="n">format_tb</span><span class="p">(</span><span class="n">tb</span><span class="p">)</span>
+            <span class="n">traceback</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">e_type</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">e_value</span><span class="p">))</span>
+            <span class="c1"># we might have not a stated response by now. try</span>
+            <span class="c1"># to start one with the status code 500 or ignore an</span>
+            <span class="c1"># raised exception if the application already started one.</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">start_response</span><span class="p">(</span><span class="s1">&#39;500 INTERNAL SERVER ERROR&#39;</span><span class="p">,</span> <span class="p">[</span>
+                               <span class="p">(</span><span class="s1">&#39;Content-Type&#39;</span><span class="p">,</span> <span class="s1">&#39;text/plain&#39;</span><span class="p">)])</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="k">yield</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">traceback</span><span class="p">)</span>
+
+        <span class="c1"># wsgi applications might have a close function. If it exists</span>
+        <span class="c1"># it *must* be called.</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">appiter</span><span class="p">,</span> <span class="s1">&#39;close&#39;</span><span class="p">):</span>
+            <span class="n">appiter</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div>
+<p>So how can we use that middleware now? If our WSGI application is called
+<cite>application</cite> like in the previous example all we have to do is to wrap
+it:</p>
+<div class="highlight"><pre><span></span><span class="n">application</span> <span class="o">=</span> <span class="n">ExceptionMiddleware</span><span class="p">(</span><span class="n">application</span><span class="p">)</span>
+</pre></div>
+<p>Now all occouring exceptions will be catched and displayed in the
+browser. Of course you don't have to do that because there are many
+libraries that do exactly that and with more features.</p>
+</div>
+<div class="section" id="deployment">
+<h2>Deployment</h2>
+<p>Now where the application is &quot;finished&quot; it must be installed on the
+production server somehow. You can of course use wsgiref behind
+mod_proxy but there are also more sophisticated solutions available.
+Many people for example prefer using WSGI applications on top of
+FastCGI. If you have <a class="reference external" href="http://trac.saddi.com/flup">flup</a> installed all
+you have to do is to defined a <cite>myapplication.fcgi</cite> with this code in:</p>
+<div class="highlight"><pre><span></span><span class="ch">#!/usr/bin/python</span>
+<span class="kn">from</span> <span class="nn">flup.server.fcgi</span> <span class="kn">import</span> <span class="n">WSGIServer</span>
+<span class="kn">from</span> <span class="nn">myapplication</span> <span class="kn">import</span> <span class="n">application</span>
+<span class="n">WSGIServer</span><span class="p">(</span><span class="n">application</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</pre></div>
+<p>The apache config then could look like this:</p>
+<div class="highlight"><pre><span></span><span class="nt">&lt;ServerName</span> <span class="s">www.example.com</span><span class="nt">&gt;</span>
+    <span class="nb">Alias</span> <span class="sx">/public</span> <span class="sx">/path/to/the/static/files</span>
+    <span class="nb">ScriptAlias</span> / <span class="sx">/path/to/myapplication.fcgi/</span>
+<span class="nt">&lt;/ServerName&gt;</span>
+</pre></div>
+<p>As you can see there is also a clause for static files. If you are in
+development mode and want to serve static files in your WSGI application
+there are a couple of middlewares (werkzeug and paste as well as &quot;static&quot;
+from Luke Arno's tools provide that) available.</p>
+</div>
+<div class="section" id="nih-dry">
+<h2>NIH / DRY</h2>
+<p>Avoid the &quot;Not Invented Here&quot; problem and don't repeat yourself. Use
+the libraries that exist and their utilities! But there are so many!
+Which one to use? Here my suggestions:</p>
+<div class="section" id="frameworks">
+<h3>Frameworks</h3>
+<p>Since Ruby on Rails appeared on the web everybody is talking about
+frameworks. Python has two major ones too. One that abstracts stuff very
+much and is called <a class="reference external" href="http://www.djangoproject.com/">Django</a> and the other
+that is much nearer to WSGI and called <a class="reference external" href="http://www.pylonshq.com/">pylons</a>. Django is an awesome framework but only as
+long as you don't want to distribute your application. It's if you have to
+create a webpage in no time.  Pylons on the other hand requires more
+developer interaction and your applications are a lot easier to deploy.</p>
+<p>There are other frameworks too but <strong>my</strong> experiences with them are quite
+bad or the community is too small.</p>
+</div>
+<div class="section" id="utility-libraries">
+<h3>Utility Libraries</h3>
+<p>For many situations you don't want a full blown framework. Either because
+it's too big for your application or your application is too complex that
+you can solve it with a framework. (You can solve any application with a
+framework but it could be that the way you have to solve it is a lot more
+complex than without the &quot;help&quot; of the framework)</p>
+<p>For that some utility libraries exist:</p>
+<ul class="simple">
+<li><a class="reference external" href="http://www.pythonpaste.org/">Paste</a> — used by pylons behind the scenes.
+Implements request and response objects. Ships many middlewares.</li>
+<li><a class="reference external" href="http://werkzeug.pocoo.org/">Werkzeug</a> — minimal WSGI library we wrote
+for pocoo. Ships unicode away request and response objects as well as an
+advanced URL mapper and a interactive debugger.</li>
+<li><a class="reference external" href="http://lukearno.com/projects/">Luke Arno's WSGI helpers</a> —
+various WSGI helpers in independent modules by Luke Arno.</li>
+</ul>
+<p>There are also many middlewares out there. Just look for them at
+the <a class="reference external" href="http://cheeseshop.python.org/pypi?:action=search&amp;term=wsgi">Cheeseshop</a>.</p>
+</div>
+<div class="section" id="template-engines">
+<h3>Template Engines</h3>
+<p>Here a list of template engines I often use and recommend:</p>
+<ul class="simple">
+<li><a class="reference external" href="http://genshi.edgewall.org/">Genshi</a> — the world's best XML template
+engine. But quite slow, so if you need a really good performance you have
+to go with something else.</li>
+<li><a class="reference external" href="http://www.makotemplates.org/">Mako</a> — stupidely fast text based
+template engine. It's a mix of ERB, Mason and django templates.</li>
+<li><a class="reference external" href="http://jinja.pocoo.org/">Jinja2</a> — sandboxed, designer friendly and
+quite fast, text based template engine. Of course my personal choice :D</li>
+</ul>
+</div>
+</div>
+<div class="section" id="conclusion">
+<h2>Conclusion</h2>
+<p>WSGI rocks. You can simply create your own personal stack. If you think
+it's too complicated have a look at werkzeug and paste, they make things a
+lot easier without limiting you.</p>
+<p>I hope this article was useful.</p>
+</div>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/python/">python</a> and 
+      <a href="/tags/wsgi/">wsgi</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>

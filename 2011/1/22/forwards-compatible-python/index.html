@@ -1,0 +1,314 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+  
+    <title>Writing Forwards Compatible Python Code | Armin Ronacher's Thoughts and Writings</title>
+    <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <link href="/feed.atom" rel="alternate" title="Armin Ronacher's Thoughts and Writings" type="application/atom+xml">
+    <link rel="stylesheet" href="/static/_pygments.css" type="text/css">
+  
+  </head>
+  <body>
+    <div class=container>
+      <div class=header>
+        <a href="/about/">Armin Ronacher</a>'s Thoughts and Writings
+      </div>
+      <div class=navigation>
+        <ul>
+          <li><a href="/">blog</a>
+          <li><a href="/archive/">archive</a>
+          <li><a href="/tags/">tags</a>
+          <li><a href="/projects/">projects</a>
+          <li><a href="/talks/">talks</a>
+          <li><a href="/about/">about</a>
+        </ul>
+      </div>
+      <div class=body>
+        
+  <h1 class="title">Writing Forwards Compatible Python Code</h1>
+
+  
+  <p class=date>written on Saturday, January 22, 2011
+  
+
+  <p>For web applications the safest bet currently is to stick with Python 2.x
+even for new projects.  For the simple reason that right now we don't have
+enough supporting libraries for Python 3 yet and porting some of them over
+is a huge step.  But with all the people telling one that it's hard and
+painful to upgrade to Python 3, how does one make this upgrade easier?</p>
+<p>For high level applications an upgrade is actually quite simple if it can
+trust the supporting libraries to have consistent behaviour after it's
+ported to Python 3.  In fact there is no reason why an upgrade to Python 3
+shouldn't be possible in a painless way.  So here is a list of dos and
+don'ts for writing new Code.</p>
+<div class="section" id="is-your-baseline">
+<h2>2.6 is your Baseline</h2>
+<p>For new projects, start with Python 2.6 or 2.7.  They provide a lot of
+things that make an upgrade to Python 3 easier for you.  If you don't have
+to support older versions of Python you can already use a lot of the stuff
+that is in Python 3 by explicitly opting them in.</p>
+<p>You should use the following things from <cite>__future__</cite>:</p>
+<ul class="simple">
+<li><cite>division</cite>.  I must admit that I hate the future division import in
+Python 2.  It constantly makes me jump to the beginning of the
+file to check what division mode is active for a module when I do core
+review.  However because it will be the default in Python 3 (and the
+only mode) you really should be using it nowadays.</li>
+<li><cite>absolute_import</cite>.  The most important one.  No longer will <cite>from xml
+import bar</cite> import a module <cite>foo.xml</cite> from the <cite>foo</cite> package when you
+are inside it.  Instead you explicitly have to do <cite>from .xml import
+bar</cite> to get to what you want.  Less confusion and incredible helpful.</li>
+</ul>
+<p>Regarding the print-as-a-function future import, I recommend against using
+it to avoid confusion.  Especially because all editors are currently
+highlighting it as a keyword it can become confusing quickly.  Generally
+if things behave differently in different files it's a good idea to avoid
+these things if possible.  The great aspect of the print change is that it
+can be reliably converted with 2to3, so there is really no reason to use
+the <cite>print_function</cite> future import.</p>
+<p>While it might be appealing, better do not use the <cite>unicode_literals</cite>
+future import.  For the very simple reason that may APIs are changing the
+supported string types in different places and <cite>unicode_literals</cite> is
+counterproductive.  There are of course places where this feature import
+is useful, but that's more limited to lower level interfaces (libraries)
+and those can't use that import anytime soon anyways because it came with
+Python 2.6.  To get access to the <tt class="docutils literal">b'foo'</tt> iteral you <em>do not need</em> this
+specific import.  That is available either way and is a great help for
+2to3.</p>
+</div>
+<div class="section" id="file-io-and-unicode">
+<h2>File IO and Unicode</h2>
+<p>File IO changed greatly in Python 3.  Thankfully if you are designing new
+APIs for new projects you can save yourself a lot of hassle by deciding
+explicitly for unicode.</p>
+<p>If you are dealing with text data, use the <a class="reference external" href="http://docs.python.org/library/codecs.html">codecs.open</a> function for opening the
+files.  Assume utf-8 encoding unless explicitly differently defined and
+operate on unicode strings only.  For binary IO make sure to open the file
+with <tt class="docutils literal">'rb'</tt> instead of <tt class="docutils literal">'r'</tt> and you are set.  That was required for
+proper Windows support already anyways.</p>
+<p>If you are doing byte based data processing mark strings that are bytes
+only with <tt class="docutils literal">b'foo'</tt> instead of <tt class="docutils literal">'foo'</tt> which tells 2to3 to not convert
+these string literals to unicode.  Please be aware of the following
+differences between Python 2.6:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="sa">b</span><span class="s1">&#39;foo&#39;</span>
+<span class="go">&#39;foo&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="sa">b</span><span class="s1">&#39;foo&#39;</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="go">&#39;f&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="sa">b</span><span class="s1">&#39;foo&#39;</span> <span class="o">+</span> <span class="sa">u</span><span class="s1">&#39;bar&#39;</span>
+<span class="go">u&#39;foobar&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">list</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;foo&#39;</span><span class="p">)</span>
+<span class="go">[&#39;f&#39;, &#39;o&#39;, &#39;o&#39;]</span>
+</pre></div>
+<p>and Python 3 regarding byte strings:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="sa">b</span><span class="s1">&#39;foo&#39;</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="go">102</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="sa">b</span><span class="s1">&#39;foo&#39;</span> <span class="o">+</span> <span class="s1">&#39;bar&#39;</span>
+<span class="gt">Traceback (most recent call last):</span>
+  File <span class="nb">&quot;&lt;stdin&gt;&quot;</span>, line <span class="m">1</span>, in <span class="n">&lt;module&gt;</span>
+<span class="gr">TypeError</span>: <span class="n">can&#39;t concat bytes to str</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">list</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;foo&#39;</span><span class="p">)</span>
+<span class="go">[102, 111, 111]</span>
+</pre></div>
+<p>As a replacement for the above Python 2 idioms, you can use this instead:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="sa">b</span><span class="s1">&#39;foo&#39;</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">0</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+<span class="go">b&#39;f&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="sa">b</span><span class="s1">&#39;foo&#39;</span> <span class="o">+</span> <span class="s1">&#39;bar&#39;</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;latin1&#39;</span><span class="p">)</span>
+<span class="go">b&#39;foobar&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">to_charlist</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="n">c</span><span class="p">:</span><span class="n">c</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">))]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">to_charlist</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;foo&#39;</span><span class="p">)</span>
+<span class="go">[b&#39;f&#39;, b&#39;o&#39;, b&#39;o&#39;]</span>
+</pre></div>
+<p>These will work on both 2.6 and 3.x.</p>
+</div>
+<div class="section" id="better-safe-than-sorry">
+<h2>Better Safe than Sorry</h2>
+<p>There are a couple of things where 2to3 will be pretty counterproductive.
+Some of these are cases where 2to3 seems to have a bug, others are the
+cases where it just does not know enough of your code to make proper
+predictions.</p>
+<div class="section" id="recursion-error-with-str">
+<h3>Recursion Error with str</h3>
+<p>A lot of people are using code like this on Python 2:</p>
+<div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Foo</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">unicode</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="fm">__unicode__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">u</span><span class="s1">&#39;Hello World&#39;</span>
+</pre></div>
+<p>2to3 assumes that your API is not unicode compatible and will convert it
+to this:</p>
+<div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Foo</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="fm">__unicode__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;Hello World&#39;</span>
+</pre></div>
+<p>Now this is just wrong.  First of all <cite>__unicode__</cite> is unused in Python 3,
+secondly <cite>__str__</cite> now calls into itself and will trigger a runtime error
+because of recursion when <cite>str()</cite> is called on an instance of <cite>Foo</cite>.  This
+can be solved with either a custom 2to3 fixer or a little helper class
+that makes a check for Python 3:</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">sys</span>
+
+<span class="k">class</span> <span class="nc">UnicodeMixin</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span> <span class="o">&gt;</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
+        <span class="fm">__str__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="fm">__unicode__</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="fm">__str__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">unicode</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">Foo</span><span class="p">(</span><span class="n">UnicodeMixin</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__unicode__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">u</span><span class="s1">&#39;Hello World&#39;</span>
+</pre></div>
+<p>That way your object will still have an <cite>__unicode__</cite> attribute on Python
+3, but that will not do any harm.  When you then want to drop Python 2
+support you just have to go over all subclasses of <cite>UnicodeMixin</cite> and
+rename <cite>__unicode__</cite> to <cite>__str__</cite> and remove the helper class.</p>
+</div>
+<div class="section" id="string-comparisons">
+<h3>String Comparisons</h3>
+<p>This problem is a little more tricky.  In Python 2 the following is true:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;foo&#39;</span> <span class="o">==</span> <span class="sa">u</span><span class="s1">&#39;foo&#39;</span>
+<span class="go">True</span>
+</pre></div>
+<p>Not so in Python 3:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="sa">b</span><span class="s1">&#39;foo&#39;</span> <span class="o">==</span> <span class="s1">&#39;foo&#39;</span>
+<span class="go">False</span>
+</pre></div>
+<p>What's worse here is that Python 2 does not emit a warning on comparisons
+(neither with or without Python-3-warnings flag) and neither will Python
+3.  So how can you spot these cases?  I wrote a small helper module called
+<a class="reference external" href="http://pypi.python.org/pypi/unicode-nazi">unicode-nazi</a> which once
+imported will warn automatically if you do something that is not purely
+a unicode or bytestring operation:</p>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">unicodenazi</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="sa">u</span><span class="s1">&#39;foo&#39;</span> <span class="o">==</span> <span class="s1">&#39;foo&#39;</span>
+<span class="go">__main__:1: UnicodeWarning: Implicit conversion of str to unicode</span>
+<span class="go">True</span>
+</pre></div>
+<p>But be aware that this module is very noisy and has a noticeable runtime
+overhead.</p>
+</div>
+</div>
+<div class="section" id="what-is-a-string">
+<h2>What is a String?</h2>
+<p>Here a table of things that are bytestrings and what they usually become
+in Python 3:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="35%" />
+<col width="65%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Type</th>
+<th class="head">Type in Python 3 <em>(unicode == str)</em></th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td>identifiers</td>
+<td><cite>unicode</cite></td>
+</tr>
+<tr><td>Docstrings</td>
+<td><cite>unicode</cite></td>
+</tr>
+<tr><td><cite>__repr__</cite></td>
+<td><cite>unicode</cite></td>
+</tr>
+<tr><td>string keys of
+dictionaries</td>
+<td><cite>unicode</cite></td>
+</tr>
+<tr><td>WSGI environment keys</td>
+<td><cite>unicode</cite></td>
+</tr>
+<tr><td>HTTP header values,
+WSGI environment values</td>
+<td><cite>unicode</cite>, limited to ASCII in 3.1 and
+limited to latin1 in 3.2</td>
+</tr>
+<tr><td>URLs</td>
+<td><cite>unicode</cite>, but some APIs also accept byte
+strings.  Special attention: your URLs have
+to be encoded in UTF-8 in order to use all
+of the standard library functions.</td>
+</tr>
+<tr><td>Filenames</td>
+<td><cite>unicode</cite> or <cite>bytes</cite>.  Most APIs accept both
+but implicit conversions are not supported.</td>
+</tr>
+<tr><td>Binary contents</td>
+<td><cite>bytes</cite> or <cite>bytearray</cite>.  Beware: the second
+type is mutable, so be aware of the fact
+that you can have a string-ish object that
+is mutable.</td>
+</tr>
+<tr><td>Python code</td>
+<td><cite>unicode</cite>.  You have to decode the source
+yourself when you pass it over to <cite>exec</cite>.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="latin1-is-special">
+<h2>Latin1 is Special</h2>
+<p>In some places (WSGI for instance) there is now the notion of unicode
+strings that must only be a subset of latin1.  That's the case because the
+HTTP spec is not very clear on encodings and it was decided to assume
+latin1 to be safe.  If you control both ends of the communication (like
+you do with cookies) you can of course use utf-8 if you like.  So how does
+this work if the header is limited to latin1?  For Python 3 (and only for
+Python 3) you will need to apply a little trick:</p>
+<div class="highlight"><pre><span></span><span class="k">return</span> <span class="n">cookie_value</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;latin1&#39;</span><span class="p">)</span>
+</pre></div>
+<p>That way you just fake encoded utf-8 into a unicode string.  The WSGI
+layer will then again encode this string as latin1 and you are
+transmitting wrong utf-8 as latin1 over the wire.  If you do the inverse
+of that trick on the receiving end it will work.</p>
+<p>That's of course ugly, but that's pretty much how utf-8 in headers already
+worked.  And it's really just the cookie header that is affected by that,
+and that header was unreliable anyways.</p>
+<p>The only other place in WSGI where this will become an issue is the
+<cite>PATH_INFO</cite> / <cite>SCRIPT_NAME</cite> tuple, but your framework should figure that
+out for you when it's working on Python 3.</p>
+</div>
+
+
+  
+  <p class=tags>This entry was tagged
+    
+      <a href="/tags/python/">python</a>
+  
+
+  
+
+      </div>
+      <div class=footer>
+        <p>&copy; Copyright 2019 by Armin Ronacher.
+        <p>
+          Content licensed under the Creative Commons
+          attribution-noncommercial-sharealike License.
+        <p>
+          Contact me via <a href="mailto:armin.ronacher@active-4.com">mail</a>,
+          <a href="http://twitter.com/mitsuhiko">twitter</a>,
+          <a href="http://github.com/mitsuhiko">github</a> or
+          <a href="http://bitbucket.org/mitsuhiko">bitbucket</a>.
+        <p>
+          More info: <a href="/about#imprint">imprint</a>.
+          Subscribe <a href="/feed.atom" rel="alternate" title="Armin Ronacher's
+            Thoughts and Writings">to Atom feed</a>
+          (or <a href="http://www.devtacular.com/utilities/atomtorss/?url=http%3a%2f%2flucumr.pocoo.org%2ffeed.atom">RSS</a>)
+      </div>
+    </div>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-20909083-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-20909083-1', {
+        'anonymize_ip': true,
+        'cookie_expires': 0,
+      });
+    </script>
+  </body>
+</html>
